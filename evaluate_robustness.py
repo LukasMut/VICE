@@ -126,7 +126,19 @@ def compute_robustness(Ws_mu:list, Ws_b:list=None, thresh:float=.9):
     scores['n_redundant_dims'] = n_redundant_dims
     return scores
 
-def aggregate_val_accs(PATH:str, rnd_seeds:List[int]) -> np.ndarray:
+def get_best_hypers_(PATH:str) -> Tuple[str, float]:
+    paths, results = [], []
+    for root, dirs, files in os.walk(PATH):
+        for name in files:
+            if name.endswith('.json'):
+                paths.append(root)
+                with open(os.path.join(root, name), 'r') as f:
+                    results.append(json.load(f)['val_acc'])
+    max_acc = np.max(results)
+    best_model = paths[np.argmax(results)]
+    return best_model, max_acc
+
+def aggregate_val_accs_old(PATH:str, rnd_seeds:List[int]) -> np.ndarray:
     val_accs = np.zeros(len(rnd_seeds))
     for k, rnd_seed in enumerate(rnd_seeds):
         with open(pjoin(PATH, f'seed{rnd_seed:02d}', 'results.json'), 'rb') as results:
@@ -135,87 +147,51 @@ def aggregate_val_accs(PATH:str, rnd_seeds:List[int]) -> np.ndarray:
 
 def evaluate_models(modality:str, version:str, lmbda:float, thresh:float, device:torch.device) -> None:
     _, sortindex = utils.load_inds_and_item_names()
-    #nmf_components = np.arange(50, 200, 10)
     dims = np.array([100, 200])
-    #lmbdas = np.arange(5.75e+3, 7.5e+3, 2.5e+2) if version == 'variational' else np.array([0.008, 0.0085, 0.0088])
-    lmbdas = np.arange(6.5e+3, 7.5e+3, 2.5e+2) if version == 'variational' else np.array([0.008, 0.0085, 0.0088])
+    avg_val_accs = []
     results_dir = './results'
     N_ITEMS = 1854
     for dim in dims:
-        avg_val_accs = np.zeros(len(lmbdas))
-        for l, lmbda in enumerate(lmbdas):
+        PATH = os.path.join(results_dir, modality, version, 'human', f'{dim}d')
+        model_paths, val_accs = zip(*[os.path.join(PATH, d.name) for d in os.scandir(PATH)])
+        avg_val_accs.append(np.mean(val_accs))
+        Ws_mu, Ws_b = [], []
+        for model_path in model_paths:
             if version == 'variational':
-                if dim == 200:
-                    lmbda *= 2
-            PATH = pjoin(results_dir, modality, version, 'human', f'{dim}d', str(lmbda))
-            rnd_seeds = [dir for dir in os.listdir(PATH) if dir[-2:].isdigit()]
-            rnd_seeds = sorted(list(map(lambda str:int(str.replace('seed', '')), rnd_seeds)))
-            avg_val_accs[l] = aggregate_val_accs(PATH, rnd_seeds)
-            Ws_mu, Ws_b = [], []
-            for rnd_seed in rnd_seeds:
-                if version == 'variational':
-                    #initialise a variational version of SPoSE
-                    model = VSPoSE(in_size=N_ITEMS, out_size=dim, init_weights=True, init_method='normal', device=device, rnd_seed=rnd_seed)
-                else:
-                    model = SPoSE(in_size=N_ITEMS, out_size=dim)
+                model = VSPoSE(in_size=N_ITEMS, out_size=dim, init_weights=True, init_method='normal', device=device)
+            else:
+                model = SPoSE(in_size=N_ITEMS, out_size=dim)
+            try:
+                model = utils.load_model(model, model_path, device)
+            except RuntimeError:
+                raise Exception(f'\nModel parameters were incorrectly stored for random seed: {rnd_seed:02d}\n')
 
-                try:
-                    #load weights of converged VSPoSE model with dSPoSE initialisation
-                    model = utils.load_model(
-                                            model=model,
-                                            results_dir=results_dir,
-                                            modality=modality,
-                                            version=version,
-                                            data='human',
-                                            dim=dim,
-                                            lmbda=lmbda,
-                                            rnd_seed=rnd_seed,
-                                            device=device,
-                    )
-                except RuntimeError:
-                    raise Exception(f'\nModel parameters were incorrectly stored for random seed: {rnd_seed:02d}\n')
+            if version == 'variational':
+                lmbda = float(model_path.split('/')[-2])
+                sorted_dims, _ = utils.compute_kld(model, lmbda=lmbda, aggregate=True, reduction='max')
+                W_mu, W_b = utils.load_weights(model, 'variational')
+                W_mu, W_b = W_mu.numpy(), W_b.numpy()
+                W_mu, W_b = W_mu[sortindex], W_b[sortindex]
+                W_mu = W_mu[:, sorted_dims]
+                W_b = W_b[:, sorted_dims]
+                Ws_b.append(W_b)
+            else:
+                _, W_mu = utils.sort_weights(model, aggregate=False)
+                W_mu = W_mu[sortindex]
 
-                if version == 'variational':
-                #sort VSPoSE dimensions in descending order according to their KLDs and find the top_k dims
-                    sorted_dims, _ = utils.compute_kld(model, lmbda=lmbda, aggregate=True, reduction='max')
-                    W_mu, W_b = utils.load_weights(model, 'variational')
-                    W_mu, W_b = W_mu.numpy(), W_b.numpy()
-                    W_mu, W_b = W_mu[sortindex], W_b[sortindex]
-                    W_mu = W_mu[:, sorted_dims]
-                    W_b = W_b[:, sorted_dims]
-                    Ws_b.append(W_b)
-                else:
-                    _, W_mu = utils.sort_weights(model, aggregate=False)
-                    W_mu = W_mu[sortindex]
+            W_mu = utils.remove_zeros(W_mu.T)
+            Ws_mu.append(W_mu)
 
-                W_mu = utils.remove_zeros(W_mu.T)
-                Ws_mu.append(W_mu)
+        model_robustness = compute_robustness(Ws_mu, Ws_b=Ws_b, thresh=thresh)
+        print(f"\nRobustness scores for latent dim = {dim}: {model_robustness}\n")
 
-            model_robustness = compute_robustness(Ws_mu, Ws_b=Ws_b, thresh=thresh)
+        out_path = pjoin(PATH, 'robustness_scores', str(thresh))
+        if not os.path.exists(out_path):
+            os.makedirs(out_path)
 
-            print(f"\nRobustness scores for lambda = {lmbda:.5f} and latent dim = {dim}: {model_robustness}\n")
+        with open(pjoin(out_path, 'robustness.txt'), 'wb') as f:
+            f.write(pickle.dumps(model_robustness))
 
-            #Ws_mu_nmf = Ws_mu.copy()
-            #W_nmf_final, mean_r2_scores = nmf_grid_search(Ws_mu_nmf, n_components=nmf_components)
-
-            #Ws_mu_split1 = Ws_mu.copy()[:len(Ws_mu)]
-            #Ws_mu_split2 = Ws_mu.copy()[len(Ws_mu):]
-
-            #W_nmf_split1, _ = nmf_grid_search(Ws_mu_split1, n_components=nmf_components)
-            #W_nmf_split2, _ = nmf_grid_search(Ws_mu_split2, n_components=nmf_components)
-
-
-            out_path = pjoin(PATH, 'robustness_scores', str(thresh))
-            if not os.path.exists(out_path):
-                os.makedirs(out_path)
-
-            with open(pjoin(out_path, 'robustness.txt'), 'wb') as f:
-                f.write(pickle.dumps(model_robustness))
-
-        plots_dir = pjoin('./plots', modality, version, f'{dim}d')
-        if not os.path.exists(plots_dir):
-            os.makedirs(plots_dir)
-        plot_val_accs_across_seeds(plots_dir, lmbdas, avg_val_accs)
 
 if __name__ == '__main__':
     #seed random number generator
@@ -224,8 +200,7 @@ if __name__ == '__main__':
     #parse os argument variables
     modality = sys.argv[1]
     version = sys.argv[2]
-    lmbda = float(sys.argv[3])
     thresh = float(sys.argv[4])
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    evaluate_models(modality=modality, version=version, lmbda=lmbda, thresh=thresh, device=device)
+    evaluate_models(modality=modality, version=version, thresh=thresh, device=device)

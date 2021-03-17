@@ -599,17 +599,11 @@ def merge_dicts(files:list) -> dict:
 
 def load_model(
                 model,
-                results_dir:str,
-                modality:str,
-                version:str,
-                data:str,
-                dim:int,
-                lmbda:float,
-                rnd_seed:int,
+                PATH:str,
                 device:torch.device,
                 subfolder:str='model',
 ):
-    model_path = pjoin(results_dir, modality, version, data, f'{dim}d', f'{lmbda}', f'seed{rnd_seed:02d}', subfolder)
+    model_path = pjoin(PATH, subfolder)
     models = os.listdir(model_path)
     checkpoints = list(map(get_digits, models))
     last_checkpoint = np.argmax(checkpoints)

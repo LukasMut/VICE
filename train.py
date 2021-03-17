@@ -100,7 +100,7 @@ def setup_logging(file:str, dir:str='./log_files/'):
     return logger
 
 def get_hypers_(idx:int) -> Tuple[float, float]:
-    lambdas = np.arange(6e+3, 7.25e+3, 2.5e+2)
+    lambdas = np.arange(5.75e+3, 7.25e+3, 2.5e+2)
     weight_decays = np.array([0.005, 0.01, 0.05, 0.1, 0.5])
     lmbda, weight_decay = list(itertools.product(lambdas, weight_decays))[idx]
     return lmbda, weight_decay

@@ -60,8 +60,10 @@ def parseargs():
     aa('--k_samples', type=int,
         choices=[5, 10, 15, 20, 25],
         help='number of samples to leverage for averaging probability scores in a variational version of SPoSE')
-    aa('--n_models', type=int,
-        help='number of models to train in parallel (for CPU users: check number of cores; for GPU users: check number of GPUs at current node)')
+    aa('--lmbda', type=float,
+        help='lambda value determines weight of l1-regularization')
+    aa('--weight_decay', type=float,
+        help='weight decay value determines l2-regularization')
     aa('--window_size', type=int, default=50,
         help='window size to be used for checking convergence criterion with linear regression')
     aa('--sampling_method', type=str, default='normal',
@@ -99,14 +101,7 @@ def setup_logging(file:str, dir:str='./log_files/'):
         logger.addHandler(handler)
     return logger
 
-def get_hypers_(idx:int) -> Tuple[float, float]:
-    lambdas = np.arange(5.75e+3, 7.25e+3, 2.5e+2)
-    weight_decays = np.array([0.005, 0.01, 0.05, 0.1, 0.5])
-    lmbda, weight_decay = list(itertools.product(lambdas, weight_decays))[idx]
-    return lmbda, weight_decay
-
 def run(
-        process_id:int,
         version:str,
         task:str,
         rnd_seed:int,
@@ -117,6 +112,8 @@ def run(
         device:torch.device,
         batch_size:int,
         embed_dim:int,
+        lmbda:float,
+        weight_decay:float,
         epochs:int,
         window_size:int,
         sampling_method:str,
@@ -127,7 +124,7 @@ def run(
         show_progress:bool=True,
 ) -> None:
     #initialise logger and start logging events
-    logger = setup_logging(file='spose_model_optimization.log', dir=f'./log_files/model_{process_id}/')
+    logger = setup_logging(file='vspose_model_optimization.log')
     logger.setLevel(logging.INFO)
     #load triplets into memory
     train_triplets, test_triplets = utils.load_data(device=device, triplets_dir=triplets_dir)
@@ -142,15 +139,7 @@ def run(
                                                       rnd_seed=rnd_seed,
                                                       p=p,
                                                       )
-    print(f'\nNumber of train batches in process {process_id}: {len(train_batches)}\n')
-
-    ###############################
-    ########## settings ###########
-    ###############################
-
-    lmbda, weight_decay = get_hypers_(process_id)
-    if embed_dim == 200:
-        lmbda *= 2
+    print(f'\nNumber of train batches: {len(train_batches)}\n')
 
     #TODO: fix softmax temperature
     temperature = torch.tensor(1.)
@@ -286,7 +275,6 @@ def run(
         val_losses.append(avg_val_loss)
         val_accs.append(avg_val_acc)
 
-        logger.info(f'Process: {process_id}')
         logger.info(f'Epoch: {epoch+1}/{epochs}')
         logger.info(f'Train acc: {avg_train_acc:.3f}')
         logger.info(f'Train loss: {avg_train_loss:.3f}')
@@ -295,7 +283,7 @@ def run(
 
         if show_progress:
             print("\n==============================================================================================================")
-            print(f'====== Process: {process_id} Epoch: {epoch+1}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Val acc: {avg_val_acc:.3f}, Val loss: {avg_val_loss:.3f} ======')
+            print(f'====== Epoch: {epoch+1}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Val acc: {avg_val_acc:.3f}, Val loss: {avg_val_loss:.3f} ======')
             print("==============================================================================================================\n")
 
         if (epoch + 1) % 5 == 0:
@@ -365,45 +353,42 @@ def run(
         json.dump(results, results_file)
 
 if __name__ == "__main__":
-    #start parallelization (note that force must be set to true since there are other files in this project with __name__ == "__main__")
-    torch.multiprocessing.set_start_method('spawn', force=True)
     #parse arguments and set random seeds
     args = parseargs()
     np.random.seed(args.rnd_seed)
     random.seed(args.rnd_seed)
     torch.manual_seed(args.rnd_seed)
 
-    if args.device == 'cuda':
+    if args.device != 'cpu':
+        device = torch.device(args.device)
         torch.cuda.manual_seed_all(args.rnd_seed)
-        n_gpus = torch.cuda.device_count()
         torch.backends.cudnn.benchmark = False
-        print(f'\nUsing {n_gpus} GPUs for parallel training')
-        print(f'PyTorch CUDA version: {torch.version.cuda}\n')
-        n_procs = n_gpus
+        try:
+            torch.cuda.set_device(int(args.device[-1]))
+        except:
+            torch.cuda.set_device(1)
+        print(f'\nPyTorch CUDA version: {torch.version.cuda}\n')
     else:
-        n_procs = args.n_models if args.n_models else os.cpu_count()-1
-        print(f'\nUsing {n_procs} CPU cores for parallel training\n')
+        device = torch.device(args.device)
 
-    torch.multiprocessing.spawn(
-        run,
-        args=(
-        args.version,
-        args.task,
-        args.rnd_seed,
-        args.modality,
-        args.results_dir,
-        args.plots_dir,
-        args.triplets_dir,
-        args.device,
-        args.batch_size,
-        args.embed_dim,
-        args.epochs,
-        args.window_size,
-        args.sampling_method,
-        args.learning_rate,
-        args.p,
-        args.k_samples,
-        args.plot_dims,
-        ),
-        nprocs=n_procs,
-        join=True)
+    run(
+        version=args.version,
+        task=args.task,
+        rnd_seed=args.rnd_seed,
+        modality=args.modality,
+        results_dir=args.results_dir,
+        plots_dir=args.plots_dir,
+        triplets_dir=args.triplets_dir,
+        device=args.device,
+        batch_size=args.batch_size,
+        embed_dim=args.embed_dim,
+        lmbda=args.lmbda,
+        weight_decay=args.weight_decay,
+        epochs=args.epochs,
+        window_size=args.window_size,
+        sampling_method=args.sampling_method,
+        learning_rate=args.learning_rate,
+        p=args.p,
+        k_samples=args.k_samples,
+        plot_dims=args.plot_dims,
+        )

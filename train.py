@@ -293,13 +293,13 @@ def run(
             W_l = W_b.pow(-1)
 
             if init_method == 'normal':
-                W_mu_sorted = utils.remove_zeros(W_mu[:, sorted_dims].cpu().T).T
-                W_b_sorted = W_b[:, sorted_dims].cpu()
-                W_l_sorted = W_l[:, sorted_dims].cpu()
+                W_mu_sorted = utils.remove_zeros(W_mu[:, sorted_dims].cpu().T.numpy()).T
+                W_b_sorted = W_b[:, sorted_dims].cpu().numpy()
+                W_l_sorted = W_l[:, sorted_dims].cpu().numpy()
             else:
                 W_mu_sorted = utils.remove_zeros(W_mu[:, sorted_dspose_dims].cpu().T).T
-                W_b_sorted = W_b[:, sorted_dspose_dims].cpu()
-                W_l_sorted = W_l[:, sorted_dspose_dims].cpu()
+                W_b_sorted = W_b[:, sorted_dspose_dims].cpu().numpy()
+                W_l_sorted = W_l[:, sorted_dspose_dims].cpu().numpy()
                 plot_dim_correlations(
                                       W_mu_vspose=W_mu_sorted,
                                       W_mu_dspose=W_mu_dspose_sorted,

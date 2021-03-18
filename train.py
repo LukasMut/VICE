@@ -143,20 +143,14 @@ def run(
 
     #TODO: fix softmax temperature
     temperature = torch.tensor(1.)
-    init_method = 'normal'
-    dir = None
-    model = VSPoSE(in_size=n_items, out_size=embed_dim, init_weights=True, init_method=init_method, device=device, rnd_seed=rnd_seed, dir=dir)
-    W_mu_dspose = model.encoder_mu[0].weight.data.T
-    l1_norms = W_mu_dspose.norm(p=1, dim=0)
-    sorted_dspose_dims = torch.argsort(l1_norms, descending=True)
-    W_mu_dspose_sorted = W_mu_dspose[:, sorted_dspose_dims].cpu()
+    model = VSPoSE(in_size=n_items, out_size=embed_dim, init_weights=True)
+    model.to(device)
+    optim = Adam(model.parameters(), lr=lr)
+
     k = 3 if task == 'odd_one_out' else 2
     mu = torch.zeros(batch_size * k, embed_dim).to(device)
     l = torch.ones(batch_size * k, embed_dim).mul(lmbda).to(device)
     n_batches = len(train_batches) #for each mini-batch kld must be scaled by 1/B, where B = n_batches
-
-    #move model to current device
-    model.to(device)
 
     ################################################
     ############# Creating PATHs ###################
@@ -174,8 +168,6 @@ def run(
         os.makedirs(plots_dir)
 
     model_dir = pjoin(results_dir, 'model')
-    #initialise optimizer
-    optim = Adam(model.parameters(), lr=lr)
 
     #####################################################################
     ######### Load model from previous checkpoint, if available #########
@@ -292,23 +284,13 @@ def run(
             W_mu, W_b = utils.load_weights(model, version)
             W_l = W_b.pow(-1)
 
-            if init_method == 'normal':
-                W_mu_sorted = utils.remove_zeros(W_mu[:, sorted_dims].cpu().T.numpy()).T
-                W_b_sorted = W_b[:, sorted_dims].cpu().numpy()
-                W_l_sorted = W_l[:, sorted_dims].cpu().numpy()
-            else:
-                W_mu_sorted = utils.remove_zeros(W_mu[:, sorted_dspose_dims].cpu().T).T
-                W_b_sorted = W_b[:, sorted_dspose_dims].cpu().numpy()
-                W_l_sorted = W_l[:, sorted_dspose_dims].cpu().numpy()
-                plot_dim_correlations(
-                                      W_mu_vspose=W_mu_sorted,
-                                      W_mu_dspose=W_mu_dspose_sorted,
-                                      plots_dir=plots_dir,
-                                      epoch=int(epoch+1),
-                                      )
+            W_mu_sorted = utils.remove_zeros(W_mu[:, sorted_dims].cpu().T.numpy()).T
+            W_b_sorted = W_b[:, sorted_dims].cpu().numpy()
+            W_l_sorted = W_l[:, sorted_dims].cpu().numpy()
+
             plot_dim_evolution(
-                                W_mu_sorted=W_mu_sorted,
-                                W_l_sorted=W_l_sorted,
+                                W_mu_sorted=torch.from_numpy(W_mu_sorted),
+                                W_l_sorted=torch.from_numpy(W_l_sorted),
                                 plots_dir=plots_dir,
                                 epoch=int(epoch+1),
                                 )

@@ -625,6 +625,18 @@ def save_weights_(version:str, out_path:str, W_mu:torch.tensor, W_b:torch.tensor
         with open(pjoin(out_path, 'weights_sorted.npy'), 'wb') as f:
             np.save(f, W_sorted)
 
+def load_final_weights(version:str, out_path:str) -> None:
+    if version == 'variational':
+        with open(pjoin(out_path, 'weights_mu_sorted.npy'), 'rb') as f:
+            W_mu = np.load(f)
+        with open(pjoin(out_path, 'weights_b_sorted.npy'), 'rb') as f:
+            W_b = np.load(f)
+        return W_mu, W_b
+    else:
+        with open(pjoin(out_path, 'weights_sorted.npy'), 'rb') as f:
+            W = np.load(f)
+        return W
+
 def load_weights(model, version:str) -> Tuple[torch.Tensor]:
     if version == 'variational':
         W_mu = model.encoder_mu[0].weight.data.T.detach()

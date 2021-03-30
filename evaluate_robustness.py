@@ -132,6 +132,10 @@ def compute_robustness(Ws_mu:list, Ws_b:list=None, thresh:float=.9):
 def del_paths(paths:List[str]) -> None:
     for path in paths:
         shutil.rmtree(path)
+        plots_path = path.split('/')[0]
+        plots_path[0] = 'plots'
+        plots_path = '/'.join(plots_path)
+        shutil.rmtree(plots_path)
 
 def get_best_hypers_(PATH:str) -> Tuple[str, float]:
     paths, results = [], []
@@ -143,9 +147,8 @@ def get_best_hypers_(PATH:str) -> Tuple[str, float]:
                     results.append(json.load(f)['val_acc'])
     argmax_acc = np.argmax(results)
     max_acc = results[argmax_acc]
-    best_model = paths[argmax_acc]
+    best_model = paths.pop(argmax_acc)
     print(f'Best params: {best_model}\n')
-    _ = paths.pop(argmax_acc)
     del_paths(paths)
     return best_model, max_acc
 
@@ -187,6 +190,10 @@ def evaluate_models(results_dir:str, modality:str, version:str, thresh:float, de
 
             W_mu = utils.remove_zeros(W_mu.T)
             Ws_mu.append(W_mu)
+
+        print(f'Mean accuracy on held-out test set: {np.mean(val_accs)}')
+        print(f'Median accuracy on held-out test set: {np.median(val_accs)}')
+        print(f'Max accuracy on held-out test set: {np.max(val_accs)}\n')
 
         model_robustness = compute_robustness(Ws_mu, Ws_b=Ws_b, thresh=thresh)
         print(f"\nRobustness scores for latent dim = {dim}: {model_robustness}\n")

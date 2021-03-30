@@ -149,11 +149,9 @@ def get_best_hypers_(PATH:str) -> Tuple[str, float]:
     del_paths(paths)
     return best_model, max_acc
 
-def evaluate_models(modality:str, version:str, thresh:float, device:torch.device) -> None:
+def evaluate_models(results_dir:str, modality:str, version:str, thresh:float, device:torch.device) -> None:
     _, sortindex = utils.load_inds_and_item_names()
     dims = np.array([100, 200])
-    avg_val_accs = []
-    results_dir = './results'
     N_ITEMS = 1854
     for dim in dims:
         PATH = os.path.join(results_dir, modality, version, f'{dim}d')
@@ -171,7 +169,6 @@ def evaluate_models(modality:str, version:str, thresh:float, device:torch.device
                     print(f'Could not find results for {d.name}\n')
                     pass
 
-        avg_val_accs.append(np.mean(val_accs))
         Ws_mu, Ws_b = [], []
         for model_path in model_paths:
             if version == 'variational':
@@ -193,7 +190,6 @@ def evaluate_models(modality:str, version:str, thresh:float, device:torch.device
 
         model_robustness = compute_robustness(Ws_mu, Ws_b=Ws_b, thresh=thresh)
         print(f"\nRobustness scores for latent dim = {dim}: {model_robustness}\n")
-        print(f"Average validation accuracy: {avg_val_accs[-1]}\n")
 
         out_path = pjoin(PATH, 'robustness_scores', str(thresh))
         if not os.path.exists(out_path):
@@ -205,9 +201,10 @@ def evaluate_models(modality:str, version:str, thresh:float, device:torch.device
 if __name__ == '__main__':
     random.seed(42)
     np.random.seed(42)
-    modality = sys.argv[1]
-    version = sys.argv[2]
-    thresh = float(sys.argv[3])
+    results_dir = sys.argv[1]
+    modality = sys.argv[2]
+    version = sys.argv[3]
+    thresh = float(sys.argv[4])
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    evaluate_models(modality=modality, version=version, thresh=thresh, device=device)
+    evaluate_models(results_dir=results_dir, modality=modality, version=version, thresh=thresh, device=device)

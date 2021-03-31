@@ -18,8 +18,9 @@ from collections import defaultdict
 from models.model import VSPoSE, SPoSE
 from os.path import join as pjoin
 from typing import Tuple, List, Dict
-from plotting import plot_val_accs_across_seeds
 from sklearn.model_selection import RepeatedKFold
+from models.model import VSPoSE
+import torch.nn.functional as F
 
 def avg_ndims(Ws_mu:list) -> np.ndarray:
     return np.ceil(np.mean(list(map(lambda w: min(w.shape), Ws_mu))))
@@ -129,10 +130,10 @@ def compute_robustness(Ws_mu:list, Ws_b:list=None, thresh:float=.9):
     scores['n_redundant_dims'] = n_redundant_dims
     return scores
 
-def del_paths(paths:List[str]) -> None:
+def del_paths_(paths:List[str]) -> None:
     for path in paths:
         shutil.rmtree(path)
-        plots_path = path.split('/')[0]
+        plots_path = path.split('/')[1:]
         plots_path[0] = 'plots'
         plots_path = '/'.join(plots_path)
         shutil.rmtree(plots_path)
@@ -144,66 +145,65 @@ def get_best_hypers_(PATH:str) -> Tuple[str, float]:
             if name.endswith('.json'):
                 paths.append(root)
                 with open(os.path.join(root, name), 'r') as f:
-                    results.append(json.load(f)['val_acc'])
-    argmax_acc = np.argmax(results)
-    max_acc = results[argmax_acc]
-    best_model = paths.pop(argmax_acc)
+                    results.append(json.load(f)['val_loss'])
+    argmin_loss = np.argmin(results)
+    best_model = paths.pop(argmin_loss)
     print(f'Best params: {best_model}\n')
-    del_paths(paths)
-    return best_model, max_acc
+    del_paths_(paths)
+    return best_model
 
-def evaluate_models(results_dir:str, modality:str, version:str, thresh:float, device:torch.device) -> None:
+def get_model_paths_(PATH:str) -> List[str]:
+    #model_paths = [get_best_hypers_(os.path.join(PATH, d.name)) for d in os.scandir(PATH) if d.is_dir() and d.name[-2:].isdigit()]
+    model_paths = []
+    for d in os.scandir(PATH):
+        if d.is_dir() and d.name[-2:].isdigit():
+            try:
+                best_model = get_best_hypers_(os.path.join(PATH, d.name))
+                model_paths.append(best_model)
+            except ValueError:
+                print(f'Could not find results for {d.name}\n')
+                pass
+    return model_paths
+
+def evaluate_models(results_dir:str, modality:str, version:str, dim:int, thresh:float, device:torch.device) -> None:
     _, sortindex = utils.load_inds_and_item_names()
-    dims = np.array([100, 200])
     N_ITEMS = 1854
-    for dim in dims:
-        PATH = os.path.join(results_dir, modality, version, f'{dim}d')
+    PATH = os.path.join(results_dir, modality, version, f'{dim}d')
+    model_paths = get_model_paths_(PATH)
+    Ws_mu, Ws_b = [], []
+    for model_path in model_paths:
+        if version == 'variational':
+            try:
+                model = VSPoSE(N_ITEMS, dim)
+                lmbda = float(model_path.split('/')[-2])
+                model = utils.load_model(model, model_path, device)
+                W_mu, W_b = utils.load_weights(model)
+                W_mu, W_b = W_mu.numpy(), W_b.numpy()
+                W_mu, W_b = W_mu[sortindex], W_b[sortindex]
+                sorted_dims, klds_sorted = utils.compute_kld(model, lmbda, aggregate=True, reduction='max')
+                W_mu, W_b = W_mu[:, sorted_dims], W_b[:, sorted_dims]
+                W_mu = W_mu[:, :utils.kld_cut_off(np.log(klds_sorted))].T
+            except FileNotFoundError:
+                raise Exception(f'Could not find final weights for {model_path}\n')
+            Ws_b.append(W_b)
+        else:
+            try:
+                W_mu = utils.load_final_weights(model_path)
+                W_mu = W_mu[sortindex]
+                W_mu = utils.remove_zeros(W_mu.T)
+            except FileNotFoundError:
+                raise Exception(f'Could not find final weights for {model_path}\n')
+        Ws_mu.append(W_mu)
 
-        #model_paths, val_accs = zip(*[get_best_hypers_(os.path.join(PATH, d.name)) for d in os.scandir(PATH) if d.is_dir() and d.name[-2:].isdigit()])
+    model_robustness = compute_robustness(Ws_mu, Ws_b=Ws_b, thresh=thresh)
+    print(f"\nRobustness scores for latent dim = {dim}: {model_robustness}\n")
 
-        model_paths, val_accs = [], []
-        for d in os.scandir(PATH):
-            if d.is_dir() and d.name[-2:].isdigit():
-                try:
-                    best_model, max_acc = get_best_hypers_(os.path.join(PATH, d.name))
-                    model_paths.append(best_model)
-                    val_accs.append(max_acc)
-                except ValueError:
-                    print(f'Could not find results for {d.name}\n')
-                    pass
+    out_path = pjoin(PATH, 'robustness_scores', str(thresh))
+    if not os.path.exists(out_path):
+        os.makedirs(out_path)
 
-        Ws_mu, Ws_b = [], []
-        for model_path in model_paths:
-            if version == 'variational':
-                try:
-                    W_mu, W_b = utils.load_final_weights(version, model_path)
-                    W_mu, W_b = W_mu[sortindex], W_b[sortindex]
-                except FileNotFoundError:
-                    raise Exception(f'Could not find final weights for {model_path}\n')
-                Ws_b.append(W_b)
-            else:
-                try:
-                    W_mu = utils.load_final_weights(version, model_path)
-                    W_mu = W_mu[sortindex]
-                except FileNotFoundError:
-                    raise Exception(f'Could not find final weights for {model_path}\n')
-
-            W_mu = utils.remove_zeros(W_mu.T)
-            Ws_mu.append(W_mu)
-
-        print(f'Mean accuracy on held-out test set: {np.mean(val_accs)}')
-        print(f'Median accuracy on held-out test set: {np.median(val_accs)}')
-        print(f'Max accuracy on held-out test set: {np.max(val_accs)}\n')
-
-        model_robustness = compute_robustness(Ws_mu, Ws_b=Ws_b, thresh=thresh)
-        print(f"\nRobustness scores for latent dim = {dim}: {model_robustness}\n")
-
-        out_path = pjoin(PATH, 'robustness_scores', str(thresh))
-        if not os.path.exists(out_path):
-            os.makedirs(out_path)
-
-        with open(pjoin(out_path, 'robustness.txt'), 'wb') as f:
-            f.write(pickle.dumps(model_robustness))
+    with open(pjoin(out_path, 'robustness.txt'), 'wb') as f:
+        f.write(pickle.dumps(model_robustness))
 
 if __name__ == '__main__':
     random.seed(42)
@@ -211,7 +211,8 @@ if __name__ == '__main__':
     results_dir = sys.argv[1]
     modality = sys.argv[2]
     version = sys.argv[3]
-    thresh = float(sys.argv[4])
+    dim = int(sys.argv[4])
+    thresh = float(sys.argv[5])
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    evaluate_models(results_dir=results_dir, modality=modality, version=version, thresh=thresh, device=device)
+    evaluate_models(results_dir=results_dir, modality=modality, version=version, dim=dim, thresh=thresh, device=device)

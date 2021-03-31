@@ -70,7 +70,7 @@ import skimage.io as io
 import torch.nn.functional as F
 
 from collections import defaultdict, Counter
-from itertools import combinations, permutations
+from itertools import islice, combinations, permutations
 from numba import njit, jit, prange
 from os.path import join as pjoin
 from skimage.transform import resize
@@ -604,52 +604,31 @@ def load_model(
                 subfolder:str='model',
 ):
     model_path = pjoin(PATH, subfolder)
-    models = os.listdir(model_path)
-    checkpoints = list(map(get_digits, models))
-    last_checkpoint = np.argmax(checkpoints)
-    PATH = pjoin(model_path, models[last_checkpoint])
+    models = sorted(os.listdir(model_path))
+    PATH = pjoin(model_path, models[-1])
     checkpoint = torch.load(PATH, map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
     return model
 
-def save_weights_(version:str, out_path:str, W_mu:torch.tensor, W_b:torch.tensor=None) -> None:
-    if version == 'variational':
-        with open(pjoin(out_path, 'weights_mu_sorted.npy'), 'wb') as f:
-            np.save(f, W_mu)
-        with open(pjoin(out_path, 'weights_b_sorted.npy'), 'wb') as f:
-            np.save(f, W_b)
-    else:
-        W_mu = W_mu.detach().cpu().numpy()
-        W_mu = remove_zeros(W_mu)
-        W_sorted = np.abs(W_mu[np.argsort(-np.linalg.norm(W_mu, ord=1, axis=1))]).T
-        with open(pjoin(out_path, 'weights_sorted.npy'), 'wb') as f:
-            np.save(f, W_sorted)
+def save_weights_(out_path:str, W_mu:torch.tensor, W_b:torch.tensor) -> None:
+    with open(pjoin(out_path, 'weights_mu_sorted.npy'), 'wb') as f:
+        np.save(f, W_mu)
+    with open(pjoin(out_path, 'weights_b_sorted.npy'), 'wb') as f:
+        np.save(f, W_b)
 
-def load_final_weights(version:str, out_path:str) -> None:
-    if version == 'variational':
-        with open(pjoin(out_path, 'weights_mu_sorted.npy'), 'rb') as f:
-            W_mu = np.load(f)
-        with open(pjoin(out_path, 'weights_b_sorted.npy'), 'rb') as f:
-            W_b = np.load(f)
-        return W_mu, W_b
-    else:
-        with open(pjoin(out_path, 'weights_sorted.npy'), 'rb') as f:
-            W = np.load(f)
-        return W
+def load_final_weights(out_path:str) -> None:
+    with open(pjoin(out_path, 'weights_mu_sorted.npy'), 'rb') as f:
+        W_mu = np.load(f)
+    with open(pjoin(out_path, 'weights_b_sorted.npy'), 'rb') as f:
+        W_b = np.load(f)
+    return W_mu, W_b
 
-def load_weights(model, version:str) -> Tuple[torch.Tensor]:
-    if version == 'variational':
-        W_mu = model.encoder_mu[0].weight.data.T.detach()
-        if hasattr(model.encoder_mu[0].bias, 'data'):
-            W_mu += model.encoder_mu[0].bias.data.detach()
-        W_b = model.encoder_b[0].weight.data.T.detach()
-        if hasattr(model.encoder_b[0].bias, 'data'):
-            W_b += model.encoder_b[0].bias.data.detach()
-        W_mu = F.relu(W_mu)
-        W_b = F.softplus(W_b)
-        return W_mu, W_b
-    else:
-        return model.fc.weight.T.detach()
+def load_weights(model) -> Tuple[torch.Tensor, torch.Tensor]:
+    W_mu = model.encoder_mu[0].weight.data.T.detach()
+    W_b = model.encoder_b[0].weight.data.T.detach()
+    W_mu = F.relu(W_mu)
+    W_b = F.softplus(W_b)
+    return W_mu, W_b
 
 def prune_weights(model, version:str, indices:torch.Tensor, fraction:float):
     indices = indices[:int(len(indices)*fraction)]
@@ -667,23 +646,11 @@ def prune_weights(model, version:str, indices:torch.Tensor, fraction:float):
             m.data = m.data[indices]
     return model
 
-def sort_weights(model, aggregate:bool) -> np.ndarray:
-    """sort latent dimensions according to their l1-norm in descending order"""
-    W = load_weights(model, version='deterministic').cpu()
-    l1_norms = W.norm(p=1, dim=0)
-    sorted_dims = torch.argsort(l1_norms, descending=True)
-    if aggregate:
-        l1_sorted = l1_norms[sorted_dims]
-        return sorted_dims, l1_sorted.numpy()
-    return sorted_dims, W[:, sorted_dims].numpy()
-
-def get_cut_off(klds:np.ndarray) -> int:
-    klds /= klds.max(axis=0)
-    cut_off = np.argmax([np.var(klds[i-1])-np.var(kld) for i, kld in enumerate(klds.T) if i > 0])
-    return cut_off
+def kld_cut_off(klds:np.ndarray) -> int:
+    return np.argmax([(kld_i-kld_j) for kld_i, kld_j in zip(klds, islice(klds, 1, None))])
 
 def compute_kld(model, lmbda:float, aggregate:bool, reduction=None) -> np.ndarray:
-    mu_hat, b_hat = load_weights(model, version='variational')
+    mu_hat, b_hat = load_weights(model)
     mu = torch.zeros_like(mu_hat)
     lmbda = torch.tensor(lmbda)
     b = torch.ones_like(b_hat).mul(lmbda.pow(-1))
@@ -860,17 +827,6 @@ def cross_correlate_latent_dims(X, thresh:float=None) -> float:
 ################################################################################################
 ############################ helper functions for data visualization ###########################
 ################################################################################################
-
-def load_searchlight_imgs(PATH:str) -> np.ndarray:
-    searchlight_results = np.array([delta for delta in os.listdir(PATH) if delta.endswith('.npy')])
-    searchlight_indices = list(map(get_digits, searchlight_results))
-    searchlight_results = searchlight_results[np.argsort(searchlight_indices)]
-    deltas  = []
-    for delta in searchlight_results:
-        with open(pjoin(PATH, delta), 'rb') as f:
-            deltas.append(np.load(f))
-    deltas = np.asarray(deltas)
-    return deltas
 
 def clip_img(img:np.ndarray) -> np.ndarray:
     return np.clip(img, a_min=None, a_max=np.percentile(img, 99))

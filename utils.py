@@ -1,60 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-__all__ = [
-            'BatchGenerator',
-            'TripletDataset',
-            'choice_accuracy',
-            'cross_entropy_loss',
-            'compute_kld',
-            'compare_modalities',
-            'corr_mat',
-            'compute_trils',
-            'cos_mat',
-            'cross_correlate_latent_dims',
-            'encode_as_onehot',
-            'fill_diag',
-            'get_cut_off',
-            'get_digits',
-            'get_image_combinations',
-            'get_optim_',
-            'get_nneg_dims',
-            'get_ref_indices',
-            'get_results_files',
-            'get_nitems',
-            'kld_online',
-            'kld_offline',
-            'load_batches',
-            'load_concepts',
-            'load_data',
-            'load_inds_and_item_names',
-            'load_model',
-            'load_searchlight_imgs',
-            'load_sparse_codes',
-            'load_ref_images',
-            'load_targets',
-            'load_weights',
-            'l2_reg_',
-            'matmul',
-            'merge_dicts',
-            'pickle_file',
-            'unpickle_file',
-            'pearsonr',
-            'prune_weights',
-            'rsm',
-            'rsm_pred',
-            'save_weights_',
-            'sparsity',
-            'avg_sparsity',
-            'softmax',
-            'sort_weights',
-            'trinomial_loss',
-            'trinomial_probs',
-            'tripletize_data',
-            'validation',
-            'remove_zeros',
-        ]
-
 import json
 import logging
 import math
@@ -657,11 +603,11 @@ def compute_kld(model, lmbda:float, aggregate:bool, reduction=None) -> np.ndarra
     kld = kld_offline(mu_hat, b_hat, mu, b)
     if aggregate:
         assert isinstance(reduction, str), '\noperator to aggregate KL divergences must be defined\n'
-        if reduction == 'sum':
+        if reduction == 'mean':
             #use sum as to aggregate KLDs for each dimension
-            kld_sum = kld.sum(dim=0)
-            sorted_dims = torch.argsort(kld_sum, descending=True)
-            klds_sorted = kld_sum[sorted_dims].cpu().numpy()
+            kld_mean = kld.mean(dim=0)
+            sorted_dims = torch.argsort(kld_mean, descending=True)
+            klds_sorted = kld_mean[sorted_dims].cpu().numpy()
         else:
             #use max to aggregate KLDs for each dimension
             kld_max = kld.max(dim=0)[0]
@@ -676,16 +622,6 @@ def compute_kld(model, lmbda:float, aggregate:bool, reduction=None) -> np.ndarra
 #############################################################################################
 ######### helper functions to load weight matrices and compare RSMs across modalities #######
 #############################################################################################
-
-def load_sparse_codes(PATH) -> np.ndarray:
-    Ws = [f for f in os.listdir(PATH) if f.endswith('.txt')]
-    max_epoch = np.argmax(list(map(get_digits, Ws)))
-    W = np.loadtxt(pjoin(PATH, Ws[max_epoch]))
-    W = remove_zeros(W)
-    l1_norms = np.linalg.norm(W, ord=1, axis=1)
-    sorted_dims = np.argsort(l1_norms)[::-1]
-    W = W[sorted_dims]
-    return W.T, sorted_dims
 
 def load_targets(model:str, layer:str, folder:str='./visual') -> np.ndarray:
     PATH = pjoin(folder, model, layer)

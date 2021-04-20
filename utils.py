@@ -352,27 +352,6 @@ def get_model_confidence_(PATH:str) -> Tuple[np.ndarray, np.ndarray]:
             avg_probas[i] += avg_p
     return confidence_scores, avg_probas
 
-def smoothing_(p:np.ndarray, alpha:float=.1) -> np.ndarray:
-    return (p + alpha) / np.sum(p + alpha)
-
-def entropy_(p:np.ndarray) -> np.ndarray:
-    return np.sum(np.where(p == 0, 0, p*np.log(p)))
-
-def cross_entropy_(p:np.ndarray, q:np.ndarray, alpha:float) -> float:
-    return -np.sum(p*np.log(smoothing_(q, alpha)))
-
-def kld_(p:np.ndarray, q:np.ndarray, alpha:float) -> float:
-    return entropy_(p) + cross_entropy_(p, q, alpha)
-
-def compute_divergences(human_pmfs:dict, model_pmfs:dict, metric:str='kld') -> np.ndarray:
-    assert len(human_pmfs) == len(model_pmfs), '\nNumber of triplets in human and model distributions must correspond.\n'
-    divergences = np.zeros(len(human_pmfs))
-    for i, (triplet, p) in enumerate(human_pmfs.items()):
-        q = model_pmfs[triplet]
-        div = kld_(p, q) if metric  == 'kld' else cross_entropy_(p, q)
-        divergences[i] += div
-    return divergences
-
 def mat2py(triplet:tuple) -> tuple:
     return tuple(np.asarray(triplet)-1)
 
@@ -524,18 +503,6 @@ def validation(model, val_batches, version:str, task:str, device:torch.device, n
     avg_val_loss = torch.mean(batch_losses_val).item()
     avg_val_acc = torch.mean(batch_accs_val).item()
     return avg_val_loss, avg_val_acc
-
-def get_digits(string:str) -> int:
-    c = ""
-    nonzero = False
-    for i in string:
-        if i.isdigit():
-            if (int(i) == 0) and (not nonzero):
-                continue
-            else:
-                c += i
-                nonzero = True
-    return int(c)
 
 def get_results_files(
                       results_dir:str,

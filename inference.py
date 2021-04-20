@@ -75,11 +75,11 @@ def compute_divergences(human_pmfs:dict, model_pmfs:dict, alpha:float, metric:st
 
 def get_val_pmfs(triplets_dir:str) -> dict:
     val_set = np.loadtxt(os.path.join(triplets_dir, 'test_10.txt'))
-    val_pmfs = {tuple(np.sort(t)): np.array([0, 0, 1])[np.argsort(t)] for t in val_set}
+    val_pmfs = {tuple(np.sort(t).astype(int)): np.array([0, 0, 1])[np.argsort(t)] for t in val_set}
     return val_pmfs
 
-def get_triplet_intersection(val_pmfs:dict, model_pmf:dict) -> dict:
-    intersection = set(list(val_pmfs.keys())).intersection(set(list(model_pmfs.keys())))
+def get_triplet_intersection(val_pmfs:dict, seed_pmfs:dict) -> dict:
+    intersection = set(list(val_pmfs.keys())).intersection(set(list(seed_pmfs.keys())))
     val_pmfs = {t:val_pmfs[t] for t in intersection}
     return val_pmfs
 

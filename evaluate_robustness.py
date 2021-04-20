@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import argparse
 import json
-import sys
 import os
 import pickle
 import random
@@ -11,16 +11,52 @@ import torch
 import utils
 import itertools
 import shutil
+import copy
 
 import numpy as np
+import torch.nn.functional as F
 
 from collections import defaultdict
-from models.model import VSPoSE, SPoSE
-from os.path import join as pjoin
-from typing import Tuple, List, Dict
-from sklearn.model_selection import RepeatedKFold
 from models.model import VSPoSE
-import torch.nn.functional as F
+from os.path import join as pjoin
+from typing import Tuple, List, Dict, Any, Iterator
+from sklearn import mixture
+from scipy.stats import laplace
+from statsmodels.stats.multitest import multipletests
+
+def parseargs():
+    parser = argparse.ArgumentParser()
+    def aa(*args, **kwargs):
+        parser.add_argument(*args, **kwargs)
+    aa('--results_dir', type=str,
+        help='results directory (root directory for models)')
+    aa('--modality', type=str,
+        help='current modality (e.g., behavioral, synthetic)')
+    aa('--task', type=str, default='odd_one_out',
+        choices=['odd_one_out', 'similarity_task'])
+    aa('--version', type=str,
+        choices=['deterministic', 'variational'],
+        help='deterministic or variational version of SPoSE')
+    aa('--dim', type=int, default=100,
+        help='latent dimensionality of VSPoSE embedding matrices')
+    aa('--thresh', type=float, default=0.85,
+        choices=[0.75, 0.8, 0.85, 0.9, 0.95],
+        help='examine fraction of dimensions across models that is above threshold (corresponds to Pearson correlation)')
+    aa('--batch_size', metavar='B', type=int, default=128,
+        help='number of triplets in each mini-batch')
+    aa('--triplets_dir', type=str, default=None,
+        help='directory from where to load triplets data')
+    aa('--n_components', type=int, nargs='+', default=None,
+        help='number of clusters/modes in Gaussian mixture model')
+    aa('--n_samples', type=int, default=None,
+        choices=[5, 10, 15, 20, 25],
+        help='number of samples to use for MCMC sampling during validation')
+    aa('--device', type=str,
+        choices=['cpu', 'cuda'])
+    aa('--rnd_seed', type=int, default=42,
+        help='random seed for reproducibility')
+    args = parser.parse_args()
+    return args
 
 def avg_ndims(Ws_mu:list) -> np.ndarray:
     return np.ceil(np.mean(list(map(lambda w: min(w.shape), Ws_mu))))
@@ -132,9 +168,10 @@ def compute_robustness(Ws_mu:list, Ws_b:list=None, thresh:float=.9):
 
 def del_paths_(paths:List[str]) -> None:
     for path in paths:
+        idx = 2 if re.search(r'SPoSE', path) else 1
         shutil.rmtree(path)
-        plots_path = path.split('/')[1:]
-        plots_path[0] = 'plots'
+        plots_path = path.split('/')
+        plots_path[idx] = 'plots'
         plots_path = '/'.join(plots_path)
         shutil.rmtree(plots_path)
 
@@ -165,8 +202,77 @@ def get_model_paths_(PATH:str) -> List[str]:
                 pass
     return model_paths
 
-def evaluate_models(results_dir:str, modality:str, version:str, dim:int, thresh:float, device:torch.device) -> None:
-    _, sortindex = utils.load_inds_and_item_names()
+def prune_weights(model:Any, indices:torch.Tensor) -> Any:
+    for m in model.parameters():
+        m.data = m.data[indices]
+    return model
+
+def fit_gmm(X:np.ndarray, n_components:List[int]) -> Tuple[int, Any]:
+    gmms, scores = [], []
+    cv_types = ['spherical', 'diag', 'full']
+    hyper_combs = list(itertools.product(cv_types, n_components))
+    for comb in hyper_combs:
+        gmm = mixture.GaussianMixture(n_components=comb[1], covariance_type=comb[0])
+        gmm.fit(X)
+        gmms.append(gmm)
+        scores.append(gmm.bic(X))
+    clusters = gmms[np.argmin(scores)].predict(X)
+    n_clusters = hyper_combs[np.argmin(scores)][1]
+    return clusters, n_clusters
+
+def compute_pvals(W_mu:np.ndarray, W_b:np.ndarray) -> np.ndarray:
+    return np.array([laplace.cdf(0, W_mu[:, j], W_b[:, j]) for j in range(W_mu.shape[1])])
+
+def fdr_correction(p_vals:np.ndarray, alpha:float=0.01) -> np.ndarray:
+    return np.array(list(map(lambda p: multipletests(p, alpha=alpha, method='fdr_bh')[0], p_vals)))
+
+def get_importance(rejections:np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    return np.array(list(map(sum, rejections)))[:, np.newaxis]
+
+def pruning(
+            model:Any,
+            task:str,
+            val_batches:Iterator[torch.Tensor],
+            n_components:List[int],
+            n_samples:int,
+            device:torch.device,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    W_mu, W_b = utils.load_weights(model)
+    W_mu = W_mu[sortindex]
+    W_b = W_b[sortindex]
+    importance = get_importance(fdr_correction(compute_pvals(W_mu, W_b)))
+    clusters, n_clusters = fit_gmm(importance, n_components)
+    val_accs = np.zeros(n_clusters)
+    for k in range(n_clusters):
+        indices = torch.from_numpy(np.where(clusters==k)[0]).type(torch.LongTensor).to(device)
+        model_copy = copy.deepcopy(model)
+        model_pruned = prune_weights(model_copy, indices)
+        _, val_acc = utils.validation(
+                                      model=model_pruned,
+                                      task=task,
+                                      val_batches=val_batches,
+                                      version='variational',
+                                      device=device,
+                                      n_samples=n_samples,
+                                )
+        val_accs[k] += val_acc
+    W_mu = W_mu[:, np.where(clusters!=np.argmin(val_accs))[0]].cpu().numpy()
+    W_b = W_b[:, np.where(clusters!=np.argmin(val_accs))[0]].cpu().numpy()
+    return W_mu.T, W_b
+
+def evaluate_models(
+                    results_dir:str,
+                    modality:str,
+                    version:str,
+                    dim:int,
+                    thresh:float,
+                    device:torch.device,
+                    task=None,
+                    batch_size=None,
+                    triplets_dir=None,
+                    n_components=None,
+                    n_samples=None,
+                    ) -> None:
     N_ITEMS = 1854
     PATH = os.path.join(results_dir, modality, version, f'{dim}d')
     model_paths = get_model_paths_(PATH)
@@ -177,18 +283,21 @@ def evaluate_models(results_dir:str, modality:str, version:str, dim:int, thresh:
                 model = VSPoSE(N_ITEMS, dim)
                 lmbda = float(model_path.split('/')[-2])
                 model = utils.load_model(model, model_path, device)
-                W_mu, W_b = utils.load_weights(model)
-                W_mu, W_b = W_mu.numpy(), W_b.numpy()
-                W_mu, W_b = W_mu[sortindex], W_b[sortindex]
-                sorted_dims, klds_sorted = utils.compute_kld(model, lmbda, aggregate=True, reduction='max')
-                W_mu, W_b = W_mu[:, sorted_dims], W_b[:, sorted_dims]
-                W_mu = W_mu[:, :utils.kld_cut_off(np.log(klds_sorted))].T
+                _, test_triplets = utils.load_data(device=device, triplets_dir=triplets_dir, inference=False)
+                val_batches = utils.load_batches(train_triplets=None, test_triplets=test_triplets, n_items=N_ITEMS, batch_size=batch_size, inference=True)
+                W_mu, W_b = pruning(model=model, task=task, val_batches=val_batches, n_components=n_components, n_samples=n_samples, device=device)
+                #W_mu, W_b = utils.load_weights(model)
+                #W_mu, W_b = W_mu.numpy(), W_b.numpy()
+                #W_mu, W_b = W_mu[sortindex], W_b[sortindex]
+                #sorted_dims, klds_sorted = utils.compute_kld(model, lmbda, aggregate=True, reduction='max')
+                #W_mu, W_b = W_mu[:, sorted_dims], W_b[:, sorted_dims]
+                #W_mu = W_mu[:, :utils.kld_cut_off(np.log(klds_sorted))].T
             except FileNotFoundError:
                 raise Exception(f'Could not find final weights for {model_path}\n')
             Ws_b.append(W_b)
         else:
             try:
-                W_mu = utils.load_final_weights(model_path)
+                W_mu = utils.load_final_weights(model_path, version)
                 W_mu = W_mu[sortindex]
                 W_mu = utils.remove_zeros(W_mu.T)
             except FileNotFoundError:
@@ -206,13 +315,20 @@ def evaluate_models(results_dir:str, modality:str, version:str, dim:int, thresh:
         f.write(pickle.dumps(model_robustness))
 
 if __name__ == '__main__':
-    random.seed(42)
-    np.random.seed(42)
-    results_dir = sys.argv[1]
-    modality = sys.argv[2]
-    version = sys.argv[3]
-    dim = int(sys.argv[4])
-    thresh = float(sys.argv[5])
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    evaluate_models(results_dir=results_dir, modality=modality, version=version, dim=dim, thresh=thresh, device=device)
+    args = parseargs()
+    random.seed(args.rnd_seed)
+    np.random.seed(args.rnd_seed)
+    _, sortindex = utils.load_inds_and_item_names()
+    evaluate_models(
+                    results_dir=args.results_dir,
+                    modality=args.modality,
+                    task=args.task,
+                    version=args.version,
+                    dim=args.dim,
+                    thresh=args.thresh,
+                    device=args.device,
+                    batch_size=args.batch_size,
+                    triplets_dir=args.triplets_dir,
+                    n_components=args.n_components,
+                    n_samples=args.n_samples,
+                    )

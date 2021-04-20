@@ -228,18 +228,15 @@ def load_batches(
         val_batches = BatchGenerator(I=I, dataset=test_triplets, batch_size=batch_size, sampling_method=None, p=None)
     return train_batches, val_batches
 
-def get_optim_(model, lr:float, weight_decay:float=1e-2):
-    optim = AdamW([
-                    {"params":model.encoder_mu[0].weight, 'weight_decay': weight_decay/2},
-                    {"params":model.encoder_mu[0].bias, 'weight_decay': weight_decay/2},
-                    {"params":model.encoder_b[0].weight, 'weight_decay': weight_decay},
-                    {"params":model.encoder_b[0].bias, 'weight_decay': weight_decay},
-                    ], lr=lr, betas=(0.9, 0.999), eps=1e-08, amsgrad=False)
-    return optim
+#def l2_reg_(model, weight_decay:float=1e-5) -> torch.Tensor:
+#    loc_norms_squared = .5 * (model.encoder_mu[0].weight.pow(2).sum() + model.encoder_mu[0].bias.pow(2).sum())
+#    scale_norms_squared = (model.encoder_b[0].weight.pow(2).sum() +  model.encoder_mu[0].bias.pow(2).sum())
+#    l2_reg = weight_decay * (loc_norms_squared + scale_norms_squared)
+#    return l2_reg
 
 def l2_reg_(model, weight_decay:float=1e-5) -> torch.Tensor:
-    loc_norms_squared = .5 * (model.encoder_mu[0].weight.pow(2).sum() + model.encoder_mu[0].bias.pow(2).sum())
-    scale_norms_squared = (model.encoder_b[0].weight.pow(2).sum() +  model.encoder_mu[0].bias.pow(2).sum())
+    loc_norms_squared = .5 * model.encoder_mu.weight.data.pow(2).sum()
+    scale_norms_squared = model.encoder_logb.weight.data.exp().pow(2).sum()
     l2_reg = weight_decay * (loc_norms_squared + scale_norms_squared)
     return l2_reg
 
@@ -418,7 +415,15 @@ def collect_choices(probas:np.ndarray, human_choices:np.ndarray, model_choices:d
 def logsumexp_(logits:torch.Tensor) -> torch.Tensor:
     return torch.exp(logits - torch.logsumexp(logits, dim=1)[..., None])
 
-def mc_sampling(model, batch:torch.Tensor, temperature:torch.Tensor, task:str, n_samples:int, device:torch.device) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def mc_sampling(
+                model,
+                batch:torch.Tensor,
+                temperature:torch.Tensor,
+                task:str,
+                n_samples:int,
+                device:torch.device,
+                compute_stds:bool=False,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     n_alternatives = 3 if task == 'odd_one_out' else 2
     sampled_probas = torch.zeros(n_samples, batch.shape[0] // n_alternatives, n_alternatives).to(device)
     sampled_choices = torch.zeros(n_samples, batch.shape[0] // n_alternatives).to(device)
@@ -435,22 +440,27 @@ def mc_sampling(model, batch:torch.Tensor, temperature:torch.Tensor, task:str, n
         sampled_probas[k] += probas
         sampled_choices[k] +=  soft_choices
 
-    probas = sampled_probas.mean(dim=0).cpu().numpy()
+    probas = sampled_probas.mean(dim=0)
     val_acc = accuracy_(probas)
     soft_choices = sampled_choices.mean(dim=0)
     val_loss = torch.mean(-torch.log(soft_choices))
+    if compute_stds:
+        stds = sampled_probas.std(dim=0)
+        return val_acc, val_loss, probas, stds
     return val_acc, val_loss, probas
 
 def test(
         model,
         test_batches,
-        version:str,
         task:str,
         device:torch.device,
         batch_size=None,
         n_samples=None,
+        compute_stds:bool=False,
 ) -> Tuple:
     probas = torch.zeros(int(len(test_batches) * batch_size), 3)
+    if compute_stds:
+        triplet_stds = torch.zeros(int(len(test_batches) * batch_size), 3)
     temperature = torch.tensor(1.).to(device)
     model_choices = defaultdict(list)
     model.eval()
@@ -458,18 +468,26 @@ def test(
         batch_accs = torch.zeros(len(test_batches))
         for j, batch in enumerate(test_batches):
             batch = batch.to(device)
-            if version == 'variational':
-                assert isinstance(n_samples, int), '\nOutput logits of variational neural networks have to be averaged over different samples through mc sampling.\n'
-                test_acc, _, batch_probas = mc_sampling(model=model, batch=batch, temperature=temperature, task=task, n_samples=n_samples, device=device)
+            if compute_stds:
+                test_acc, _, batch_probas, batch_stds = mc_sampling(
+                                                                    model=model,
+                                                                    batch=batch,
+                                                                    temperature=temperature,
+                                                                    task=task,
+                                                                    n_samples=n_samples,
+                                                                    device=device,
+                                                                    compute_stds=compute_stds,
+                                                                    )
+                triplet_stds[j*batch_size:(j+1)*batch_size] += batch_stds
             else:
-                logits = model(batch)
-                anchor, positive, negative = torch.unbind(torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1)
-                similarities = compute_similarities(anchor, positive, negative, task)
-                #stacked_sims = torch.stack(similarities, dim=-1)
-                #batch_probas = F.softmax(logsumexp_(stacked_sims), dim=1)
-                batch_probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
-                test_acc = choice_accuracy(anchor, positive, negative, task)
-
+                test_acc, _, batch_probas = mc_sampling(
+                                                        model=model,
+                                                        batch=batch,
+                                                        temperature=temperature,
+                                                        task=task,
+                                                        n_samples=n_samples,
+                                                        device=device,
+                                                        )
             probas[j*batch_size:(j+1)*batch_size] += batch_probas
             batch_accs[j] += test_acc
             human_choices = batch.nonzero(as_tuple=True)[-1].view(batch_size, -1).numpy()
@@ -479,6 +497,10 @@ def test(
     probas = probas[np.where(probas.sum(axis=1) != 0.)]
     model_pmfs = compute_pmfs(model_choices, behavior=False)
     test_acc = batch_accs.mean().item()
+    if compute_stds:
+        triplet_stds = triplet_stds.cpu().numpy()
+        triplet_stds = triplet_stds.mean(axis=1)
+        return test_acc, probas, model_pmfs, triplet_stds
     return test_acc, probas, model_pmfs
 
 def validation(model, val_batches, version:str, task:str, device:torch.device, n_samples=None) -> Tuple[float, float]:
@@ -562,18 +584,22 @@ def save_weights_(out_path:str, W_mu:torch.tensor, W_b:torch.tensor) -> None:
     with open(pjoin(out_path, 'weights_b_sorted.npy'), 'wb') as f:
         np.save(f, W_b)
 
-def load_final_weights(out_path:str) -> None:
-    with open(pjoin(out_path, 'weights_mu_sorted.npy'), 'rb') as f:
-        W_mu = np.load(f)
-    with open(pjoin(out_path, 'weights_b_sorted.npy'), 'rb') as f:
-        W_b = np.load(f)
-    return W_mu, W_b
+def load_final_weights(out_path:str, version:str='variational') -> None:
+    if version == 'variational':
+        with open(pjoin(out_path, 'weights_mu_sorted.npy'), 'rb') as f:
+            W_mu = np.load(f)
+        with open(pjoin(out_path, 'weights_b_sorted.npy'), 'rb') as f:
+            W_b = np.load(f)
+        return W_mu, W_b
+    else:
+        with open(pjoin(out_path, 'weights_sorted.npy'), 'rb') as f:
+            W = np.load(f)
+        return W
 
 def load_weights(model) -> Tuple[torch.Tensor, torch.Tensor]:
-    W_mu = model.encoder_mu[0].weight.data.T.detach()
-    W_b = model.encoder_b[0].weight.data.T.detach()
+    W_mu = model.encoder_mu.weight.data.T.detach()
+    W_b = model.encoder_logb.weight.data.exp().T.detach()
     W_mu = F.relu(W_mu)
-    W_b = F.softplus(W_b)
     return W_mu, W_b
 
 def prune_weights(model, version:str, indices:torch.Tensor, fraction:float):

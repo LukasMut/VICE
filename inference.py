@@ -79,6 +79,7 @@ def get_val_pmfs(triplets_dir:str) -> dict:
     return val_pmfs
 
 def get_triplet_intersection(val_pmfs:dict, seed_pmfs:dict) -> dict:
+    #this is necessary since we perform batch-wise inference which might skip the last batch (due to "n_triplets % batch_size != 0")
     intersection = set(list(val_pmfs.keys())).intersection(set(list(seed_pmfs.keys())))
     val_pmfs = {t:val_pmfs[t] for t in intersection}
     return val_pmfs
@@ -198,7 +199,7 @@ def inference(
         cross_entropies = compute_divergences(human_pmfs, median_model_pmfs, alpha, metric='cross-entropy')
 
         np.savetxt(os.path.join(PATH, 'klds.txt'), klds)
-        np.savetxt(os.path.join(PATH, 'cross_entropies.txt'), klds)
+        np.savetxt(os.path.join(PATH, 'cross_entropies.txt'), cross_entropies)
 
     if compute_stds:
         utils.pickle_file(triplet_stds, PATH, 'triplet_stds')

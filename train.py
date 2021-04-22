@@ -184,7 +184,6 @@ def run(
                 val_accs = checkpoint['val_accs']
                 train_losses = checkpoint['train_losses']
                 val_losses = checkpoint['val_losses']
-                nneg_d_over_time = checkpoint['nneg_d_over_time']
                 loglikelihoods = checkpoint['loglikelihoods']
                 complexity_losses = checkpoint['complexity_costs']
                 print(f'...Loaded model and optimizer state dicts from previous run. Starting at epoch {start}.\n')
@@ -194,20 +193,17 @@ def run(
                 train_accs, val_accs = [], []
                 train_losses, val_losses = [], []
                 loglikelihoods, complexity_losses = [], []
-                nneg_d_over_time = []
         else:
             start = 0
             train_accs, val_accs = [], []
             train_losses, val_losses = [], []
             loglikelihoods, complexity_losses = [], []
-            nneg_d_over_time = []
     else:
         os.makedirs(model_dir)
         start = 0
         train_accs, val_accs = [], []
         train_losses, val_losses = [], []
         loglikelihoods, complexity_losses = [], []
-        nneg_d_over_time = []
 
     ################################################
     ################## Training ####################
@@ -301,7 +297,6 @@ def run(
                         'train_accs': train_accs,
                         'val_losses': val_losses,
                         'val_accs': val_accs,
-                        'nneg_d_over_time': nneg_d_over_time,
                         'loglikelihoods': loglikelihoods,
                         'complexity_costs': complexity_losses,
                         }, os.path.join(model_dir, f'model_epoch{epoch+1:04d}.tar'))

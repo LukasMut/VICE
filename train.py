@@ -171,12 +171,10 @@ def run(
     #####################################################################
 
     if os.path.exists(model_dir):
-        models = [m for m in os.listdir(model_dir) if m.endswith('.tar')]
+        models = sorted([m.name for m in os.scandir(model_dir) if m.name.endswith('tar')])
         if len(models) > 0:
             try:
-                checkpoints = list(map(get_digits, models))
-                last_checkpoint = np.argmax(checkpoints)
-                PATH = pjoin(model_dir, models[last_checkpoint])
+                PATH = pjoin(model_dir, models[-1])
                 checkpoint = torch.load(PATH, map_location=device)
                 model.load_state_dict(checkpoint['model_state_dict'])
                 optim.load_state_dict(checkpoint['optim_state_dict'])

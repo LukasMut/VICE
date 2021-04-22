@@ -75,7 +75,7 @@ def parseargs():
     aa('--plot_dims', action='store_true',
         help='whether or not to plot the number of non-negative dimensions as a function of time after convergence')
     aa('--device', type=str, default='cpu',
-        choices=['cpu', 'cuda', 'cuda:0', 'cuda:1'])
+        choices=['cpu', 'cuda', 'cuda:0', 'cuda:1', 'cuda:2', 'cuda:3', 'cuda:4', 'cuda:5', 'cuda:6', 'cuda:7'])
     aa('--rnd_seed', type=int, default=42,
         help='random seed for reproducibility')
     args = parser.parse_args()
@@ -121,7 +121,7 @@ def run(
         p=None,
         k_samples=None,
         plot_dims:bool=True,
-        show_progress:bool=True,
+        verbose:bool=True,
 ) -> None:
     #initialise logger and start logging events
     logger = setup_logging(file='vspose_model_optimization.log')
@@ -273,7 +273,7 @@ def run(
         logger.info(f'Val acc: {avg_val_acc:.3f}')
         logger.info(f'Val loss: {avg_val_loss:.3f}\n')
 
-        if show_progress:
+        if verbose:
             print("\n==============================================================================================================")
             print(f'====== Epoch: {epoch+1}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Val acc: {avg_val_acc:.3f}, Val loss: {avg_val_loss:.3f} ======')
             print("==============================================================================================================\n")
@@ -369,7 +369,7 @@ if __name__ == "__main__":
         epochs=args.epochs,
         window_size=args.window_size,
         sampling_method=args.sampling_method,
-        learning_rate=args.learning_rate,
+        lr=args.learning_rate,
         p=args.p,
         k_samples=args.k_samples,
         plot_dims=args.plot_dims,

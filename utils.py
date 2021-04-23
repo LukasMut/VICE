@@ -365,7 +365,7 @@ def histogram(choices:list, behavior:bool=False) -> dict:
         hist[choice if behavior else choice.item()] += 1
     return hist
 
-def compute_pmfs(choices:dict, behavior:bool) -> dict:
+def compute_pmfs(choices:dict, behavior:bool) -> Dict[Tuple[int, int, int], np.ndarray]:
     if behavior:
         pmfs = {mat2py(t): pmf(histogram(c, behavior)) for t, c in choices.items()}
     else:
@@ -394,9 +394,6 @@ def collect_choices(probas:np.ndarray, human_choices:np.ndarray, model_choices:d
         model_choices[sorted_choices].append(pmf[np.argsort(choices)].numpy().tolist())
     return model_choices
 
-def logsumexp_(logits:torch.Tensor) -> torch.Tensor:
-    return torch.exp(logits - torch.logsumexp(logits, dim=1)[..., None])
-
 def mc_sampling(
                 model,
                 batch:torch.Tensor,
@@ -415,8 +412,6 @@ def mc_sampling(
         anchor, positive, negative = torch.unbind(torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1)
         similarities = compute_similarities(anchor, positive, negative, task)
         soft_choices = softmax(similarities, temperature)
-        #stacked_sims = torch.stack(similarities, dim=-1)
-        #probas = F.softmax(logsumexp_(stacked_sims), dim=1)
         probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
 
         sampled_probas[k] += probas

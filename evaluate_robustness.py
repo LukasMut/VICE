@@ -177,12 +177,19 @@ def del_paths_(paths:List[str]) -> None:
 
 def get_best_hypers_(PATH:str) -> Tuple[str, float]:
     paths, results = [], []
-    for root, dirs, files in os.walk(PATH):
+    for root, _, files in os.walk(PATH):
         for name in files:
             if name.endswith('.json'):
                 paths.append(root)
                 with open(os.path.join(root, name), 'r') as f:
-                    results.append(json.load(f)['val_loss'])
+                    val_loss = json.load(f)['val_loss']
+                    if np.isnan(val_loss):
+                        print(f'Found NaN in cross-entropy loss for: {root}')
+                        results.append(np.inf)
+                        continue
+                    results.append(val_loss)
+    if sum(np.isinf(results)) == len(results):
+        raise Exception(f'Found NaN values in cross-entropy loss for every model. Change lambda value grid.')
     argmin_loss = np.argmin(results)
     best_model = paths.pop(argmin_loss)
     print(f'Best params: {best_model}\n')

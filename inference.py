@@ -112,6 +112,7 @@ def inference(
     PATH = os.path.join(results_dir, modality, 'variational', f'{dim}d')
     model_paths = get_model_paths(PATH)
     N_ITEMS = 1854
+    N_SAMPLES = 50
     #load validation set for hyperparam tuning
     if tuning or compute_stds:
         _, test_triplets = utils.load_data(device=device, triplets_dir=triplets_dir, inference=False)
@@ -141,7 +142,7 @@ def inference(
                                                             test_batches=test_batches,
                                                             task=task,
                                                             batch_size=batch_size,
-                                                            n_samples=20,
+                                                            n_samples=N_SAMPLES,
                                                             device=device,
                                                             compute_stds=compute_stds,
                                                             )
@@ -152,7 +153,7 @@ def inference(
                                                       test_batches=test_batches,
                                                       task=task,
                                                       batch_size=batch_size,
-                                                      n_samples=20,
+                                                      n_samples=N_SAMPLES,
                                                       device=device,
                                                       )
 
@@ -200,6 +201,9 @@ def inference(
 
         np.savetxt(os.path.join(PATH, 'klds.txt'), klds)
         np.savetxt(os.path.join(PATH, 'cross_entropies.txt'), cross_entropies)
+
+        print(np.mean(klds))
+        print(np.mean(cross_entropies))
 
     if compute_stds:
         utils.pickle_file(triplet_stds, PATH, 'triplet_stds')

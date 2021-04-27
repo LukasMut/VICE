@@ -340,8 +340,11 @@ if __name__ == "__main__":
         try:
             torch.cuda.set_device(current_device)
         except RuntimeError:
-            torch.cuda.set_device(0)
-        print(f'\nPyTorch CUDA version: {torch.version.cuda}\n')
+            current_device = 0
+            torch.cuda.set_device(current_device)
+        device = torch.device(f'cuda:{current_device}')
+        print(f'\nPyTorch CUDA version: {torch.version.cuda}')
+        print(f'Process is running on *cuda:{current_device}*\n')
     else:
         device = torch.device(args.device)
 

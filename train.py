@@ -28,7 +28,7 @@ from utils import *
 from models.model import VSPoSE
 
 os.environ['PYTHONIOENCODING']='UTF-8'
-os.environ['CUDA_LAUNCH_BLOCKING']=str(1)
+#os.environ['CUDA_LAUNCH_BLOCKING']=str(1)
 
 def parseargs():
     parser = argparse.ArgumentParser()

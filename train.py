@@ -120,6 +120,7 @@ def run(
 ) -> None:
     #load triplets into memory
     train_triplets, test_triplets = utils.load_data(device=device, triplets_dir=triplets_dir)
+    N = train_triplets.shape[0]
     n_items = utils.get_nitems(train_triplets)
     #load train and test mini-batches
     train_batches, val_batches = utils.load_batches(
@@ -139,10 +140,9 @@ def run(
     model.to(device)
     optim = Adam(model.parameters(), lr=lr)
 
-    k = 3 if task == 'odd_one_out' else 2
-    mu = torch.zeros(batch_size * k, embed_dim).to(device)
-    l = torch.ones(batch_size * k, embed_dim).mul(lmbda).to(device)
-    n_batches = len(train_batches) #for each mini-batch kld must be scaled by 1/B, where B = n_batches
+    #set mean and scale of prior distribution
+    mu = torch.zeros(n_items, embed_dim).to(device)
+    l = torch.ones(n_items, embed_dim).mul(lmbda).to(device)
 
     #initialise logger and start logging events
     logger = setup_logging(file='vspose_optimization.log', dir=f'./log_files/{embed_dim}d/seed{rnd_seed:02}/{lmbda}/{weight_decay}')
@@ -224,10 +224,12 @@ def run(
             logits, mu_hat, l_hat = model(batch, device)
             anchor, positive, negative = torch.unbind(torch.reshape(logits, (-1, 3, embed_dim)), dim=1)
             c_entropy = utils.trinomial_loss(anchor, positive, negative, task, temperature)
-            kld = utils.kld_online(mu_hat, l_hat, mu, l)
+            W_mu = model.encoder_mu.weight.data.T
+            W_l = model.encoder_logb.weight.data.mul(-1).exp().T
+            kld = utils.kld_online(W_mu, W_l, mu, l)
             l2_reg = utils.l2_reg_(model=model, weight_decay=weight_decay)
-            #NOTE: l2_reg also has to be divided by n_batches, since it is part of the complexity term
-            complexity_loss = (1/n_batches) * (kld + l2_reg)
+            #NOTE: l2_reg also has to be divided by N (number of samples), since it is part of the complexity term
+            complexity_loss = (1/N) * (kld + l2_reg)
             loss = c_entropy + complexity_loss
             loss.backward()
             optim.step()

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-#import IPython; IPython.embed()
 import argparse
 import json
 import logging
@@ -21,12 +20,12 @@ import torch.nn.functional as F
 from collections import defaultdict
 from os.path import join as pjoin
 from scipy.stats import linregress
-from torch.optim import Adam, AdamW, SGD
-from typing import Tuple
+from torch.optim import Adam
+from typing import Tuple, List
 
 from plotting import *
 from utils import *
-from models.model import *
+from models.model import VSPoSE
 
 os.environ['PYTHONIOENCODING']='UTF-8'
 os.environ['CUDA_LAUNCH_BLOCKING']=str(1)
@@ -334,11 +333,14 @@ if __name__ == "__main__":
     if args.device != 'cpu':
         device = torch.device(args.device)
         torch.cuda.manual_seed_all(args.rnd_seed)
-        torch.backends.cudnn.benchmark = False
         try:
-            torch.cuda.set_device(int(args.device[-1]))
-        except:
-            torch.cuda.set_device(1)
+            current_device = int(args.device[-1])
+        except ValueError:
+            current_device = 1
+        try:
+            torch.cuda.set_device(current_device)
+        except RuntimeError:
+            torch.cuda.set_device(0)
         print(f'\nPyTorch CUDA version: {torch.version.cuda}\n')
     else:
         device = torch.device(args.device)
@@ -350,7 +352,7 @@ if __name__ == "__main__":
         results_dir=args.results_dir,
         plots_dir=args.plots_dir,
         triplets_dir=args.triplets_dir,
-        device=args.device,
+        device=device,
         batch_size=args.batch_size,
         embed_dim=args.embed_dim,
         lmbda=args.lmbda,

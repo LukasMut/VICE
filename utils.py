@@ -228,12 +228,6 @@ def load_batches(
         val_batches = BatchGenerator(I=I, dataset=test_triplets, batch_size=batch_size, sampling_method=None, p=None)
     return train_batches, val_batches
 
-#def l2_reg_(model, weight_decay:float=1e-5) -> torch.Tensor:
-#    loc_norms_squared = .5 * (model.encoder_mu[0].weight.pow(2).sum() + model.encoder_mu[0].bias.pow(2).sum())
-#    scale_norms_squared = (model.encoder_b[0].weight.pow(2).sum() +  model.encoder_mu[0].bias.pow(2).sum())
-#    l2_reg = weight_decay * (loc_norms_squared + scale_norms_squared)
-#    return l2_reg
-
 def l2_reg_(model, weight_decay:float=1e-5) -> torch.Tensor:
     loc_norms_squared = .5 * model.encoder_mu.weight.data.pow(2).sum()
     scale_norms_squared = model.encoder_logb.weight.data.exp().pow(2).sum()
@@ -259,7 +253,7 @@ def compute_similarities(anchor:torch.Tensor, positive:torch.Tensor, negative:to
     else:
         return pos_sim, neg_sim
 
-def accuracy_(probas:torch.Tensor) -> float:
+def accuracy_(probas:np.ndarray) -> float:
     choices = np.where(probas.mean(axis=1) == probas.max(axis=1), -1, np.argmax(probas, axis=1))
     acc = np.where(choices == 0, 1, 0).mean()
     return acc
@@ -278,7 +272,7 @@ def trinomial_loss(anchor:torch.Tensor, positive:torch.Tensor, negative:torch.Te
     return cross_entropy_loss(sims, t)
 
 def kld_online(mu_1:torch.Tensor, l_1:torch.Tensor, mu_2:torch.Tensor, l_2:torch.Tensor) -> torch.Tensor:
-    return torch.mean(torch.log(l_1/l_2) + (l_2/l_1) * torch.exp(-l_1 * torch.abs(mu_1-mu_2)) + l_2*torch.abs(mu_1-mu_2) - 1)
+    return torch.sum(torch.log(l_1/l_2) + (l_2/l_1) * torch.exp(-l_1 * torch.abs(mu_1-mu_2)) + l_2*torch.abs(mu_1-mu_2) - 1)
 
 def kld_offline(mu_1:torch.Tensor, b_1:torch.Tensor, mu_2:torch.Tensor, b_2:torch.Tensor) -> torch.Tensor:
     return torch.log(b_2/b_1) + (b_1/b_2) * torch.exp(-torch.abs(mu_1-mu_2)/b_1) + torch.abs(mu_1-mu_2)/b_2 - 1
@@ -359,15 +353,15 @@ def pmf(hist:dict) -> np.ndarray:
     values = np.array(list(hist.values()))
     return values/np.sum(values)
 
-def histogram(choices:list, behavior:bool=False) -> dict:
-    hist = {i+1 if behavior else i: 0 for i in range(3)}
+def histogram(choices:list) -> dict:
+    hist = {i+1: 0 for i in range(3)}
     for choice in choices:
-        hist[choice if behavior else choice.item()] += 1
+        hist[choice] += 1
     return hist
 
 def compute_pmfs(choices:dict, behavior:bool) -> Dict[Tuple[int, int, int], np.ndarray]:
     if behavior:
-        pmfs = {mat2py(t): pmf(histogram(c, behavior)) for t, c in choices.items()}
+        pmfs = {mat2py(t): pmf(histogram(c)) for t, c in choices.items()}
     else:
         pmfs = {t: np.array(pmfs).mean(axis=0) for t, pmfs in choices.items()}
     return pmfs
@@ -418,7 +412,7 @@ def mc_sampling(
         sampled_choices[k] +=  soft_choices
 
     probas = sampled_probas.mean(dim=0)
-    val_acc = accuracy_(probas)
+    val_acc = accuracy_(probas.cpu().numpy())
     soft_choices = sampled_choices.mean(dim=0)
     val_loss = torch.mean(-torch.log(soft_choices))
     if compute_stds:
@@ -467,7 +461,7 @@ def test(
                                                         )
             probas[j*batch_size:(j+1)*batch_size] += batch_probas
             batch_accs[j] += test_acc
-            human_choices = batch.nonzero(as_tuple=True)[-1].view(batch_size, -1).numpy()
+            human_choices = batch.nonzero(as_tuple=True)[-1].view(batch_size, -1).cpu().numpy()
             model_choices = collect_choices(batch_probas, human_choices, model_choices)
 
     probas = probas.cpu().numpy()

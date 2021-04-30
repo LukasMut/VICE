@@ -28,7 +28,8 @@ from utils import *
 from models.model import VSPoSE
 
 os.environ['PYTHONIOENCODING']='UTF-8'
-#os.environ['CUDA_LAUNCH_BLOCKING']=str(1)
+os.environ['CUDA_LAUNCH_BLOCKING']=str(1)
+os.environ['OMP_NUM_THREADS']='1' #number of cores available per Python process (set to 2 if HT is enabled)
 
 def parseargs():
     parser = argparse.ArgumentParser()

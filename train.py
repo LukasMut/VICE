@@ -54,8 +54,8 @@ def parseargs():
     aa('--epochs', metavar='T', type=int, default=300,
         help='maximum number of epochs to optimize SPoSE model for')
     aa('--k_samples', type=int,
-        choices=[5, 10, 15, 20, 25],
-        help='number of samples to leverage for averaging probability scores in a variational version of SPoSE')
+        choices=[5, 10, 15, 20, 25, 30],
+        help='number of samples to leverage for MC sampling')
     aa('--lmbda', type=float,
         help='lambda value determines weight of l1-regularization')
     aa('--weight_decay', type=float,
@@ -68,8 +68,6 @@ def parseargs():
     aa('--p', type=float, default=None,
         choices=[None, 0.5, 0.6, 0.7, 0.8, 0.9],
         help='this argument is only necessary for soft sampling. specifies the fraction of *train* to be sampled during an epoch')
-    aa('--plot_dims', action='store_true',
-        help='whether or not to plot the number of non-negative dimensions as a function of time after convergence')
     aa('--device', type=str, default='cpu',
         choices=['cpu', 'cuda', 'cuda:0', 'cuda:1', 'cuda:2', 'cuda:3', 'cuda:4', 'cuda:5', 'cuda:6', 'cuda:7'])
     aa('--rnd_seed', type=int, default=42,
@@ -113,9 +111,8 @@ def run(
         window_size:int,
         sampling_method:str,
         lr:float,
+        k_samples:int,
         p=None,
-        k_samples=None,
-        plot_dims:bool=True,
         verbose:bool=True,
 ) -> None:
     #load triplets into memory
@@ -365,7 +362,6 @@ if __name__ == "__main__":
         window_size=args.window_size,
         sampling_method=args.sampling_method,
         lr=args.learning_rate,
-        p=args.p,
         k_samples=args.k_samples,
-        plot_dims=args.plot_dims,
+        p=args.p,
         )

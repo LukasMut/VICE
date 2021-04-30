@@ -10,7 +10,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --ntasks-per-core=2
 #SBATCH --cpus-per-task=144
-#SBATCH --mem=230000M
+#SBATCH --mem=240000M
 #SBATCH --mail-type=none
 #SBATCH --mail-user=lmutt@rzg.mpg.de
 
@@ -18,7 +18,7 @@ export OMP_NUM_THREADS=2
 export SLURM_HINT=multithread
 
 module purge
-module load load intel/21.2.0
+module load load gcc/10
 module load impi/2019.9
 module load anaconda/3/2020.02
 module load pytorch/cpu/1.7.0

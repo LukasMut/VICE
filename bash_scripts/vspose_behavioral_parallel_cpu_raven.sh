@@ -9,7 +9,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 
-# NOTE: change *ntasks-per-core to 2, iff you want to enable HT
+#NOTE: change *ntasks-per-core* and *OMP_NUM_THREADS* to 2, iff HT is enabled on compute node
 
 #SBATCH --ntasks-per-core=1
 #SBATCH --cpus-per-task=72

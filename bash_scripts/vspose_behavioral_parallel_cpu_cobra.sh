@@ -11,7 +11,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --ntasks-per-core=2
 #SBATCH --cpus-per-task=80
-#SBATCH --mem=100000
+#SBATCH --mem=88000
 
 #SBATCH --mail-type=none
 #SBATCH --mail-user=lmutt@rzg.mpg.de

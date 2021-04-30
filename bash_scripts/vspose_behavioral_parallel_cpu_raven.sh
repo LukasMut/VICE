@@ -21,7 +21,7 @@ module load anaconda/3/2020.02
 module load pytorch/cpu/1.7.0
 
 export OMP_NUM_THREADS=2
-
+export SLURM_HINT=multithread
 
 TASK='odd_one_out'
 MODALITY='behavioral/'

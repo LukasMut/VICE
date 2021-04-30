@@ -35,8 +35,8 @@ SAMPLES=20
 DEVICE='cpu'
 RND_SEEDS=(0 1 2 3 4 5 6 7 8 9 10 21 22 23 24 25 26 27 29 42)
 
-echo "Started VSPoSE $DIM optimization at $(date)"
+echo "Started VSPoSE $SLURM_ARRAY_TASK_ID optimization at $(date)"
 
 srun python3 ./train.py --task $TASK --modality $MODALITY --triplets_dir $TR_DIR --learning_rate $LR --embed_dim $DIM --batch_size $BS --epochs $T --window_size $WS --lambdas 3 4 5 6 7 8 9 10 11 --weight_decays 0.001 0.005 0.01 0.05 0.1 0.5 1.0  --k_samples $SAMPLES --device $DEVICE --rnd_seed ${RND_SEEDS[$SLURM_ARRAY_TASK_ID]}  >> vspose_behavioral_parallel.out
 
-echo "Finished VSPoSE $DIM optimization at $(date)"
+echo "Finished VSPoSE $SLURM_ARRAY_TASK_ID optimization at $(date)"

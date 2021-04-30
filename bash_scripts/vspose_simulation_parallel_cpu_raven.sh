@@ -10,7 +10,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --ntasks-per-core=2
 #SBATCH --cpus-per-task=144
-#SBATCH --mem=240000M
+#SBATCH --mem=230000M
 #SBATCH --mail-type=none
 #SBATCH --mail-user=lmutt@rzg.mpg.de
 
@@ -37,6 +37,6 @@ RND_SEEDS=(0 1 2 3 4 5 6 7 8 9 10 21 22 23 24 25 26 27 29 42)
 
 echo "Started VSPoSE $SLURM_ARRAY_TASK_ID optimization at $(date)"
 
-srun python3 ./train.py --task $TASK --modality $MODALITY --triplets_dir $TR_DIR --learning_rate $LR --embed_dim $DIM --batch_size $BS --lambdas 3 4 5 6 7 8 9 10 11 --weight_decays 0.001 0.005 0.01 0.05 0.1 0.5 1.0 --epochs $T --window_size $WS --k_samples $SAMPLES --device $DEVICE --rnd_seed ${RND_SEEDS[$SLURM_ARRAY_TASK_ID]}  >> vspose_simulation_parallel.out
+srun python3 ./train.py --task $TASK --modality $MODALITY --triplets_dir $TR_DIR --learning_rate $LR --embed_dim $DIM --batch_size $BS --lambdas 3 4 5 6 7 8 9 10 11 --weight_decays 0.001 0.005 0.01 0.05 0.1 0.5 1.0 5.0 --epochs $T --window_size $WS --k_samples $SAMPLES --device $DEVICE --rnd_seed ${RND_SEEDS[$SLURM_ARRAY_TASK_ID]}  >> vspose_simulation_parallel.out
 
 echo "Finished VSPoSE $SLURM_ARRAY_TASK_ID optimization at $(date)"

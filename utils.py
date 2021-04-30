@@ -391,10 +391,10 @@ def collect_choices(probas:np.ndarray, human_choices:np.ndarray, model_choices:d
 def mc_sampling(
                 model,
                 batch:torch.Tensor,
-                temperature:torch.Tensor,
                 task:str,
                 n_samples:int,
                 device:torch.device,
+                temp:float=1.0,
                 compute_stds:bool=False,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     n_alternatives = 3 if task == 'odd_one_out' else 2
@@ -405,9 +405,8 @@ def mc_sampling(
         logits, _, _ = model(batch, device)
         anchor, positive, negative = torch.unbind(torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1)
         similarities = compute_similarities(anchor, positive, negative, task)
-        soft_choices = softmax(similarities, temperature)
+        soft_choices = softmax(similarities, temp)
         probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
-
         sampled_probas[k] += probas
         sampled_choices[k] +=  soft_choices
 
@@ -425,42 +424,44 @@ def test(
         test_batches,
         task:str,
         device:torch.device,
+        temp:float=1.0,
+        compute_stds:bool=False,
         batch_size=None,
         n_samples=None,
-        compute_stds:bool=False,
 ) -> Tuple:
     probas = torch.zeros(int(len(test_batches) * batch_size), 3)
     if compute_stds:
         triplet_stds = torch.zeros(int(len(test_batches) * batch_size), 3)
-    temperature = torch.tensor(1.).to(device)
     model_choices = defaultdict(list)
     model.eval()
     with torch.no_grad():
         batch_accs = torch.zeros(len(test_batches))
+        batch_centropies = torch.zeros(len(test_batches))
         for j, batch in enumerate(test_batches):
             batch = batch.to(device)
             if compute_stds:
-                test_acc, _, batch_probas, batch_stds = mc_sampling(
-                                                                    model=model,
-                                                                    batch=batch,
-                                                                    temperature=temperature,
-                                                                    task=task,
-                                                                    n_samples=n_samples,
-                                                                    device=device,
-                                                                    compute_stds=compute_stds,
-                                                                    )
+                test_acc, test_loss, batch_probas, batch_stds = mc_sampling(
+                                                                            model=model,
+                                                                            batch=batch,
+                                                                            temp=temp,
+                                                                            task=task,
+                                                                            n_samples=n_samples,
+                                                                            device=device,
+                                                                            compute_stds=compute_stds,
+                                                                            )
                 triplet_stds[j*batch_size:(j+1)*batch_size] += batch_stds
             else:
-                test_acc, _, batch_probas = mc_sampling(
-                                                        model=model,
-                                                        batch=batch,
-                                                        temperature=temperature,
-                                                        task=task,
-                                                        n_samples=n_samples,
-                                                        device=device,
-                                                        )
+                test_acc, test_loss, batch_probas = mc_sampling(
+                                                                model=model,
+                                                                batch=batch,
+                                                                temp=temp,
+                                                                task=task,
+                                                                n_samples=n_samples,
+                                                                device=device,
+                                                                )
             probas[j*batch_size:(j+1)*batch_size] += batch_probas
             batch_accs[j] += test_acc
+            batch_centropies += test_loss
             human_choices = batch.nonzero(as_tuple=True)[-1].view(batch_size, -1).cpu().numpy()
             model_choices = collect_choices(batch_probas, human_choices, model_choices)
 
@@ -468,13 +469,14 @@ def test(
     probas = probas[np.where(probas.sum(axis=1) != 0.)]
     model_pmfs = compute_pmfs(model_choices, behavior=False)
     test_acc = batch_accs.mean().item()
+    test_loss = batch_centropies.mean().item()
     if compute_stds:
         triplet_stds = triplet_stds.cpu().numpy()
         triplet_stds = triplet_stds.mean(axis=1)
-        return test_acc, probas, model_pmfs, triplet_stds
-    return test_acc, probas, model_pmfs
+        return test_acc, test_loss, probas, model_pmfs, triplet_stds
+    return test_acc, test_loss, probas, model_pmfs
 
-def validation(model, val_batches, version:str, task:str, device:torch.device, n_samples=None) -> Tuple[float, float]:
+def validation(model, val_batches:Iterator[torch.Tensor], task:str, device:torch.device, n_samples:int) -> Tuple[float, float]:
     temperature = torch.tensor(1.).to(device)
     model.eval()
     with torch.no_grad():
@@ -482,14 +484,7 @@ def validation(model, val_batches, version:str, task:str, device:torch.device, n
         batch_accs_val = torch.zeros(len(val_batches))
         for j, batch in enumerate(val_batches):
             batch = batch.to(device)
-            if version == 'variational':
-                assert isinstance(n_samples, int), '\nOutput logits of variational neural networks have to be averaged over different samples.\n'
-                val_acc, val_loss, _ = mc_sampling(model, batch, temperature, task, n_samples, device)
-            else:
-                logits = model(batch)
-                anchor, positive, negative = torch.unbind(torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1)
-                val_loss = trinomial_loss(anchor, positive, negative, task, temperature)
-                val_acc = choice_accuracy(anchor, positive, negative, task)
+            val_acc, val_loss, _ = mc_sampling(model, batch, temperature, task, n_samples, device)
             batch_losses_val[j] += val_loss.item()
             batch_accs_val[j] += val_acc
     avg_val_loss = torch.mean(batch_losses_val).item()

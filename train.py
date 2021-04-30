@@ -122,7 +122,6 @@ def run(
     train_triplets, test_triplets = utils.load_data(device=device, triplets_dir=triplets_dir)
     N = train_triplets.shape[0]
     n_items = utils.get_nitems(train_triplets)
-    #load train and test mini-batches
     train_batches, val_batches = utils.load_batches(
                                                       train_triplets=train_triplets,
                                                       test_triplets=test_triplets,
@@ -228,8 +227,8 @@ def run(
             W_l = model.encoder_logb.weight.data.mul(-1).exp().T
             kld = utils.kld_online(W_mu, W_l, mu, l)
             l2_reg = utils.l2_reg_(model=model, weight_decay=weight_decay)
-            #NOTE: l2_reg also has to be divided by N (number of samples), since it is part of the complexity term
-            complexity_loss = (1/N) * (kld + l2_reg)
+            #NOTE: l2_reg also has to be divided by N (number of training samples), since it is part of the complexity term
+            complexity_loss = (kld + l2_reg) / N
             loss = c_entropy + complexity_loss
             loss.backward()
             optim.step()
@@ -253,7 +252,7 @@ def run(
         ################ validation ####################
         ################################################
 
-        avg_val_loss, avg_val_acc = utils.validation(model, val_batches, 'variational', task, device, k_samples)
+        avg_val_loss, avg_val_acc = utils.validation(model, val_batches, task, device, k_samples)
 
         val_losses.append(avg_val_loss)
         val_accs.append(avg_val_acc)

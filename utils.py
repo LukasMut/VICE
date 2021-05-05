@@ -437,10 +437,10 @@ def test(
         test_batches,
         task:str,
         device:torch.device,
+        n_samples:int,
+        batch_size:int,
         temp:float=1.0,
         compute_stds:bool=False,
-        batch_size=None,
-        n_samples=None,
 ) -> Tuple:
     probas = torch.zeros(int(len(test_batches) * batch_size), 3)
     if compute_stds:

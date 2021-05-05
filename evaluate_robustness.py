@@ -37,6 +37,8 @@ def parseargs():
     aa('--version', type=str,
         choices=['deterministic', 'variational'],
         help='deterministic or variational version of SPoSE')
+    aa('--n_items', type=int,
+        help='number of unique items in dataset')
     aa('--dim', type=int, default=100,
         help='latent dimensionality of VSPoSE embedding matrices')
     aa('--thresh', type=float, default=0.85,
@@ -236,6 +238,12 @@ def fdr_correction(p_vals:np.ndarray, alpha:float=0.01) -> np.ndarray:
 def get_importance(rejections:np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return np.array(list(map(sum, rejections)))[:, np.newaxis]
 
+def get_cluster_combinations(n_clusters:int, c_min:int=1):
+    combinations = []
+    for k in range(c_min, n_clusters):
+        combinations.extend(list(itertools.combinations(range(n_clusters), k)))
+    return combinations
+
 def pruning(
             model:Any,
             task:str,
@@ -249,28 +257,26 @@ def pruning(
     W_b = W_b[sortindex]
     importance = get_importance(fdr_correction(compute_pvals(W_mu, W_b)))
     clusters, n_clusters = fit_gmm(importance, n_components)
-    val_accs = np.zeros(n_clusters)
-    for k in range(n_clusters):
-        indices = torch.from_numpy(np.where(clusters==k)[0]).type(torch.LongTensor).to(device)
+    cluster_combs = get_cluster_combinations(n_clusters)
+    val_losses = np.zeros(len(cluster_combs))
+    for i, comb in enumerate(cluster_combs):
+        indices = np.hstack([np.where(clusters==k)[0] for k in comb])
+        indices = torch.from_numpy(indices).type(torch.LongTensor).to(device)
         model_copy = copy.deepcopy(model)
         model_pruned = prune_weights(model_copy, indices)
-        _, val_acc = utils.validation(
-                                      model=model_pruned,
-                                      task=task,
-                                      val_batches=val_batches,
-                                      version='variational',
-                                      device=device,
-                                      n_samples=n_samples,
-                                )
-        val_accs[k] += val_acc
-    W_mu = W_mu[:, np.where(clusters!=np.argmin(val_accs))[0]].cpu().numpy()
-    W_b = W_b[:, np.where(clusters!=np.argmin(val_accs))[0]].cpu().numpy()
+        val_loss, val_acc = utils.validation(model=model_pruned, task=task, val_batches=val_batches, device=device, n_samples=n_samples)
+        val_losses[i] += val_loss
+    best_cluster_comb = cluster_combs[np.argmin(val_losses)]
+    best_indices = np.hstack([np.where(clusters==k)[0] for k in best_cluster_comb])
+    W_mu = W_mu[:, best_indices].cpu().numpy()
+    W_b = W_b[:, best_indices].cpu().numpy()
     return W_mu.T, W_b
 
 def evaluate_models(
                     results_dir:str,
                     modality:str,
                     version:str,
+                    n_items:int,
                     dim:int,
                     thresh:float,
                     device:torch.device,
@@ -280,25 +286,18 @@ def evaluate_models(
                     n_components=None,
                     n_samples=None,
                     ) -> None:
-    N_ITEMS = 1854
     PATH = os.path.join(results_dir, modality, version, f'{dim}d')
     model_paths = get_model_paths_(PATH)
     Ws_mu, Ws_b = [], []
     for model_path in model_paths:
         if version == 'variational':
             try:
-                model = VSPoSE(N_ITEMS, dim)
+                model = VSPoSE(n_items, dim)
                 lmbda = float(model_path.split('/')[-2])
                 model = utils.load_model(model, model_path, device)
                 _, test_triplets = utils.load_data(device=device, triplets_dir=triplets_dir, inference=False)
-                val_batches = utils.load_batches(train_triplets=None, test_triplets=test_triplets, n_items=N_ITEMS, batch_size=batch_size, inference=True)
+                val_batches = utils.load_batches(train_triplets=None, test_triplets=test_triplets, n_items=n_items, batch_size=batch_size, inference=True)
                 W_mu, W_b = pruning(model=model, task=task, val_batches=val_batches, n_components=n_components, n_samples=n_samples, device=device)
-                #W_mu, W_b = utils.load_weights(model)
-                #W_mu, W_b = W_mu.numpy(), W_b.numpy()
-                #W_mu, W_b = W_mu[sortindex], W_b[sortindex]
-                #sorted_dims, klds_sorted = utils.compute_kld(model, lmbda, aggregate=True, reduction='max')
-                #W_mu, W_b = W_mu[:, sorted_dims], W_b[:, sorted_dims]
-                #W_mu = W_mu[:, :utils.kld_cut_off(np.log(klds_sorted))].T
             except FileNotFoundError:
                 raise Exception(f'Could not find final weights for {model_path}\n')
             Ws_b.append(W_b)
@@ -331,6 +330,7 @@ if __name__ == '__main__':
                     modality=args.modality,
                     task=args.task,
                     version=args.version,
+                    n_items=args.n_items,
                     dim=args.dim,
                     thresh=args.thresh,
                     device=args.device,

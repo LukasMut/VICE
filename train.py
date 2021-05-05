@@ -201,7 +201,7 @@ def run(
 
     iter = 0
     results = defaultdict(dict)
-    logger.info(f'Optimization started for lambda: {lmbda}')
+    logger.info(f'Optimization started')
 
     for epoch in range(start, epochs):
         model.train()
@@ -282,7 +282,7 @@ def run(
                     break
 
     results = {'epoch': len(train_accs), 'train_acc': train_accs[-1], 'val_acc': val_accs[-1], 'val_loss': val_losses[-1]}
-    logger.info(f'Optimization finished after {epoch+1} epochs for lambda: {lmbda}\n')
+    logger.info(f'Optimization finished after {epoch+1} epochs\n')
     logger.info('Plotting model performances over time across all lambda values\n')
     #plot train and validation performance alongside each other to examine a potential overfit to the training data
     plot_single_performance(plots_dir=plots_dir, val_accs=val_accs, train_accs=train_accs)

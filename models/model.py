@@ -9,8 +9,6 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
-from os.path import join as pjoin
-from torch.distributions.laplace import Laplace
 from typing import Tuple
 
 class VSPoSE(nn.Module):
@@ -35,7 +33,7 @@ class VSPoSE(nn.Module):
         eps = sigma.data.new(sigma.size()).normal_()
         return eps.mul(sigma).add_(mu)
 
-    def forward(self, x:torch.Tensor) -> Tuple[torch.Tensor]:
+    def forward(self, x:torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         mu = self.encoder_mu(x)
         log_sigma = self.encoder_logsigma(x)
         W_mu = self.encoder_mu.weight.T

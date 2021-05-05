@@ -20,6 +20,7 @@ from itertools import islice, combinations, permutations
 from numba import njit, jit, prange
 from os.path import join as pjoin
 from skimage.transform import resize
+from torch.distributions.normal import Normal
 from torch.optim import Adam, AdamW
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import Dataset, DataLoader, SequentialSampler
@@ -228,6 +229,18 @@ def load_batches(
         val_batches = BatchGenerator(I=I, dataset=test_triplets, batch_size=batch_size, sampling_method=None, p=None)
     return train_batches, val_batches
 
+def pdf(sample:torch.Tensor, mu:torch.Tensor, sigma:torch.Tensor):
+    return torch.exp(-((sample - mu) ** 2) / (2 * sigma.pow(2))) / sigma * math.sqrt(2 * math.pi)
+
+def log_pdf(sample:torch.Tensor, mu:torch.Tensor, sigma:torch.Tensor) -> torch.Tensor:
+    return -((sample - mu) ** 2) / (2 * sigma.pow(2)) - (sigma.log() + math.log(math.sqrt(2 * math.pi)))
+
+def spike_and_slab(sample:torch.Tensor, mu:torch.Tensor, sigma_1:torch.Tensor, sigma_2:torch.Tensor, pi:float) -> torch.Tensor:
+    assert pi < 1, 'the relative weight pi is required to be < 1'
+    spike = pi * pdf(sample, mu, sigma_1)
+    slab = (1 - pi) * pdf(sample, mu, sigma_2)
+    return spike + slab
+
 def l2_reg_(model, weight_decay:float=1e-5) -> torch.Tensor:
     loc_norms_squared = .5 * model.encoder_mu.weight.data.pow(2).sum()
     scale_norms_squared = model.encoder_logb.weight.data.exp().pow(2).sum()
@@ -402,7 +415,7 @@ def mc_sampling(
     sampled_choices = torch.zeros(n_samples, batch.shape[0] // n_alternatives).to(device)
 
     for k in range(n_samples):
-        logits, _, _ = model(batch, device)
+        logits, _, _, _ = model(batch)
         anchor, positive, negative = torch.unbind(torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1)
         similarities = compute_similarities(anchor, positive, negative, task)
         soft_choices = softmax(similarities, temp)
@@ -476,15 +489,15 @@ def test(
         return test_acc, test_loss, probas, model_pmfs, triplet_stds
     return test_acc, test_loss, probas, model_pmfs
 
-def validation(model, val_batches:Iterator[torch.Tensor], task:str, device:torch.device, n_samples:int) -> Tuple[float, float]:
-    temperature = torch.tensor(1.).to(device)
+def validation(model, val_batches, task:str, device:torch.device, n_samples:int) -> Tuple[float, float]:
+    temp = torch.tensor(1.).to(device)
     model.eval()
     with torch.no_grad():
         batch_losses_val = torch.zeros(len(val_batches))
         batch_accs_val = torch.zeros(len(val_batches))
         for j, batch in enumerate(val_batches):
             batch = batch.to(device)
-            val_acc, val_loss, _ = mc_sampling(model, batch, temperature, task, n_samples, device)
+            val_acc, val_loss, _ = mc_sampling(model=model, batch=batch, task=task, n_samples=n_samples, device=device, temp=temp)
             batch_losses_val[j] += val_loss.item()
             batch_accs_val[j] += val_acc
     avg_val_loss = torch.mean(batch_losses_val).item()
@@ -552,9 +565,10 @@ def load_final_weights(out_path:str, version:str='variational') -> None:
 
 def load_weights(model) -> Tuple[torch.Tensor, torch.Tensor]:
     W_mu = model.encoder_mu.weight.data.T.detach()
-    W_b = model.encoder_logb.weight.data.exp().T.detach()
+    #W_b = model.encoder_logb.weight.data.exp().T.detach()
+    W_sigma = model.encoder_logsigma.weight.data.T.exp().detach()
     W_mu = F.relu(W_mu)
-    return W_mu, W_b
+    return W_mu, W_sigma
 
 def prune_weights(model, version:str, indices:torch.Tensor, fraction:float):
     indices = indices[:int(len(indices)*fraction)]

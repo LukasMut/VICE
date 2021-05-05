@@ -24,12 +24,11 @@ from torch.optim import Adam
 from typing import Tuple, List
 
 from plotting import *
-from utils import *
 from models.model import VSPoSE
 
 os.environ['PYTHONIOENCODING']='UTF-8'
-os.environ['CUDA_LAUNCH_BLOCKING']=str(1)
-os.environ['OMP_NUM_THREADS']='1' #number of cores available per Python process (set to 2 if HT is enabled)
+os.environ['CUDA_LAUNCH_BLOCKING']='1'
+os.environ['OMP_NUM_THREADS']='1' #number of cores to be used per Python process (set to 2 iff hyperthreading is enabled)
 
 def parseargs():
     parser = argparse.ArgumentParser()
@@ -55,20 +54,16 @@ def parseargs():
     aa('--epochs', metavar='T', type=int, default=300,
         help='maximum number of epochs to optimize SPoSE model for')
     aa('--k_samples', type=int,
-        choices=[5, 10, 15, 20, 25, 30],
+        choices=[10, 15, 20, 25, 30, 35, 40, 45, 50],
         help='number of samples to leverage for MC sampling')
-    aa('--lmbda', type=float,
-        help='lambda value determines weight of l1-regularization')
-    aa('--weight_decay', type=float,
-        help='weight decay value determines l2-regularization')
+    aa('--spike', type=float,
+        help='sigma for spike distribution')
+    aa('--slab', type=float,
+        help='sigma for slab distribution')
+    aa('--pi', type=float,
+        help='scalar value that determines the relative weight of the spike and slab distributions respectively')
     aa('--window_size', type=int, default=50,
         help='window size to be used for checking convergence criterion with linear regression')
-    aa('--sampling_method', type=str, default='normal',
-        choices=['normal', 'soft'],
-        help='whether random sampling of the entire training set or soft sampling of a specified fraction of the training set is performed during an epoch')
-    aa('--p', type=float, default=None,
-        choices=[None, 0.5, 0.6, 0.7, 0.8, 0.9],
-        help='this argument is only necessary for soft sampling. specifies the fraction of *train* to be sampled during an epoch')
     aa('--device', type=str, default='cpu',
         choices=['cpu', 'cuda', 'cuda:0', 'cuda:1', 'cuda:2', 'cuda:3', 'cuda:4', 'cuda:5', 'cuda:6', 'cuda:7'])
     aa('--rnd_seed', type=int, default=42,
@@ -106,14 +101,13 @@ def run(
         device:torch.device,
         batch_size:int,
         embed_dim:int,
-        lmbda:float,
-        weight_decay:float,
+        spike:float,
+        slab:float,
+        pi:float,
         epochs:int,
         window_size:int,
-        sampling_method:str,
         lr:float,
         k_samples:int,
-        p=None,
         verbose:bool=True,
 ) -> None:
     #load triplets into memory
@@ -125,9 +119,8 @@ def run(
                                                       test_triplets=test_triplets,
                                                       n_items=n_items,
                                                       batch_size=batch_size,
-                                                      sampling_method=sampling_method,
+                                                      sampling_method='normal',
                                                       rnd_seed=rnd_seed,
-                                                      p=p,
                                                       )
     print(f'\nNumber of train batches: {len(train_batches)}\n')
 
@@ -137,12 +130,13 @@ def run(
     model.to(device)
     optim = Adam(model.parameters(), lr=lr)
 
-    #set mean and scale of prior distribution
+    #set mean and sigmas of prior distributions (i.e., spike and slab)
     mu = torch.zeros(n_items, embed_dim).to(device)
-    l = torch.ones(n_items, embed_dim).mul(lmbda).to(device)
+    sigma_1 = torch.ones(n_items, embed_dim).mul(spike).to(device)
+    sigma_2 = torch.ones(n_items, embed_dim).mul(slab).to(device)
 
     #initialise logger and start logging events
-    logger = setup_logging(file='vspose_optimization.log', dir=f'./log_files/{embed_dim}d/seed{rnd_seed:02}/{lmbda}/{weight_decay}')
+    logger = setup_logging(file='vspose_optimization.log', dir=f'./log_files/{embed_dim}d/seed{rnd_seed:02}/{spike}/{slab}/{pi}')
     logger.setLevel(logging.INFO)
 
     ################################################
@@ -151,12 +145,12 @@ def run(
 
     print(f'\n...Creating PATHs.\n')
     if results_dir == './results/':
-        results_dir = pjoin(results_dir, modality, 'variational', f'{embed_dim}d', f'seed{rnd_seed:02d}', str(lmbda), str(weight_decay))
+        results_dir = pjoin(results_dir, modality, 'variational', f'{embed_dim}d', f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
     if plots_dir == './plots/':
-        plots_dir = pjoin(plots_dir, modality, 'variational', f'{embed_dim}d', f'seed{rnd_seed:02d}', str(lmbda), str(weight_decay))
+        plots_dir = pjoin(plots_dir, modality, 'variational', f'{embed_dim}d', f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
     if not os.path.exists(plots_dir):
         os.makedirs(plots_dir)
 
@@ -218,15 +212,12 @@ def run(
         for i, batch in enumerate(train_batches):
             optim.zero_grad()
             batch = batch.to(device)
-            logits, mu_hat, l_hat = model(batch, device)
+            logits, W_mu, W_sigma, W_sampled = model(batch)
             anchor, positive, negative = torch.unbind(torch.reshape(logits, (-1, 3, embed_dim)), dim=1)
             c_entropy = utils.trinomial_loss(anchor, positive, negative, task, temperature)
-            W_mu = model.encoder_mu.weight.data.T
-            W_l = model.encoder_logb.weight.data.mul(-1).exp().T
-            kld = utils.kld_online(W_mu, W_l, mu, l)
-            l2_reg = utils.l2_reg_(model=model, weight_decay=weight_decay)
-            #NOTE: l2_reg also has to be divided by N (number of training samples), since it is part of the complexity term
-            complexity_loss = (kld + l2_reg) / N
+            log_q = utils.pdf(W_sampled, W_mu, W_sigma).log()
+            log_p = utils.spike_and_slab(W_sampled, mu, sigma_1, sigma_2, pi).log()
+            complexity_loss = (1/N) * (log_q.sum() - log_p.sum())
             loss = c_entropy + complexity_loss
             loss.backward()
             optim.step()
@@ -267,23 +258,6 @@ def run(
             print("==============================================================================================================\n")
 
         if (epoch + 1) % 20 == 0:
-            #sort columns of Ws (i.e., dimensions) in VSPoSE according to their KL divergences in descending order
-            sorted_dims, klds_sorted = utils.compute_kld(model, lmbda, aggregate=True, reduction='max')
-            W_mu, W_b = utils.load_weights(model)
-            W_l = W_b.pow(-1)
-
-            W_mu_sorted = W_mu[:, sorted_dims].cpu().numpy()
-            W_b_sorted = W_b[:, sorted_dims].cpu().numpy()
-            W_l_sorted = W_l[:, sorted_dims].cpu().numpy()
-
-            plot_dim_evolution(
-                                W_mu_sorted=torch.from_numpy(W_mu_sorted),
-                                W_l_sorted=torch.from_numpy(W_l_sorted),
-                                plots_dir=plots_dir,
-                                epoch=int(epoch+1),
-                                )
-
-
             #save model and optim parameters for inference or to resume training
             #PyTorch convention is to save checkpoints as .tar files
             torch.save({
@@ -306,9 +280,6 @@ def run(
                 lmres = linregress(range(window_size), train_losses[(epoch + 1 - window_size):(epoch + 2)])
                 if (lmres.slope > 0) or (lmres.pvalue > .1):
                     break
-
-    #save final model weights (sorted)
-    utils.save_weights_(results_dir, W_mu_sorted, W_b_sorted)
 
     results = {'epoch': len(train_accs), 'train_acc': train_accs[-1], 'val_acc': val_accs[-1], 'val_loss': val_losses[-1]}
     logger.info(f'Optimization finished after {epoch+1} epochs for lambda: {lmbda}\n')
@@ -357,12 +328,11 @@ if __name__ == "__main__":
         device=device,
         batch_size=args.batch_size,
         embed_dim=args.embed_dim,
-        lmbda=args.lmbda,
-        weight_decay=args.weight_decay,
+        spike=args.spike,
+        slab=args.slab,
+        pi=args.pi,
         epochs=args.epochs,
         window_size=args.window_size,
-        sampling_method=args.sampling_method,
         lr=args.learning_rate,
         k_samples=args.k_samples,
-        p=args.p,
         )

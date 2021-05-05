@@ -26,26 +26,24 @@ class VSPoSE(nn.Module):
         self.in_size = in_size
         self.out_size = out_size
         self.encoder_mu = nn.Linear(self.in_size, self.out_size, bias=bias)
-        #NOTE: b is constrained to be in the positive real number space R+ which is why we code for log(b) (recall that exp(log(b)) is subject to R+)
-        self.encoder_logb = nn.Linear(self.in_size, self.out_size, bias=bias)
+        self.encoder_logsigma = nn.Linear(self.in_size, self.out_size, bias=bias)
 
         if init_weights:
             self._initialize_weights()
 
-    def reparameterize(self, mu:torch.Tensor, b:torch.Tensor, device:torch.device) -> torch.Tensor:
-        laplace = Laplace(loc=torch.zeros(b.size()), scale=torch.ones(b.size()))
-        U = laplace.sample().to(device) #draw random sample from a standard Laplace distribution with mu = 0 and lam = 1
-        z = U.mul(b).add(mu) #perform reparameterization trick
-        return z
+    def reparameterize(self, mu:torch.Tensor, sigma:torch.Tensor) -> torch.Tensor:
+        eps = sigma.data.new(sigma.size()).normal_()
+        return eps.mul(sigma).add_(mu)
 
-    def forward(self, x:torch.Tensor, device:torch.device) -> Tuple[torch.Tensor]:
+    def forward(self, x:torch.Tensor) -> Tuple[torch.Tensor]:
         mu = self.encoder_mu(x)
-        log_b = self.encoder_logb(x)
-        b = log_b.exp()
-        z = self.reparameterize(mu, b, device)
+        log_sigma = self.encoder_logsigma(x)
+        W_mu = self.encoder_mu.weight.T
+        W_sigma = self.encoder_logsigma.weight.T.exp()
+        W_sampled = self.reparameterize(W_mu, W_sigma)
+        z = torch.mm(x, W_sampled)
         z = F.relu(z) #employ rectifier to impose non-negativity constraint on z (move all negative numbers into null space)
-        l = (log_b*-1.0).exp() #this is equivalent to but numerically more stable than b.pow(-1)
-        return z, mu, l
+        return z, W_mu, W_sigma, W_sampled
 
     def _initialize_weights(self) -> None:
         for n, m in self.named_modules():

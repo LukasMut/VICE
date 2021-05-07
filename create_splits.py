@@ -14,7 +14,7 @@ def parseargs():
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
     aa('--triplets_dir', type=str,
-        help='results directory (root directory for models)')
+        help='triplets directory (parent directory for full triplet dataset)')
     aa('--n_folds', type=int, default=10,
         choices=[20, 10, 5],
         help='split data into k number of folds')

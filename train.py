@@ -274,6 +274,10 @@ def run(
                         }, os.path.join(model_dir, f'model_epoch{epoch+1:04d}.tar'))
 
             logger.info(f'Saving model parameters at epoch {epoch+1}')
+            results = {'epoch': len(train_accs), 'train_acc': train_accs[-1], 'val_acc': val_accs[-1], 'val_loss': val_losses[-1]}
+            PATH = pjoin(results_dir, 'results.json')
+            with open(PATH, 'w') as results_file:
+                json.dump(results, results_file)
 
             if (epoch + 1) > window_size:
                 #check termination condition
@@ -281,17 +285,12 @@ def run(
                 if (lmres.slope > 0) or (lmres.pvalue > .1):
                     break
 
-    results = {'epoch': len(train_accs), 'train_acc': train_accs[-1], 'val_acc': val_accs[-1], 'val_loss': val_losses[-1]}
     logger.info(f'Optimization finished after {epoch+1} epochs\n')
     logger.info('Plotting model performances over time across all lambda values\n')
     #plot train and validation performance alongside each other to examine a potential overfit to the training data
     plot_single_performance(plots_dir=plots_dir, val_accs=val_accs, train_accs=train_accs)
     #plot both log-likelihood of the data (i.e., cross-entropy loss) and complexity loss (i.e., l1-norm in DSPoSE and KLD in VSPoSE)
     plot_complexities_and_loglikelihoods(plots_dir=plots_dir, loglikelihoods=loglikelihoods, complexity_losses=complexity_losses)
-
-    PATH = pjoin(results_dir, 'results.json')
-    with open(PATH, 'w') as results_file:
-        json.dump(results, results_file)
 
 if __name__ == "__main__":
     #parse arguments and set random seeds

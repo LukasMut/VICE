@@ -53,7 +53,7 @@ def parseargs():
         help='number of triplets subsampled during each iteration (i.e., mini-batch size)')
     aa('--epochs', metavar='T', type=int, default=300,
         help='maximum number of epochs to optimize SPoSE model for')
-    aa('--k_samples', type=int,
+    aa('--mc_samples', type=int,
         choices=[10, 15, 20, 25, 30, 35, 40, 45, 50],
         help='number of samples to leverage for MC sampling')
     aa('--spike', type=float,
@@ -109,7 +109,7 @@ def run(
         epochs:int,
         window_size:int,
         lr:float,
-        k_samples:int,
+        mc_samples:int,
         steps:int,
         verbose:bool=True,
 ) -> None:
@@ -248,7 +248,7 @@ def run(
             print("=================================================================================================\n")
 
         if (epoch + 1) % steps == 0:
-            avg_val_loss, avg_val_acc = utils.validation(model, val_batches, task, device, k_samples)
+            avg_val_loss, avg_val_acc = utils.validation(model, val_batches, task, device, mc_samples)
 
             val_losses.append(avg_val_loss)
             val_accs.append(avg_val_acc)
@@ -333,6 +333,6 @@ if __name__ == "__main__":
         epochs=args.epochs,
         window_size=args.window_size,
         lr=args.learning_rate,
-        k_samples=args.k_samples,
+        mc_samples=args.mc_samples,
         steps=args.steps,
         )

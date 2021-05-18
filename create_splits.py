@@ -16,10 +16,10 @@ def parseargs():
     aa('--triplets_dir', type=str,
         help='triplets directory (parent directory for full triplet dataset)')
     aa('--n_folds', type=int, default=10,
-        choices=[20, 10, 5],
+        choices=[40, 20, 10, 5],
         help='split data into k number of folds')
     aa('--additional_fractions', type=int, nargs='+',
-        help='concatenate data folds to additionally create splits of (e.g., 20, 50) % of full dataset')
+        help='concatenate data folds to additionally create splits of (e.g., 10, 20, 50) % of full dataset')
     aa('--rnd_seed', type=int, default=42,
         help='random seed for reproducibility')
     args = parser.parse_args()

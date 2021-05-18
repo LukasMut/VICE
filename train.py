@@ -64,6 +64,8 @@ def parseargs():
         help='scalar value that determines the relative weight of the spike and slab distributions respectively')
     aa('--window_size', type=int, default=50,
         help='window size to be used for checking convergence criterion with linear regression')
+    aa('--steps', type=int, default=50,
+        help='perform validation and save model parameters every <steps> epochs')
     aa('--device', type=str, default='cpu',
         choices=['cpu', 'cuda', 'cuda:0', 'cuda:1', 'cuda:2', 'cuda:3', 'cuda:4', 'cuda:5', 'cuda:6', 'cuda:7'])
     aa('--rnd_seed', type=int, default=42,
@@ -108,6 +110,7 @@ def run(
         window_size:int,
         lr:float,
         k_samples:int,
+        steps:int,
         verbose:bool=True,
 ) -> None:
     #load triplets into memory
@@ -234,30 +237,25 @@ def run(
 
         loglikelihoods.append(avg_llikelihood)
         complexity_losses.append(avg_closs)
-        train_losses.append(avg_train_loss)
-        train_accs.append(avg_train_acc)
-
-        ################################################
-        ################ validation ####################
-        ################################################
-
-        avg_val_loss, avg_val_acc = utils.validation(model, val_batches, task, device, k_samples)
-
-        val_losses.append(avg_val_loss)
-        val_accs.append(avg_val_acc)
 
         logger.info(f'Epoch: {epoch+1}/{epochs}')
         logger.info(f'Train acc: {avg_train_acc:.3f}')
         logger.info(f'Train loss: {avg_train_loss:.3f}')
-        logger.info(f'Val acc: {avg_val_acc:.3f}')
-        logger.info(f'Val loss: {avg_val_loss:.3f}\n')
 
         if verbose:
-            print("\n==============================================================================================================")
-            print(f'====== Epoch: {epoch+1}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Val acc: {avg_val_acc:.3f}, Val loss: {avg_val_loss:.3f} ======')
-            print("==============================================================================================================\n")
+            print("\n===============================================================================================")
+            print(f'====== Epoch: {epoch+1}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f} ======')
+            print("=================================================================================================\n")
 
-        if (epoch + 1) % 20 == 0:
+        if (epoch + 1) % steps == 0:
+            avg_val_loss, avg_val_acc = utils.validation(model, val_batches, task, device, k_samples)
+
+            val_losses.append(avg_val_loss)
+            val_accs.append(avg_val_acc)
+
+            train_losses.append(avg_train_loss)
+            train_accs.append(avg_train_acc)
+
             #save model and optim parameters for inference or to resume training
             #PyTorch convention is to save checkpoints as .tar files
             torch.save({
@@ -275,15 +273,17 @@ def run(
 
             logger.info(f'Saving model parameters at epoch {epoch+1}')
             results = {'epoch': len(train_accs), 'train_acc': train_accs[-1], 'val_acc': val_accs[-1], 'val_loss': val_losses[-1]}
-            PATH = pjoin(results_dir, 'results.json')
+            PATH = pjoin(results_dir, f'results_{epoch+1}.json')
             with open(PATH, 'w') as results_file:
                 json.dump(results, results_file)
 
+            """
             if (epoch + 1) > window_size:
                 #check termination condition
                 lmres = linregress(range(window_size), train_losses[(epoch + 1 - window_size):(epoch + 2)])
                 if (lmres.slope > 0) or (lmres.pvalue > .1):
                     break
+            """
 
     logger.info(f'Optimization finished after {epoch+1} epochs\n')
     logger.info('Plotting model performances over time across all lambda values\n')
@@ -334,4 +334,5 @@ if __name__ == "__main__":
         window_size=args.window_size,
         lr=args.learning_rate,
         k_samples=args.k_samples,
+        steps=args.steps,
         )

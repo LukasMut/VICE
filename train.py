@@ -273,7 +273,7 @@ def run(
 
             logger.info(f'Saving model parameters at epoch {epoch+1}')
             results = {'epoch': len(train_accs), 'train_acc': train_accs[-1], 'val_acc': val_accs[-1], 'val_loss': val_losses[-1]}
-            PATH = pjoin(results_dir, f'results_{epoch+1}.json')
+            PATH = pjoin(results_dir, f'results_{epoch+1:04d}.json')
             with open(PATH, 'w') as results_file:
                 json.dump(results, results_file)
 

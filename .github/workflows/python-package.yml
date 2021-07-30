@@ -31,3 +31,4 @@ jobs:
     - name: Test with unittest
       run: |
         python unittests.py -v
+        python -m unittest -v unittests.py

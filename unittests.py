@@ -164,6 +164,16 @@ class MCSamplingTestCase(unittest.TestCase):
             self.assertTrue(isinstance(out[-1], torch.Tensor))
             self.assertTrue(len(out[-1].shape), 2)
 
+class CorrelationTestCase(unittest.TestCase):
+
+    def test_correlation(self):
+        u = np.random.normal(loc=0., scale=1., size=(100,))
+        v = np.random.normal(loc=0., scale=1., size=(100,))
+        r = utils.pearsonr(u, v)
+        self.assertTrue(isinstance(r, float))
+        self.assertTrue(r <= 1.)
+        self.assertTrue(r >= -1.)
+
 # def filter_triplets(triplets):
 #     return np.array(list(filter(lambda x : len(set(x)) == len(x), triplets)))
 

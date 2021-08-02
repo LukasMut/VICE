@@ -62,7 +62,8 @@ class TripletLoadingTestCase(unittest.TestCase):
 
     def test_loading(self):
         """Test whether loading triplets from disk into memory works correctly."""
-        train_triplets, test_triplets = utils.load_data(device=DEVICE, triplets_dir=TEST_DIR)
+        train_triplets, test_triplets = utils.load_data(
+            device=DEVICE, triplets_dir=TEST_DIR)
         self.assertEqual(train_triplets.shape[1], test_triplets.shape[1], K)
         self.assertTrue(isinstance(train_triplets, torch.Tensor))
         self.assertTrue(isinstance(test_triplets, torch.Tensor))
@@ -74,12 +75,12 @@ class TripletLoadingTestCase(unittest.TestCase):
 
         # the following test depends on the variables above
         train_batches, test_batches = utils.load_batches(
-                                                        train_triplets=train_triplets,
-                                                        test_triplets=test_triplets,
-                                                        n_items=n_items,
-                                                        batch_size=BATCH_SIZE,
-                                                        sampling_method='normal',
-                                                        rnd_seed=RND_SEED,
+            train_triplets=train_triplets,
+            test_triplets=test_triplets,
+            n_items=n_items,
+            batch_size=BATCH_SIZE,
+            sampling_method='normal',
+            rnd_seed=RND_SEED,
         )
 
         self.assertEqual(len(train_batches), len(train_triplets) // BATCH_SIZE)
@@ -89,15 +90,16 @@ class TripletLoadingTestCase(unittest.TestCase):
 class MiniBatchingTestCase(unittest.TestCase):
 
     def test_batching(self):
-        train_triplets, test_triplets = utils.load_data(device=DEVICE, triplets_dir=TEST_DIR)
+        train_triplets, test_triplets = utils.load_data(
+            device=DEVICE, triplets_dir=TEST_DIR)
         n_items = utils.get_nitems(train_triplets)
         _, test_batches = utils.load_batches(
-                                            train_triplets=train_triplets,
-                                            test_triplets=test_triplets,
-                                            n_items=n_items,
-                                            batch_size=BATCH_SIZE,
-                                            sampling_method='normal',
-                                            rnd_seed=RND_SEED,
+            train_triplets=train_triplets,
+            test_triplets=test_triplets,
+            n_items=n_items,
+            batch_size=BATCH_SIZE,
+            sampling_method='normal',
+            rnd_seed=RND_SEED,
         )
         model = VSPoSE(in_size=NUM_ITEMS, out_size=P, init_weights=True)
         model.to(DEVICE)
@@ -119,10 +121,12 @@ class MiniBatchingTestCase(unittest.TestCase):
             for i, t in enumerate(out):
                 self.assertTrue(isinstance(t, torch.Tensor))
                 if i > 0:
-                    self.assertEqual(t.T.shape, model.encoder_mu.weight.shape, model.encoder_logsigma.weight.shape)
+                    self.assertEqual(
+                        t.T.shape, model.encoder_mu.weight.shape, model.encoder_logsigma.weight.shape)
 
             self.assertTrue(torch.all(out[1] == model.encoder_mu.weight.T))
-            self.assertTrue(torch.all(out[2] == model.encoder_logsigma.weight.exp().T))
+            self.assertTrue(
+                torch.all(out[2] == model.encoder_logsigma.weight.exp().T))
 
             out = torch.unbind(torch.reshape(out[0], (-1, K, P)), dim=1)
             self.assertEqual(len(out), K)
@@ -130,19 +134,26 @@ class MiniBatchingTestCase(unittest.TestCase):
             for t in out:
                 self.assertEqual(t.shape, (BATCH_SIZE, P))
 
+            acc = utils.choice_accuracy(out[0], out[1], out[2], TASK)
+
+            self.assertTrue(isinstance(acc, float))
+            self.assertTrue(acc < 1.0)
+            self.assertTrue(acc > 0.)
+
 
 class MCSamplingTestCase(unittest.TestCase):
 
     def test_mcsampling(self):
-        train_triplets, test_triplets = utils.load_data(device=DEVICE, triplets_dir=TEST_DIR)
+        train_triplets, test_triplets = utils.load_data(
+            device=DEVICE, triplets_dir=TEST_DIR)
         n_items = utils.get_nitems(train_triplets)
         _, test_batches = utils.load_batches(
-                                            train_triplets=train_triplets,
-                                            test_triplets=test_triplets,
-                                            n_items=n_items,
-                                            batch_size=BATCH_SIZE,
-                                            sampling_method='normal',
-                                            rnd_seed=RND_SEED,
+            train_triplets=train_triplets,
+            test_triplets=test_triplets,
+            n_items=n_items,
+            batch_size=BATCH_SIZE,
+            sampling_method='normal',
+            rnd_seed=RND_SEED,
         )
         model = VSPoSE(in_size=NUM_ITEMS, out_size=P, init_weights=True)
         model.to(DEVICE)
@@ -152,17 +163,18 @@ class MCSamplingTestCase(unittest.TestCase):
             for batch in test_batches:
                 batch = batch.to(DEVICE)
                 out = utils.mc_sampling(
-                                        model=model,
-                                        batch=batch,
-                                        temp=TEMPERATURE,
-                                        task=TASK,
-                                        n_samples=MC_SAMPLES,
-                                        device=DEVICE,
-                                        compute_stds=False,
-                                        )
+                    model=model,
+                    batch=batch,
+                    temp=TEMPERATURE,
+                    task=TASK,
+                    n_samples=MC_SAMPLES,
+                    device=DEVICE,
+                    compute_stds=False,
+                )
             self.assertEqual(len(out), 3)
             self.assertTrue(isinstance(out[-1], torch.Tensor))
             self.assertTrue(len(out[-1].shape), 2)
+
 
 class CorrelationTestCase(unittest.TestCase):
 
@@ -176,6 +188,7 @@ class CorrelationTestCase(unittest.TestCase):
 
 # def filter_triplets(triplets):
 #     return np.array(list(filter(lambda x : len(set(x)) == len(x), triplets)))
+
 
 def filter_triplets(triplets: np.ndarray) -> np.ndarray:
     def f(x: np.ndarray) -> int:

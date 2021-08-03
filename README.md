@@ -5,7 +5,16 @@
 
 ### Setting up virtual environment and installing dependencies
 
+We recommend to create a new virtual environment and install all dependencies via conda.
+
 ```bash
 $ conda env create --prefix /Users/$(whoami)/anaconda3/envs/vspose --file envs/environment.yml
 $ conda activate vspose
 ```
+
+Alternatively, one can install all dependencies via pip in the usual way.
+
+```bash
+$ pip install -r requirements.txt
+```
+

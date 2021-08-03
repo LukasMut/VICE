@@ -1,0 +1,22 @@
+name: vspose
+channels:
+ - defaults
+ - conda-forge
+ - pytorch
+dependencies:
+ - python=3.8
+ - numpy=1.19.*
+ - ftfy=5.8
+ - pandas=1.0.*
+ - scikit-image=0.18.*
+ - scikit-learn=0.24.*
+ - pytorch=1.7.*
+ - tqdm=4.47.*
+ - numba=0.53.*
+ - matplotlib=3.2.*
+ - regex
+ - scipy
+ - pip
+ - pip:
+   - codecov
+   - pep8

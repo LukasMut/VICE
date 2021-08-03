@@ -35,7 +35,7 @@ Explanation of arguments in `train.py`.
  --embed_dim (int) # initial dimensionality of the latent space
  --batch_size (int) # mini-batch size
  --epochs (int) # maximum number of epochs
- --mc_samples (int) # number of samples to be averaged over at val time
+ --mc_samples (int) # number of weight samples to be averaged over at val time
  --spike (float) # scale of the spike distribution
  --slab (float) # scale of the slab distribution
  --pi (float) # probability value that determines the relative weighting of the distributions; the higher this value, the higher the probability that weights are drawn from the spike distribution (i.e., sparser solution)

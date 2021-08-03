@@ -18,28 +18,28 @@ Alternatively, one can install dependencies via pip in the usual way.
 $ pip install -r requirements.txt
 ```
 
-### Optimization
+### Latent space optimization
 
 ```python
  
  train.py
   
- --task (str) (odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task)
- --modality (str) (e.g., behavioral, text, visual)
- --triplets_dir (str) (path/to/triplets)
- --results_dir (str) (optional specification of results directory (if not provided will resort to ./results/modality/version/dim/lambda/seed/))
- --plots_dir (str) (optional specification of directory for plots (if not provided will resort to ./plots/modality/version/dim/lambda/seed/)
- --learning_rate (float) (learning rate for Adam)
- --embed_dim (int) (embedding dimensionality, i.e., initial size of the latent space)
- --batch_size (int) (batch size)
- --epochs (int) (maximum number of epochs)
- --mc_samples (int) (number of samples to be used for monte-carlo sampling)
- --spike (float) (scale of the spike distribution)
- --slab (float) (scale of the slab distribution)
- --pi (float) (probability value that determines the weighting of the distributions; the higher this value, the sparser the solution)
- --steps (int) (perform validation, save model parameters and create checkpoints every <steps> epochs)
- --device (str) (cuda or cpu)
- --rnd_seed (int) (random seed)
+ --task (str) # odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task
+ --modality (str) # e.g., behavioral, text, visual
+ --triplets_dir (str) # path/to/triplets)
+ --results_dir (str) # optional specification of results directory (if not provided will resort to ./results/modality/version/dim/lambda/seed/)
+ --plots_dir (str) # optional specification of directory for plots (if not provided will resort to ./plots/modality/version/dim/lambda/seed/)
+ --learning_rate (float) # learning rate for Adam
+ --embed_dim (int) # initial dimensionality of the latent space
+ --batch_size (int) # batch size
+ --epochs (int) # maximum number of epochs
+ --mc_samples (int) # number of samples to be used for monte-carlo sampling
+ --spike (float) # scale of the spike distribution
+ --slab (float) # scale of the slab distribution
+ --pi (float) # probability value that determines the weighting of the distributions; the higher this value, the more values will be drawn from the spike distrbution (i.e., sparser solution)
+ --steps (int) # perform validation, save model parameters and create checkpoints every <steps> epochs
+ --device (str) # cuda or cpu
+ --rnd_seed (int) # random seed
  ```
 
 #### Example call

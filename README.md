@@ -5,14 +5,14 @@
 
 ### Environment setup and dependencies
 
-We recommend to create a virtual conda environment with all dependencies installed.
+We recommend to create a virtual conda environment including all dependencies.
 
 ```bash
 $ conda env create --prefix /Users/$(whoami)/anaconda3/envs/vspose --file envs/environment.yml
 $ conda activate vspose
 ```
 
-Alternatively, one can install dependencies via pip in the usual way.
+Alternatively, dependencies can be installed via pip in the usual way.
 
 ```bash
 $ pip install -r requirements.txt

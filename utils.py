@@ -2,28 +2,21 @@
 # -*- coding: utf-8 -*-
 
 import json
-import logging
 import math
 import os
 import pickle
 import re
 import torch
-import warnings
 
 import numpy as np
 import pandas as pd
 import skimage.io as io
 import torch.nn.functional as F
 
-from collections import defaultdict, Counter
-from itertools import islice, combinations, permutations
-from numba import njit, jit, prange
+from collections import defaultdict
+from itertools import islice
 from os.path import join as pjoin
 from skimage.transform import resize
-from torch.distributions.normal import Normal
-from torch.optim import Adam, AdamW
-from torch.utils.data.distributed import DistributedSampler
-from torch.utils.data import Dataset, DataLoader, SequentialSampler
 from typing import Tuple, Iterator, List, Dict
 
 class BatchGenerator(object):
@@ -110,7 +103,7 @@ def tripletize_data(PATH:str, method:str, n_samples:float, sampling_constant:flo
     E = load_features(PATH)
     #compute similarity matrix
     #TODO: figure out whether an affinity matrix might be more reasonable (i.e., informative) than a simple similarity matrix
-    S = matul(E, E.T)
+    S = E @ E.T
     N = S.shape[0]
     #draw random samples of triplets of concepts
     rnd_samples = np.random.randint(N, size=(int(n_samples + sampling_constant), 3))
@@ -467,22 +460,6 @@ def validation(model, val_batches, task:str, device:torch.device, n_samples:int)
     avg_val_loss = torch.mean(batch_losses_val).item()
     avg_val_acc = torch.mean(batch_accs_val).item()
     return avg_val_loss, avg_val_acc
-
-def get_results_files(
-                      results_dir:str,
-                      modality:str,
-                      version:str,
-                      subfolder:str,
-                      vision_model=None,
-                      layer=None,
-) -> list:
-    if modality == 'visual':
-        assert isinstance(vision_model, str) and isinstance(layer, str), 'name of vision model and layer are required'
-        PATH = pjoin(results_dir, modality, vision_model, layer, version, f'{dim}d', f'{lmbda}')
-    else:
-        PATH = pjoin(results_dir, modality, version, f'{dim}d', f'{lmbda}')
-    files = [pjoin(PATH, seed, f) for seed in os.listdir(PATH) for f in os.listdir(pjoin(PATH, seed)) if f.endswith('.json')]
-    return files
 
 def sort_results(results:dict) -> dict:
     return dict(sorted(results.items(), key=lambda kv:kv[0], reverse=False))

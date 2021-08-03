@@ -35,10 +35,10 @@ Explanation of arguments in `train.py`.
  --embed_dim (int) # initial dimensionality of the latent space
  --batch_size (int) # mini-batch size
  --epochs (int) # maximum number of epochs
- --mc_samples (int) # number of samples to be used for monte-carlo sampling
+ --mc_samples (int) # number of samples to be averaged over at val time
  --spike (float) # scale of the spike distribution
  --slab (float) # scale of the slab distribution
- --pi (float) # probability value that determines the weighting of the distributions; the higher this value, the more values will be drawn from the spike distrbution (i.e., sparser solution)
+ --pi (float) # probability value that determines the relative weighting of the distributions; the higher this value, the higher the probability that weights are drawn from the spike distribution (i.e., sparser solution)
  --steps (int) # perform validation, save model parameters and create checkpoints every <steps> epochs
  --device (str) # cuda or cpu
  --rnd_seed (int) # random seed

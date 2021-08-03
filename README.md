@@ -3,7 +3,7 @@
 
 # V-SPoSE
 
-## Set-up environment and install dependencies
+### Setting up virtual environment and installing dependencies
 
 ```bash
 $ conda env create --prefix /Users/$(whoami)/anaconda3/envs/vspose --file envs/environment.yml

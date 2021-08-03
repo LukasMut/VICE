@@ -581,6 +581,14 @@ def compute_kld(model, lmbda:float, aggregate:bool, reduction=None) -> np.ndarra
 ######### helper functions to load weight matrices and compare RSMs across modalities #######
 #############################################################################################
 
+def pearsonr(u:np.ndarray, v:np.ndarray, a_min:float=-1., a_max:float=1.) -> np.ndarray:
+    u_c = u - np.mean(u)
+    v_c = v - np.mean(v)
+    num = u_c @ v_c
+    denom = np.linalg.norm(u_c) * np.linalg.norm(v_c)
+    rho = (num / denom).clip(min=a_min, max=a_max)
+    return rho
+
 def robustness(corrs:np.ndarray, thresh:float) -> float:
     return len(corrs[corrs>thresh])/len(corrs)
 

@@ -26,19 +26,6 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import Dataset, DataLoader, SequentialSampler
 from typing import Tuple, Iterator, List, Dict
 
-class TripletDataset(Dataset):
-
-    def __init__(self, I:torch.tensor, dataset:torch.Tensor):
-        self.I = I
-        self.dataset = dataset
-
-    def __len__(self) -> int:
-        return len(self.dataset)
-
-    def __getitem__(self, idx:int) -> torch.Tensor:
-        sample = encode_as_onehot(self.I, self.dataset[idx])
-        return sample
-
 class BatchGenerator(object):
 
     def __init__(
@@ -201,8 +188,6 @@ def load_batches(
                  n_items:int,
                  batch_size:int,
                  inference:bool=False,
-                 multi_proc:bool=False,
-                 n_gpus:int=None,
                  sampling_method:str=None,
                  rnd_seed:int=None,
                  p=None,
@@ -213,16 +198,6 @@ def load_batches(
         assert train_triplets is None
         test_batches = BatchGenerator(I=I, dataset=test_triplets, batch_size=batch_size, sampling_method=None, p=None)
         return test_batches
-    if (multi_proc and n_gpus > 1):
-        if sampling_method == 'soft':
-            warnings.warn(f'...Soft sampling cannot be used in a multi-process distributed training setting.', RuntimeWarning)
-            warnings.warn(f'...Processes will equally distribute the entire training dataset amongst each other.', RuntimeWarning)
-            warnings.warn(f'...If you want to use soft sampling, you must switch to single GPU or CPU training.', UserWarning)
-        train_set = TripletDataset(I=I, dataset=train_triplets)
-        val_set = TripletDataset(I=I, dataset=test_triplets)
-        train_sampler = DistributedSampler(dataset=train_set, shuffle=True, seed=rnd_seed)
-        train_batches = DataLoader(dataset=train_set, batch_size=batch_size, sampler=train_sampler, num_workers=n_gpus)
-        val_batches = DataLoader(dataset=val_set, batch_size=batch_size, shuffle=False, num_workers=n_gpus)
     else:
         #create two iterators of train and validation mini-batches respectively
         train_batches = BatchGenerator(I=I, dataset=train_triplets, batch_size=batch_size, sampling_method=sampling_method, p=p)
@@ -240,12 +215,6 @@ def spike_and_slab(sample:torch.Tensor, mu:torch.Tensor, sigma_1:torch.Tensor, s
     spike = pi * pdf(sample, mu, sigma_1)
     slab = (1 - pi) * pdf(sample, mu, sigma_2)
     return spike + slab
-
-def l2_reg_(model, weight_decay:float=1e-5) -> torch.Tensor:
-    loc_norms_squared = .5 * model.encoder_mu.weight.data.pow(2).sum()
-    scale_norms_squared = model.encoder_logb.weight.data.exp().pow(2).sum()
-    l2_reg = weight_decay * (loc_norms_squared + scale_norms_squared)
-    return l2_reg
 
 def encode_as_onehot(I:torch.Tensor, triplets:torch.Tensor) -> torch.Tensor:
     """encode item triplets as one-hot-vectors"""
@@ -294,11 +263,6 @@ def get_nneg_dims(W:torch.Tensor, eps:float=0.1) -> int:
     w_max = W.max(dim=1)[0]
     nneg_d = len(w_max[w_max > eps])
     return nneg_d
-
-def remove_zeros(W:np.ndarray, eps:float=.1) -> np.ndarray:
-    w_max = np.max(W, axis=1)
-    W = W[np.where(w_max > eps)]
-    return W
 
 ################################################
 ######### helper functions for evaluation ######
@@ -617,124 +581,6 @@ def compute_kld(model, lmbda:float, aggregate:bool, reduction=None) -> np.ndarra
 ######### helper functions to load weight matrices and compare RSMs across modalities #######
 #############################################################################################
 
-def load_targets(model:str, layer:str, folder:str='./visual') -> np.ndarray:
-    PATH = pjoin(folder, model, layer)
-    with open(pjoin(PATH, 'targets.npy'), 'rb') as f:
-        targets = np.load(f)
-    return targets
-
-def get_ref_indices(targets:np.ndarray) -> np.ndarray:
-    n_items = len(np.unique(targets))
-    cats = np.zeros(n_items, dtype=int)
-    indices = np.zeros(n_items, dtype=int)
-    for idx, cat in enumerate(targets):
-        if cat not in cats:
-            cats[cat] = cat
-            indices[cat] = idx
-    assert len(indices) == n_items, '\nnumber of indices for reference images must be equal to number of unique objects\n'
-    return indices
-
-def pearsonr(u:np.ndarray, v:np.ndarray, a_min:float=-1., a_max:float=1.) -> np.ndarray:
-    u_c = u - np.mean(u)
-    v_c = v - np.mean(v)
-    num = u_c @ v_c
-    denom = np.linalg.norm(u_c) * np.linalg.norm(v_c)
-    rho = (num / denom).clip(min=a_min, max=a_max)
-    return rho
-
-def cos_mat(W:np.ndarray, a_min:float=-1., a_max:float=1.) -> np.ndarray:
-    num = matmul(W, W.T)
-    l2_norms = np.linalg.norm(W, axis=1) #compute l2-norm across rows
-    denom = np.outer(l2_norms, l2_norms)
-    cos_mat = (num / denom).clip(min=a_min, max=a_max)
-    return cos_mat
-
-def corr_mat(W:np.ndarray, a_min:float=-1., a_max:float=1.) -> np.ndarray:
-    W_c = W - W.mean(axis=1)[:, np.newaxis]
-    cov = matmul(W_c, W_c.T)
-    l2_norms = np.linalg.norm(W_c, axis=1) #compute l2-norm across rows
-    denom = np.outer(l2_norms, l2_norms)
-    corr_mat = (cov / denom).clip(min=a_min, max=a_max) #counteract potential rounding errors
-    return corr_mat
-
-def fill_diag(rsm:np.ndarray) -> np.ndarray:
-    """fill main diagonal of the RSM with 1"""
-    assert np.allclose(rsm, rsm.T), '\nRSM is required to be a symmetric matrix\n'
-    rsm[np.eye(len(rsm)) == 1.] = 1
-    return rsm
-
-@njit(parallel=True, fastmath=True)
-def matmul(A:np.ndarray, B:np.ndarray) -> np.ndarray:
-    I, K = A.shape
-    K, J = B.shape
-    C = np.zeros((I, J))
-    for i in prange(I):
-        for j in prange(J):
-            for k in prange(K):
-                C[i, j] += A[i, k] * B[k, j]
-    return C
-
-@njit(parallel=True, fastmath=True)
-def rsm_pred(W:np.ndarray) -> np.ndarray:
-    """convert weight matrix corresponding to the mean of each dim distribution for an object into a RSM"""
-    N = W.shape[0]
-    S = matmul(W, W.T)
-    S_e = np.exp(S) #exponentiate all elements in the inner product matrix S
-    rsm = np.zeros((N, N))
-    for i in prange(N):
-        for j in prange(i+1, N):
-            for k in prange(N):
-                if (k != i and k != j):
-                    rsm[i, j] += S_e[i, j] / (S_e[i, j] + S_e[i, k] + S_e[j, k])
-    rsm /= N - 2
-    rsm += rsm.T #make similarity matrix symmetric
-    return rsm
-
-def rsm(W:np.ndarray, metric:str) -> np.ndarray:
-    rsm = corr_mat(W) if metric == 'rho' else cos_mat(W)
-    return rsm
-
-def compute_trils(W_mod1:np.ndarray, W_mod2:np.ndarray, metric:str) -> float:
-    metrics = ['cos', 'pred', 'rho']
-    assert metric in metrics, f'\nMetric must be one of {metrics}.\n'
-    if metric == 'pred':
-        rsm_1 = fill_diag(rsm_pred(W_mod1))
-        rsm_2 = fill_diag(rsm_pred(W_mod2))
-    else:
-        rsm_1 = rsm(W_mod1, metric) #RSM wrt first modality (e.g., DNN)
-        rsm_2 = rsm(W_mod2, metric) #RSM wrt second modality (e.g., behavior)
-    assert rsm_1.shape == rsm_2.shape, '\nRSMs must be of equal size.\n'
-    #since RSMs are symmetric matrices, we only need to compare their lower triangular parts (main diagonal can be omitted)
-    tril_inds = np.tril_indices(len(rsm_1), k=-1)
-    tril_1 = rsm_1[tril_inds]
-    tril_2 = rsm_2[tril_inds]
-    return tril_1, tril_2, tril_inds
-
-def compare_modalities(W_mod1:np.ndarray, W_mod2:np.ndarray, duplicates:bool=False) -> Tuple[np.ndarray]:
-    assert W_mod1.shape[0] == W_mod2.shape[0], '\nNumber of items in weight matrices must align.\n'
-    mod1_mod2_corrs = np.zeros(W_mod1.shape[1])
-    mod2_dims = []
-    for d_mod1, w_mod1 in enumerate(W_mod1.T):
-        corrs = np.array([pearsonr(w_mod1, w_mod2) for w_mod2 in W_mod2.T])
-        if duplicates:
-            mod2_dims.append(np.argmax(corrs))
-        else:
-            for d_mod2 in np.argsort(-corrs):
-                if d_mod2 not in mod2_dims:
-                    mod2_dims.append(d_mod2)
-                    break
-        mod1_mod2_corrs[d_mod1] = corrs[mod2_dims[-1]]
-    mod1_dims_sorted = np.argsort(-mod1_mod2_corrs)
-    mod2_dims_sorted = np.asarray(mod2_dims)[mod1_dims_sorted]
-    corrs = mod1_mod2_corrs[mod1_dims_sorted]
-    return mod1_dims_sorted, mod2_dims_sorted, corrs
-
-def sparsity(A:np.ndarray) -> float:
-    return 1.0 - (A[A>0].size/A.size)
-
-def avg_sparsity(Ws:list) -> np.ndarray:
-    return np.mean(list(map(sparsity, Ws)))
-
 def robustness(corrs:np.ndarray, thresh:float) -> float:
     return len(corrs[corrs>thresh])/len(corrs)
 
@@ -753,45 +599,3 @@ def cross_correlate_latent_dims(X, thresh:float=None) -> float:
     if thresh:
         return robustness(corrs, thresh)
     return np.mean(corrs)
-
-################################################################################################
-############################ helper functions for data visualization ###########################
-################################################################################################
-
-def clip_img(img:np.ndarray) -> np.ndarray:
-    return np.clip(img, a_min=None, a_max=np.percentile(img, 99))
-
-def concat_imgs(images:np.ndarray, top_k:int) -> np.ndarray:
-    img_combination = np.concatenate([
-        np.concatenate([img for img in images[:int(top_k/2)]], axis = 1),
-        np.concatenate([img for img in images[int(top_k/2):]], axis = 1)], axis = 0)
-    return img_combination
-
-def get_image_combinations(
-                            topk_imgs_mod1:np.ndarray,
-                            topk_imgs_mod2:np.ndarray,
-                            most_dissim_imgs_mod1:np.ndarray,
-                            most_dissim_imgs_mod2:np.ndarray,
-                            top_k:int,
-                            topk_imgs_searchlight=None,
-                            most_dissim_imgs_searchlight=None,
-                            ) -> List[np.ndarray]:
-    """create combinations of both top k images for each modality and k most dissimilar images between modalities"""
-    imgs_comb_mod1_topk = concat_imgs(topk_imgs_mod1, top_k)
-    imgs_comb_mod2_topk = concat_imgs(topk_imgs_mod2, top_k)
-
-    imgs_comb_mod1_dissim = concat_imgs(most_dissim_imgs_mod1, top_k)
-    imgs_comb_mod2_dissim = concat_imgs(most_dissim_imgs_mod2, top_k)
-
-    if (topk_imgs_searchlight is not None) and (most_dissim_imgs_searchlight is not None):
-        topk_imgs_searchlight = np.array([clip_img(img)/img.max() for img in topk_imgs_searchlight])
-        imgs_comb_search_topk = concat_imgs(topk_imgs_searchlight, top_k)
-
-        most_dissim_imgs_searchlight = np.array([clip_img(img)/img.max() for img in most_dissim_imgs_searchlight])
-        imgs_comb_search_dissim = concat_imgs(most_dissim_imgs_searchlight, top_k)
-
-        imgs_combs = [imgs_comb_mod1_topk, imgs_comb_mod2_topk, imgs_comb_search_topk, imgs_comb_mod1_dissim, imgs_comb_mod2_dissim, imgs_comb_search_dissim]
-    else:
-        imgs_combs = [imgs_comb_mod1_topk, imgs_comb_mod2_topk, imgs_comb_mod1_dissim, imgs_comb_mod2_dissim]
-
-    return imgs_combs

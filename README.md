@@ -8,7 +8,7 @@
 We recommend to create a virtual conda environment including all dependencies.
 
 ```bash
-$ conda env create --prefix /Users/$(whoami)/anaconda3/envs/vspose --file envs/environment.yml
+$ conda env create --prefix /path/to/conda/envs/vspose --file envs/environment.yml
 $ conda activate vspose
 ```
 

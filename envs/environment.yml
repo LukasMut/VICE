@@ -9,12 +9,13 @@ dependencies:
  - ftfy=5.8
  - pandas=1.0.*
  - scikit-learn=0.24.*
- - pytorch=1.7.*
+ - pytorch=1.8.*
  - tqdm=4.47.*
  - numba=0.53.*
  - matplotlib=3.2.*
  - regex
  - scipy
+ - h5py
  - pip
  - pip:
    - codecov

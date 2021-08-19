@@ -1,8 +1,13 @@
 *.pyc
-*/__pychache__/*
+*.csv
+*.tsv
+*.DS_Store
 *.zip
 *.tar
-*.npy
+*.png
+*.jpg
 *.txt
-*.csv
-*.DS_Store
+.ipynb_checkpoints/*
+*.npz
+*.npy
+*.ipynb

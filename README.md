@@ -118,3 +118,24 @@ $ python find_best_hypers.py --in_path path/to/models/and/evaluation/results --p
 1. After correctly calling `find_best_hypers.py`, you will find a `json` file called `validation_results.json` in `path/to/models/and/evaluation/results` with keys `tuning_cross_entropies`, `pruning_cross_entropies`, `robustness`, and `best_comb`, summarizing both the validation performance and the reliability scores of the best hyperparameter combination for BORING per data split and random seed.
 
 2. Additionally, for each data split, a `txt` file called `model_paths.txt` is saved to the data split subfolder in `path/to/models/and/evaluation/results` pointing towards the latest model checkpoint (i.e., last epoch) for the best hyperparameter combination per data split and random seed.
+
+## Triplets
+
+You can optimize BORING for any data. We provide a file called `tripletize.py` that converts latent representations from any domain (e.g., fMRI, EEG, DNNs) corresponding to some set of stimuli (e.g., images) into a large matrix of triplets.
+
+```python
+ 
+ tripletize.py
+ 
+ --in_path (str) / # path/to/latent/representations/from/respective/domain
+ --out_path (int) / # path/to/triplets
+ --n_samples (int) / # number of triplet combinations to be sampled
+ --rnd_seed (int) / # random seed to reproduce triplet sampling
+ ```
+
+#### Example call
+
+```python
+$ python tripletize.py --in_path path/to/latent/representations --out_path path/to/triplets --n_samples 100000 --rnd_seed 42
+```
+

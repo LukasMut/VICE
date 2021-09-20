@@ -62,6 +62,8 @@ def parseargs():
         help='number of weight samples used in Monte Carlo (MC) sampling')
     aa('--things', action='store_true',
         help='whether pruning should be performed for models that were training on THINGS objects')
+    aa('--index_path', type=str, default=None,
+        help='path/to/sortindex (sortindex is necessary to re-sort THINGS objects in the correct order')
     aa('--device', type=str,
         choices=['cpu', 'cuda'])
     aa('--rnd_seed', type=int, default=42,
@@ -248,17 +250,8 @@ def pruning(
     W_mu = W_mu.cpu().numpy()
     W_sigma = W_sigma.cpu().numpy()
     if things:
-        try:
-            sortindex = pd.read_table(
-                './data/sortindex', header=None)[0].values
-            W_mu = W_mu[sortindex].cpu().numpy()
-            W_sigma = W_sigma[sortindex].cpu().numpy()
-        except FileNotFoundError:
-            subdir = './data'
-            if not os.path.exists(subdir):
-                os.makedir(subdir)
-            raise Exception(
-                '\nDownload sortindex file for THINGS objects and move to {subdir}.\n')
+        W_mu = W_mu[sortindex].cpu().numpy()
+        W_sigma = W_sigma[sortindex].cpu().numpy()
     importance = get_importance(fdr_correction(compute_pvals(W_mu, W_sigma)))
     clusters, n_clusters = fit_gmm(importance, n_components)
     if n_clusters > 1:
@@ -364,7 +357,15 @@ if __name__ == '__main__':
     args = parseargs()
     random.seed(args.rnd_seed)
     np.random.seed(args.rnd_seed)
-    _, sortindex = utils.load_inds_and_item_names()
+    if args.things:
+        assert isinstance(
+            args.sortindex, str), '\nPath/to/sortindex is missing.\n'
+        try:
+            global sortindex
+            sortindex = pd.read_table(args.index_path, header=None)[0].values
+        except FileNotFoundError:
+            raise Exception(
+                '\nDownload sortindex file for THINGS objects and provide correct path.\n')
     evaluate_models(
         results_dir=args.results_dir,
         modality=args.modality,

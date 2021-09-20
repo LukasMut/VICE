@@ -5,7 +5,7 @@
 
 ### Environment setup and dependencies
 
-We recommend to create a virtual conda environment (e.g., `vspose`) including all dependencies.
+We recommend to create a virtual conda environment (e.g., `vspose`) including all dependencies before running any code.
 
 ```bash
 $ conda env create --prefix /path/to/conda/envs/vspose --file envs/environment.yml
@@ -18,7 +18,7 @@ Alternatively, dependencies can be installed via `pip` in the usual way.
 $ pip install -r requirements.txt
 ```
 
-### Latent space optimization
+### BORING optimization
 
 Explanation of arguments in `train.py`.
 

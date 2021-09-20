@@ -16,7 +16,7 @@ def parseargs():
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
     aa('--in_path', type=str,
-        help='folder where to find word embeddings or image features')
+        help='folder where to find latent representations of stimuli/images/words')
     aa('--out_path', type=str,
         help='folder where to store triplets')
     aa('--method', type=str,

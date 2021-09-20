@@ -12,7 +12,7 @@ $ conda env create --prefix /path/to/conda/envs/vspose --file envs/environment.y
 $ conda activate vspose
 ```
 
-Alternatively, dependencies can be installed via pip in the usual way.
+Alternatively, dependencies can be installed via `pip` in the usual way.
 
 ```bash
 $ pip install -r requirements.txt

@@ -5,11 +5,11 @@
 
 ### Environment setup and dependencies
 
-We recommend to create a virtual conda environment (e.g., `vspose`) including all dependencies before running any code.
+We recommend to create a virtual conda environment (e.g., `boring`) including all dependencies before running any code.
 
 ```bash
-$ conda env create --prefix /path/to/conda/envs/vspose --file envs/environment.yml
-$ conda activate vspose
+$ conda env create --prefix /path/to/conda/envs/boring --file envs/environment.yml
+$ conda activate boring
 ```
 
 Alternatively, dependencies can be installed via `pip` in the usual way.

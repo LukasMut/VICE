@@ -127,7 +127,7 @@ You can optimize BORING for any data. We provide a file called `tripletize.py` t
  
  tripletize.py
  
- --in_path (str) / # path/to/latent/representations/from/respective/domain
+ --in_path (str) / # path/to/latent/representations
  --out_path (int) / # path/to/triplets
  --n_samples (int) / # number of triplet combinations to be sampled
  --rnd_seed (int) / # random seed to reproduce triplet sampling

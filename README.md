@@ -77,6 +77,7 @@ Explanation of arguments in `evaluate_robustness.py`.
  --n_components (List[int]) / # number of modes in the Gaussian Mixture Model (GMM)
  --mc_samples (int) / # number of samples used in Monte Carlo (MC) sampling during validation
  --things (bool) / # whether pruning pipeline should be applied to models that were training on THINGS objects
+ --index_path (str) / # if objects from THINGS database are used, path/to/sortindex must be provided
  --device (str) / # cuda or cpu
  --rnd_seed (int) / # random seed
  ```
@@ -84,9 +85,9 @@ Explanation of arguments in `evaluate_robustness.py`.
 #### Example call
 
 ```python
-$ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --modality behavioral --n_items number/of/unique/stimuli --dim 100 --thresh 0.85 --batch_size 128 --spike 0.125 --slab 1.0 --pi 0.5 --triplets_dir path/to/triplets --n_components 2 3 4 5 6 --mc_samples 30 --things --device cpu --rnd_seed 42
+$ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --modality behavioral --n_items number/of/unique/stimuli --dim 100 --thresh 0.85 --batch_size 128 --spike 0.125 --slab 1.0 --pi 0.5 --triplets_dir path/to/triplets --n_components 2 3 4 5 6 --mc_samples 30 --things --index_path ./data/sortindex --device cpu --rnd_seed 42
 ```
 
 ### NOTES:
 
-1. If the pruning pipeline should be employed and reproducibility of model params evaluated for models that were traind on the [THINGS](https://osf.io/jum2f/) objects, a filed called `sortindex` must be saved to the subfolder `data` (e.g., `./data/sortindex`). This is necessary to sort the objects in the correct order. 
+1. If the pruning pipeline should be applied to models that were traind on the [THINGS](https://osf.io/jum2f/) objects, make sure that a file called `sortindex` is saved to a subfolder `data` (e.g., `./data/sortindex`). This is necessary to sort the objects in the correct order. 

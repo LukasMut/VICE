@@ -90,4 +90,4 @@ $ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out 
 
 ### NOTES:
 
-1. If the pruning pipeline should be applied to models that were traind on the [THINGS](https://osf.io/jum2f/) objects, make sure that a file called `sortindex` is saved to a subfolder `data` (e.g., `./data/sortindex`). This is necessary to sort the objects in the correct order. 
+1. If the pruning pipeline should be applied to models that were trained on triplets created from the [THINGS](https://osf.io/jum2f/) objects, make sure that you've saved a file called `sortindex` somewhere on disk. This is necessary to sort the objects in the correct order. 

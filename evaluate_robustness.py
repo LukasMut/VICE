@@ -359,7 +359,7 @@ if __name__ == '__main__':
     np.random.seed(args.rnd_seed)
     if args.things:
         assert isinstance(
-            args.sortindex, str), '\nPath/to/sortindex is missing.\n'
+            args.sortindex, str), '\nPath to sortindex is missing.\n'
         try:
             global sortindex
             sortindex = pd.read_table(args.index_path, header=None)[0].values

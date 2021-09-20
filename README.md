@@ -121,7 +121,7 @@ $ python find_best_hypers.py --in_path path/to/models/and/evaluation/results --p
 
 ## Triplets
 
-You can optimize BORING for any data. We provide a file called `tripletize.py` that converts latent representations from any domain (e.g., fMRI, EEG, DNNs) corresponding to some set of stimuli (e.g., images) into a large matrix of triplets.
+You can optimize BORING for any data. We provide a file called `tripletize.py` that converts latent representations from any domain (e.g., fMRI, EEG, DNNs) corresponding to some set of stimuli (e.g., images) into an `N x 3` matrix of triplets.
 
 ```python
  

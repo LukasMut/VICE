@@ -90,7 +90,7 @@ $ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out 
 
 ### NOTES:
 
-1. If the pruning pipeline should be applied to models that were trained on triplets created from the [THINGS](https://osf.io/jum2f/) objects, make sure that you've saved a file called `sortindex` somewhere on disk. This is necessary to sort the objects in the correct order. 
+1. If the pruning pipeline should be applied to models that were trained on triplets created from the [THINGS](https://osf.io/jum2f/) objects, make sure that you've saved a file called `sortindex` somewhere on disk. This is necessary to sort the THINGS objects in their correct order. 
 
 
 ### BORING combination
@@ -110,7 +110,7 @@ Find best hyperparameter combination via `find_best_hypers.py`.
 #### Example call
 
 ```python
-$ python find_best_hypers.py --in_path path/to/models/and/pruning/results --percentages 10 20 50 100 --thresh 0.8 --seeds 3 10 19 30 42
+$ python find_best_hypers.py --in_path path/to/models/and/evaluation/results --percentages 10 20 50 100 --thresh 0.8 --seeds 3 10 19 30 42
 ```
 
 ### NOTES:

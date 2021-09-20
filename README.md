@@ -101,7 +101,7 @@ Find best hyperparameter combination via `find_best_hypers.py`.
  
  find_best_hypers.py
  
- --in_path (str) / # path/to/models/and/reliability/evaluation/results (should all have the same root directory)
+ --in_path (str) / # path/to/models/and/evaluation/results (should all have the same root directory)
  --percentages (List[int]) / # List of percentages of full dataset used for BORING optimization
  --thresh (float) / # reproducibility threshold used for BORING evaluation (e.g., 0.8)
  --seeds (List[int]) / # List of random seeds used to initialize BORING during optimization
@@ -115,6 +115,6 @@ $ python find_best_hypers.py --in_path path/to/models/and/pruning/results --perc
 
 ### NOTES:
 
-1. After correctly calling `find_best_hypers.py`, you can find a `json` file called `validation_results.json` in `path/to/models/and/pruning/results` with keys `tuning_cross_entropies`, `pruning_cross_entropies`, `robustness`, and `best_comb`, summarizing both the performance and the reliability scores of the best hyperparameter combination.
+1. After correctly calling `find_best_hypers.py`, you can find a `json` file called `validation_results.json` in `path/to/models/and/evaluation/results` with keys `tuning_cross_entropies`, `pruning_cross_entropies`, `robustness`, and `best_comb`, summarizing both the performance and the reliability scores of the best hyperparameter combination.
 
-2. Additionally, for each data split, a `txt` file called `model_paths.txt` is saved to the split subfolder in `path/to/models/and/pruning/results` pointing towards the latest model checkpoint for the best hyperparameter combination per data split and random seed.
+2. Additionally, for each data split, a `txt` file called `model_paths.txt` is saved to the split subfolder in `path/to/models/and/evaluation/results` pointing towards the latest model checkpoint for the best hyperparameter combination per data split and random seed.

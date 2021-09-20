@@ -55,7 +55,7 @@ $ python train.py --task odd_one_out --triplets_dir path/to/triplets --results_d
 1. Note that triplet data is expected to be in the format `N x 3`, where N = number of trials (e.g., 100k) and 3 refers to the three objects per triplet, where `col_0` = anchor_1, `col_1` = anchor_2, `col_2` = odd one out. Triplet data must be split into train and test splits, and named `train_90.txt` or `train_90.npy` and `test_10.txt` or `test_10.npy` respectively.
 
 
-### Reliability evaluation
+### BORING evaluation
 
 Explanation of arguments in `evaluate_robustness.py`.
 
@@ -91,3 +91,30 @@ $ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out 
 ### NOTES:
 
 1. If the pruning pipeline should be applied to models that were trained on triplets created from the [THINGS](https://osf.io/jum2f/) objects, make sure that you've saved a file called `sortindex` somewhere on disk. This is necessary to sort the objects in the correct order. 
+
+
+### Find best hyperparameter combination for BORING
+
+Explanation of arguments in `find_best_hypers.py`.
+
+```python
+ 
+ find_best_hypers.py
+ 
+ --in_path (str) / # path/to/models/and/reliability/evaluation/and/pruning/results (should all have the same root directory)
+ --percentages (List[int]) / # List of percentages of full dataset used for BORING optimization
+ --thresh (float) / # reproducibility threshold used for evaluating BORING reliability (e.g., 0.8)
+ --seeds (List[int]) / # List of random seeds used to initialize BORING during optimization
+ ```
+
+#### Example call
+
+```python
+$ python find_best_hypers.py --in_path path/to/models/and/pruning/results --percentages 10 20 50 100 --thresh 0.8 --seeds 3 10 19 30 42
+```
+
+### NOTES:
+
+1. After correctly calling `find_best_hypers.py`, you can find a `json` file called `validation_results.json` in `path/to/models/and/pruning/results` with keys `tuning_cross_entropies`, `pruning_cross_entropies`, `robustness`, and `best_comb`, summarizing both the performance and the reliability scores of the best hyperparameter combination.
+
+2. Additionally, for each data split, a `txt` file called `model_paths.txt` is saved to the split subfolder in `path/to/models/and/pruning/results` pointing towards the latest model checkpoint for the best hyperparameter combination per data split and random seed.

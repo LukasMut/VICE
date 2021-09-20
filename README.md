@@ -35,7 +35,7 @@ Explanation of arguments in `train.py`.
  --embed_dim (int) / # initial dimensionality of the latent space
  --batch_size (int) / # mini-batch size
  --epochs (int) / # maximum number of epochs
- --mc_samples (int) / #  number of samples used in Monte Carlo (MC) sampling during validation
+ --mc_samples (int) / #  number of weight samples used in Monte Carlo (MC) sampling at val time (for computationaly efficiency, `M` is set to 1 during trainig)
  --spike (float) / # sigma of the spike distribution
  --slab (float) / # sigma of the slab distribution
  --pi (float) / # probability value that determines the relative weighting of the distributions; the higher this value, the higher the probability that weights are drawn from the spike distribution
@@ -47,7 +47,7 @@ Explanation of arguments in `train.py`.
 #### Example call
 
 ```python
-$ python train.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --learning_rate 0.001 --embed_dim 100 --batch_size 128 --epochs 1000 --mc_samples 20 --spike 0.1 --slab 1.0 --pi 0.5 --steps 50 --device cuda --rnd_seed 42
+$ python train.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --learning_rate 0.001 --embed_dim 100 --batch_size 128 --epochs 1000 --mc_samples 25 --spike 0.1 --slab 1.0 --pi 0.5 --steps 50 --device cuda --rnd_seed 42
 ```
 
 ### NOTES:

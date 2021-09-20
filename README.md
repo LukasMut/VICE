@@ -35,7 +35,7 @@ Explanation of arguments in `train.py`.
  --embed_dim (int) / # initial dimensionality of the latent space
  --batch_size (int) / # mini-batch size
  --epochs (int) / # maximum number of epochs
- --mc_samples (int) / # number of weight samples used in Monte Carlo (MC) sampling at val time (for computationaly efficiency, M is set to 1 during trainig)
+ --mc_samples (int) / # number of weight samples used in Monte Carlo (MC) sampling at val time (for computationaly efficiency, M is set to 1 during training)
  --spike (float) / # sigma of the spike distribution
  --slab (float) / # sigma of the slab distribution
  --pi (float) / # probability value that determines the relative weighting of the distributions; the higher this value, the higher the probability that weights are drawn from the spike distribution

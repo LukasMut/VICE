@@ -101,7 +101,7 @@ Find best hyperparameter combination via `find_best_hypers.py`.
  
  find_best_hypers.py
  
- --in_path (str) / # path/to/models/and/reliability/evaluation/and/pruning/results (should all have the same root directory)
+ --in_path (str) / # path/to/models/and/reliability/evaluation/results (should all have the same root directory)
  --percentages (List[int]) / # List of percentages of full dataset used for BORING optimization
  --thresh (float) / # reproducibility threshold used for BORING evaluation (e.g., 0.8)
  --seeds (List[int]) / # List of random seeds used to initialize BORING during optimization

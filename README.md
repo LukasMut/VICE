@@ -26,22 +26,22 @@ Explanation of arguments in `train.py`.
  
  train.py
   
- --task (str) \ # odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task
- --modality (str) \ # e.g., behavioral, text, visual
- --triplets_dir (str) \ # path/to/triplets
- --results_dir (str) \ # optional specification of results directory (if not provided will resort to ./results/modality/version/dim/lambda/seed/)
- --plots_dir (str) \ # optional specification of directory for plots (if not provided will resort to ./plots/modality/version/dim/lambda/seed/)
- --learning_rate (float) \ # learning rate for Adam
- --embed_dim (int) \ # initial dimensionality of the latent space
- --batch_size (int) \ # mini-batch size
- --epochs (int) \ # maximum number of epochs
- --mc_samples (int) \ # number of weight samples to be averaged over at val time
- --spike (float) \ # scale of the spike distribution
- --slab (float) \ # scale of the slab distribution
- --pi (float) \ # probability value that determines the relative weighting of the distributions; the higher this value, the higher the probability that weights are drawn from the spike distribution (i.e., sparser solution)
- --steps (int) \ # perform validation, save model parameters and create checkpoints every <steps> epochs
- --device (str) \ # cuda or cpu
- --rnd_seed (int) \ # random seed
+ --task (str) / # odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task
+ --modality (str) / # e.g., behavioral, text, visual
+ --triplets_dir (str) / # path/to/triplets
+ --results_dir (str) / # optional specification of results directory (if not provided will resort to ./results/modality/version/dim/lambda/seed/)
+ --plots_dir (str) / # optional specification of directory for plots (if not provided will resort to ./plots/modality/version/dim/lambda/seed/)
+ --learning_rate (float) / # learning rate for Adam
+ --embed_dim (int) / # initial dimensionality of the latent space
+ --batch_size (int) / # mini-batch size
+ --epochs (int) / # maximum number of epochs
+ --mc_samples (int) / # number of weight samples to be averaged over at val time
+ --spike (float) / # scale of the spike distribution
+ --slab (float) / # scale of the slab distribution
+ --pi (float) / # probability value that determines the relative weighting of the distributions; the higher this value, the higher the probability that weights are drawn from the spike distribution (i.e., sparser solution)
+ --steps (int) / # perform validation, save model parameters and create checkpoints every <steps> epochs
+ --device (str) / # cuda or cpu
+ --rnd_seed (int) / # random seed
  ```
 
 #### Example call

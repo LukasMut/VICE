@@ -11,7 +11,7 @@ import json
 import numpy as np
 
 from collections import defaultdict
-from typing import List, Dict
+from typing import Dict, List, Tuple
 
 os.environ['PYTHONIOENCODING']='UTF-8'
 os.environ['OMP_NUM_THREADS']='1' #number of cores used per Python process (set to 2 if HT is enabled, else keep 1)
@@ -39,7 +39,7 @@ def get_split_results(
                         PATH: str,
                         percentages: List[int],
                         thresh: float,
-) -> Tuple[Dict[str, dict], Dict[List[str]]]:
+) -> Tuple[Dict[str, dict], Dict[int, List[str]]]:
     split_results = defaultdict(lambda: defaultdict(dict))
     trees = defaultdict(list)
     for p in percentages:
@@ -69,9 +69,13 @@ def get_results(PATH: str, thresh: float) -> Dict[tuple, dict]:
         for f in files:
             path_list = root.split('/')
             if re.search(r'(?=^robust)(?=.*txt$)', f):
-                m = re.compile(r'(?<=\.)\d+').search(root)
-                start, end = m.span()
-                corr = float(root[start-1:end+1])
+                matches = re.compile(r'(?<=\.)\d+').findall(root)
+                match = re.compile(f'(?<=\.){matches[-1]}').search(root)
+                start, end = match.span()
+                try:
+                    corr = float(root[start-1:end+1])
+                except ValueError:
+                    corr = float(root[start-1:end]) 
                 comb = tuple(path_list[-5:-2])
                 if corr == thresh:
                     robustness = pickle.loads(open(os.path.join(root, f), 'rb').read())
@@ -116,7 +120,7 @@ def del_paths(PATH: str, best_comb: tuple) -> None:
 
 if __name__ == '__main__':
     args = parseargs()
-    results, trees = get_split_results(args.in_path, args.percentages args.thresh)
+    results, trees = get_split_results(args.in_path, args.percentages, args.thresh)
     
     with open(os.path.join(args.in_path, 'validation_results.json'), 'w') as f:
         json.dump(results, f)

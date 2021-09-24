@@ -35,7 +35,7 @@ Explanation of arguments in `train.py`.
  --embed_dim (int) / # initial dimensionality of the latent space
  --batch_size (int) / # mini-batch size
  --epochs (int) / # maximum number of epochs
- --mc_samples (int) / # number of weight samples used in Monte Carlo (MC) sampling at val time (for computationaly efficiency, M is set to 1 during training)
+ --mc_samples (int) / # number of weight matrices to be sampled at inference time (for computationaly efficiency, M is set to 1 during training)
  --spike (float) / # sigma of the spike distribution
  --slab (float) / # sigma of the slab distribution
  --pi (float) / # probability value that determines the relative weighting of the distributions; the higher this value, the higher the probability that weights are drawn from the spike distribution
@@ -75,7 +75,7 @@ Explanation of arguments in `evaluate_robustness.py`.
  --pi (float) / # probability value with which to sample from the spike
  --triplets_dir (str) / # path/to/triplets
  --n_components (List[int]) / # number of modes in the Gaussian Mixture Model (GMM)
- --mc_samples (int) / # number of samples used in Monte Carlo (MC) sampling during validation
+ --mc_samples (int) / # number of weight matrices to be sampled at inference time
  --things (bool) / # whether pruning pipeline should be applied to models that were training on THINGS objects
  --index_path (str) / # if objects from THINGS database are used, path/to/sortindex must be provided
  --device (str) / # cuda or cpu

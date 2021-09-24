@@ -1,4 +1,4 @@
-name: boring
+name: vice
 channels:
  - defaults
  - conda-forge

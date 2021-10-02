@@ -76,7 +76,7 @@ def parseargs():
 def setup_logging(file:str, dir:str='./log_files/'):
     #check whether directory exists
     if not os.path.exists(dir):
-        os.makedirs(dir)
+        os.makedirs(dir, exist_ok=True)
     #create logger at root level (no need to provide specific name, as our logger won't have children)
     logger = logging.getLogger()
     logging.basicConfig(filename=os.path.join(dir, file), filemode='w', level=logging.DEBUG)
@@ -150,12 +150,12 @@ def run(
     if results_dir == './results/':
         results_dir = pjoin(results_dir, modality, 'variational', f'{embed_dim}d', f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
     if not os.path.exists(results_dir):
-        os.makedirs(results_dir)
+        os.makedirs(results_dir, exist_ok=True)
 
     if plots_dir == './plots/':
         plots_dir = pjoin(plots_dir, modality, 'variational', f'{embed_dim}d', f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
     if not os.path.exists(plots_dir):
-        os.makedirs(plots_dir)
+        os.makedirs(plots_dir, exist_ok=True)
 
     model_dir = pjoin(results_dir, 'model')
 

@@ -37,7 +37,6 @@ import pandas as pd
 import seaborn as sns
 
 from scipy.stats import pearsonr, rankdata
-from utils import rsm, pearsonr
 
 def plot_nneg_dims_over_time(plots_dir:str, nneg_d_over_time:list) -> None:
     """plot number of non-negative dimensions as a function of time (i.e., epochs)"""
@@ -459,7 +458,7 @@ def plot_top_k_dim_correlations(
     for i in range(n_rows):
         for j in range(n_cols):
 
-            rhos, p_vals = zip(*[pearsonr(W_vspose[:, k], dspose_d) for dspose_d in W_dspose.T])
+            rhos, p_vals = zip(*[pearsonr(W_vspose[:, k], dspose_d)[0] for dspose_d in W_dspose.T])
             rhos_sorted = np.argsort(rhos)[::-1]
             rho_max_ind = rhos_sorted[0]
             rho_max = rhos[rho_max_ind]
@@ -809,7 +808,7 @@ def plot_density_scatters(
         tril_mod1 = rsm_mod1_c[tril_inds]
         tril_mod2 = rsm_mod2_c[tril_inds]
         #calculate Pearson correlation between lower triangular parts of modality specific RSMs
-        rho = pearsonr(tril_mod1, tril_mod2).round(3)
+        rho = pearsonr(tril_mod1, tril_mod2)[0].round(3)
 
         #find object pairs that are most dissimilar between minds (SPoSE Behavior) and machines (SPoSE VGG 16)
         most_dissim_mod1 = np.argsort(rankdata(tril_mod1) - rankdata(tril_mod2))[::-1][:top_k]
@@ -873,7 +872,7 @@ def plot_most_dissim_pairs(
         print(f'\nCreating directories...\n')
         os.makedirs(PATH)
 
-    rho = pearsonr(tril_mod1, tril_mod2).round(3)
+    rho = pearsonr(tril_mod1, tril_mod2)[0].round(3)
     most_dissim_mod1 = np.argsort(tril_mod1 - tril_mod2)[::-1][:top_k]
     most_dissim_mod2 = np.argsort(tril_mod2 - tril_mod1)[::-1][:top_k]
     most_dissim_pairs = [most_dissim_mod1, most_dissim_mod2]

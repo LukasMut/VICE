@@ -8,6 +8,7 @@ import os
 import random
 import torch
 import utils
+import visualization
 
 import numpy as np
 
@@ -15,7 +16,6 @@ from collections import defaultdict
 from os.path import join as pjoin
 from torch.optim import Adam
 
-from plotting import *
 from models.model import VICE
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
@@ -301,10 +301,10 @@ def run(
     logger.info(
         'Plotting model performances over time across all lambda values\n')
     # plot train and validation performance alongside each other to examine a potential overfit to the training data
-    plot_single_performance(plots_dir=plots_dir,
+    visualization.plot_single_performance(plots_dir=plots_dir,
                             val_accs=val_accs, train_accs=train_accs)
     # plot both log-likelihood of the data (i.e., cross-entropy loss) and complexity loss (i.e., l1 penalty in SPoSE and KLD in VICE)
-    plot_complexities_and_loglikelihoods(
+    visualization.plot_complexities_and_loglikelihoods(
         plots_dir=plots_dir, loglikelihoods=loglikelihoods, complexity_losses=complexity_losses)
 
 

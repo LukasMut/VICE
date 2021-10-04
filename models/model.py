@@ -11,7 +11,7 @@ import torch.nn.functional as F
 
 from typing import Tuple
 
-class VSPoSE(nn.Module):
+class VICE(nn.Module):
 
     def __init__(
                 self,
@@ -20,7 +20,7 @@ class VSPoSE(nn.Module):
                 init_weights:bool=True,
                 bias:bool=False,
                 ):
-        super(VSPoSE, self).__init__()
+        super(VICE, self).__init__()
         self.in_size = in_size
         self.out_size = out_size
         self.encoder_mu = nn.Linear(self.in_size, self.out_size, bias=bias)
@@ -51,3 +51,28 @@ class VSPoSE(nn.Module):
                 else:
                     eps = (self.encoder_mu.weight.data.std().log()*-1.0).exp() #this is equivalent to but numerically more stable than mu_std.pow(-1)
                     nn.init.constant_(m.weight, -eps)
+
+class SPoSE(nn.Module):
+
+    def __init__(
+                self,
+                in_size:int,
+                out_size:int,
+                init_weights:bool=True,
+                ):
+        super(SPoSE, self).__init__()
+        self.in_size = in_size
+        self.out_size = out_size
+        self.fc = nn.Linear(self.in_size, self.out_size, bias=False)
+
+        if init_weights:
+            self._initialize_weights()
+
+    def forward(self, x:torch.Tensor) -> torch.Tensor:
+        return self.fc(x)
+
+    def _initialize_weights(self) -> None:
+        mean, std = .1, .01
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                m.weight.data.normal_(mean, std)

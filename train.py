@@ -24,7 +24,7 @@ from torch.optim import Adam
 from typing import Tuple, List
 
 from plotting import *
-from models.model import VSPoSE
+from models.model import VICE
 
 os.environ['PYTHONIOENCODING']='UTF-8'
 os.environ['CUDA_LAUNCH_BLOCKING']='1'
@@ -129,7 +129,7 @@ def run(
 
     #TODO: fix softmax temperature
     temperature = torch.tensor(1.)
-    model = VSPoSE(in_size=n_items, out_size=embed_dim, init_weights=True)
+    model = VICE(in_size=n_items, out_size=embed_dim, init_weights=True)
     model.to(device)
     optim = Adam(model.parameters(), lr=lr)
 
@@ -139,7 +139,7 @@ def run(
     sigma_2 = torch.ones(n_items, embed_dim).mul(slab).to(device)
 
     #initialise logger and start logging events
-    logger = setup_logging(file='vspose_optimization.log', dir=f'./log_files/{embed_dim}d/seed{rnd_seed:02}/{spike}/{slab}/{pi}')
+    logger = setup_logging(file='vice_optimization.log', dir=f'./log_files/{embed_dim}d/seed{rnd_seed:02}/{spike}/{slab}/{pi}')
     logger.setLevel(logging.INFO)
 
     ################################################
@@ -289,7 +289,7 @@ def run(
     logger.info('Plotting model performances over time across all lambda values\n')
     #plot train and validation performance alongside each other to examine a potential overfit to the training data
     plot_single_performance(plots_dir=plots_dir, val_accs=val_accs, train_accs=train_accs)
-    #plot both log-likelihood of the data (i.e., cross-entropy loss) and complexity loss (i.e., l1-norm in DSPoSE and KLD in VSPoSE)
+    #plot both log-likelihood of the data (i.e., cross-entropy loss) and complexity loss (i.e., l1 penalty in SPoSE and KLD in VICE)
     plot_complexities_and_loglikelihoods(plots_dir=plots_dir, loglikelihoods=loglikelihoods, complexity_losses=complexity_losses)
 
 if __name__ == "__main__":

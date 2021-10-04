@@ -10,7 +10,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 
-from models.model import VSPoSE
+from models.model import VICE
 
 # general variables
 NUM_SAMPLES = 1000
@@ -38,10 +38,10 @@ if not os.path.exists(TEST_DIR):
 class ModelTestCase(unittest.TestCase):
 
     def test_model(self):
-        model = VSPoSE(in_size=NUM_ITEMS, out_size=P, init_weights=True)
+        model = VICE(in_size=NUM_ITEMS, out_size=P, init_weights=True)
         model.to(DEVICE)
 
-        self.assertTrue(issubclass(VSPoSE, nn.Module))
+        self.assertTrue(issubclass(VICE, nn.Module))
         self.assertTrue(
             hasattr(model, 'cuda' if torch.cuda.is_available() else 'cpu'))
         self.assertTrue(hasattr(model, 'encoder_mu'))
@@ -101,7 +101,7 @@ class MiniBatchingTestCase(unittest.TestCase):
             sampling_method='normal',
             rnd_seed=RND_SEED,
         )
-        model = VSPoSE(in_size=NUM_ITEMS, out_size=P, init_weights=True)
+        model = VICE(in_size=NUM_ITEMS, out_size=P, init_weights=True)
         model.to(DEVICE)
 
         for batch in test_batches:
@@ -155,7 +155,7 @@ class MCSamplingTestCase(unittest.TestCase):
             sampling_method='normal',
             rnd_seed=RND_SEED,
         )
-        model = VSPoSE(in_size=NUM_ITEMS, out_size=P, init_weights=True)
+        model = VICE(in_size=NUM_ITEMS, out_size=P, init_weights=True)
         model.to(DEVICE)
         model.eval()
 

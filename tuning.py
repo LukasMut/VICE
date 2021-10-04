@@ -12,8 +12,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from collections import defaultdict
-from models.model import VSPoSE
+from models.model import VICE
 from typing import List, Dict
+
 
 def parseargs():
     parser = argparse.ArgumentParser()
@@ -26,12 +27,12 @@ def parseargs():
     aa('--n_items', type=int, default=1854,
         help='number of unique items/objects in dataset')
     aa('--dim', type=int, default=100,
-        help='latent dimensionality of VSPoSE embedding matrices')
+        help='latent dimensionality of VICE representations')
     aa('--temperatures', type=float, nargs='+',
         help='temperature values for scaling the embeddings')
     aa('--n_samples', type=int,
         choices=[10, 15, 20, 25, 30, 35, 40, 45, 50],
-        help='number of samples to use for MC sampling at inference time')
+        help='number of weight samples used in Monte Carlo (MC) sampling')
     aa('--batch_size', metavar='B', type=int, default=128,
         help='number of triplets in each mini-batch')
     aa('--results_dir', type=str,
@@ -45,6 +46,7 @@ def parseargs():
     args = parser.parse_args()
     return args
 
+
 def get_model_paths(PATH:str) -> List[str]:
     model_paths = []
     for seed in os.scandir(PATH):
@@ -55,6 +57,7 @@ def get_model_paths(PATH:str) -> List[str]:
                       if name.endswith('.json'):
                           model_paths.append(root)
     return model_paths
+
 
 def inference(
              process_id:int,
@@ -86,7 +89,7 @@ def inference(
 
     for model_path in model_paths:
         seed = model_path.split('/')[-4]
-        model = VSPoSE(in_size=n_items, out_size=dim, init_weights=True)
+        model = VICE(in_size=n_items, out_size=dim, init_weights=True)
         try:
             model = utils.load_model(model=model, PATH=model_path, device=device)
         except RuntimeError:

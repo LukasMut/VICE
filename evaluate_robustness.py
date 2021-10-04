@@ -15,7 +15,7 @@ import copy
 import numpy as np
 import pandas as pd
 
-from models.model import VSPoSE
+from models.model import VICE
 from os.path import join as pjoin
 from typing import Tuple, List, Any, Iterator
 from sklearn import mixture
@@ -41,7 +41,7 @@ def parseargs():
     aa('--n_items', type=int,
         help='number of unique items/stimuli/objects in dataset')
     aa('--dim', type=int, default=100,
-        help='latent dimensionality of VSPoSE embedding matrices')
+        help='latent dimensionality of VICE representations')
     aa('--thresh', type=float, default=0.8,
         choices=[0.75, 0.8, 0.85, 0.9, 0.95],
         help='reproducibility threshold (0.8 used in the ICLR paper)')
@@ -56,12 +56,12 @@ def parseargs():
     aa('--triplets_dir', type=str, default=None,
         help='directory from where to load triplets data')
     aa('--n_components', type=int, nargs='+', default=None,
-        help='number of clusters/modes in the Gaussian Mixture Model (GMM)')
+        help='number of clusters/modes in the Gaussian Mixture Model (GMM) used for pruning')
     aa('--mc_samples', type=int, default=None,
         choices=[5, 10, 15, 20, 25],
         help='number of weight samples used in Monte Carlo (MC) sampling')
     aa('--things', action='store_true',
-        help='whether pruning should be performed for models that were training on THINGS objects')
+        help='whether pruning should be performed for models that were training on the THINGS objects')
     aa('--index_path', type=str, default=None,
         help='path/to/sortindex (sortindex is necessary to re-sort THINGS objects in the correct order')
     aa('--device', type=str,
@@ -320,7 +320,7 @@ def evaluate_models(
     for i, model_path in enumerate(model_paths):
         print(f'Pruning model: {i+1}\n')
         try:
-            model = VSPoSE(in_size=n_items, out_size=dim, init_weights=True)
+            model = VICE(in_size=n_items, out_size=dim, init_weights=True)
             model = utils.load_model(
                 model=model, PATH=model_path, device=device)
             W_mu_best, W_sigma_best, pruned_model, pruning_loss = pruning(

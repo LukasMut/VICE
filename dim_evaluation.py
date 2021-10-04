@@ -9,7 +9,7 @@ import torch
 
 import numpy as np
 
-from models.model import VSPoSE, SPoSE
+from models.model import VICE, SPoSE
 from plotting import plot_aggregated_weights, plot_weight_violins, plot_pruning_results
 from utils import  BatchGenerator, compute_kld, get_cut_off, load_data, load_model, prune_weights, sort_weights, validation
 
@@ -93,8 +93,8 @@ def run(
     for lmbda in lambdas:
         #initialise model
         if version == 'variational':
-            assert isinstance(init, str), 'define initialisation of VSPoSE'
-            model = VSPoSE(in_size=n_items, out_size=embed_dim, init_weights=True, init_method=init, device=device, rnd_seed=rnd_seed)
+            assert isinstance(init, str), 'define initialisation of VICE'
+            model = VICE(in_size=n_items, out_size=embed_dim, init_weights=True, init_method=init, device=device, rnd_seed=rnd_seed)
         else:
             model = SPoSE(in_size=n_items, out_size=embed_dim)
         #load weights of pretrained model
@@ -110,7 +110,7 @@ def run(
                            device=device,
                            )
         if version == 'variational':
-            #sort columns of Ws (i.e., dimensions) in VSPoSE according to their KL divergences in descending order
+            #sort columns of Ws (i.e., dimensions) in VICE according to their KL divergences in descending order
             sorted_dims, klds_sorted = compute_kld(model, lmbda, aggregate=True, reduction=reduction)
         else:
             #sort columns of W (i.e., dimensions) in SPoSE according to their l1-norms in descending
@@ -129,7 +129,7 @@ def run(
                                 reduction=reduction,
                                 )
         if version == 'variational':
-            #sort columns of Ws (i.e., dimensions) in VSPoSE according to their KL divergences in descending order
+            #sort columns of Ws (i.e., dimensions) in VICE according to their KL divergences in descending order
             _, klds_sorted = compute_kld(model, lmbda, aggregate=False)
         else:
             #sort columns of W (i.e., dimensions) in SPoSE according to their l1-norms in descending
@@ -154,7 +154,7 @@ def run(
         for prune_frac in pruning_fracs:
             #initialise model
             if version == 'variational':
-                model = VSPoSE(in_size=n_items, out_size=embed_dim)
+                model = VICE(in_size=n_items, out_size=embed_dim)
             else:
                 model = SPoSE(in_size=n_items, out_size=embed_dim)
             #load weights of pretrained model

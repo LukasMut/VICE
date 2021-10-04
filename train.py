@@ -6,32 +6,27 @@ import json
 import logging
 import os
 import random
-import re
 import torch
-import warnings
-import itertools
 import utils
 
-import matplotlib.pyplot as plt
 import numpy as np
-import torch.nn as nn
-import torch.nn.functional as F
 
 from collections import defaultdict
 from os.path import join as pjoin
-from scipy.stats import linregress
 from torch.optim import Adam
-from typing import Tuple, List
 
 from plotting import *
 from models.model import VICE
 
-os.environ['PYTHONIOENCODING']='UTF-8'
-os.environ['CUDA_LAUNCH_BLOCKING']='1'
-os.environ['OMP_NUM_THREADS']='1' #number of cores to be used per Python process (set to 2 iff hyperthreading is enabled)
+os.environ['PYTHONIOENCODING'] = 'UTF-8'
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+# number of cores to be used per Python process (set to 2 iff hyperthreading is enabled)
+os.environ['OMP_NUM_THREADS'] = '1'
+
 
 def parseargs():
     parser = argparse.ArgumentParser()
+
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
     aa('--task', type=str, default='odd_one_out',
@@ -73,73 +68,79 @@ def parseargs():
     args = parser.parse_args()
     return args
 
-def setup_logging(file:str, dir:str='./log_files/'):
-    #check whether directory exists
+
+def setup_logging(file: str, dir: str = './log_files/'):
+    # check whether directory exists
     if not os.path.exists(dir):
         os.makedirs(dir, exist_ok=True)
-    #create logger at root level (no need to provide specific name, as our logger won't have children)
+    # create logger at root level (no need to provide specific name, as our logger won't have children)
     logger = logging.getLogger()
-    logging.basicConfig(filename=os.path.join(dir, file), filemode='w', level=logging.DEBUG)
-    #add console handler to logger
+    logging.basicConfig(filename=os.path.join(dir, file),
+                        filemode='w', level=logging.DEBUG)
+    # add console handler to logger
     if len(logger.handlers) < 1:
-        #create console handler and set level to debug (lowest severity level)
+        # create console handler and set level to debug (lowest severity level)
         handler = logging.StreamHandler()
-        #this specifies the lowest-severity log message the logger will handle
+        # this specifies the lowest-severity log message the logger will handle
         handler.setLevel(logging.DEBUG)
-        #create formatter to configure order, structure, and content of log messages
-        formatter = logging.Formatter(fmt="%(asctime)s - [%(levelname)s] - %(message)s", datefmt='%d/%m/%Y %I:%M:%S %p')
-        #add formatter to handler
+        # create formatter to configure order, structure, and content of log messages
+        formatter = logging.Formatter(
+            fmt="%(asctime)s - [%(levelname)s] - %(message)s", datefmt='%d/%m/%Y %I:%M:%S %p')
+        # add formatter to handler
         handler.setFormatter(formatter)
         logger.addHandler(handler)
     return logger
 
+
 def run(
-        task:str,
-        rnd_seed:int,
-        modality:str,
-        results_dir:str,
-        plots_dir:str,
-        triplets_dir:str,
-        device:torch.device,
-        batch_size:int,
-        embed_dim:int,
-        spike:float,
-        slab:float,
-        pi:float,
-        epochs:int,
-        window_size:int,
-        lr:float,
-        mc_samples:int,
-        steps:int,
-        verbose:bool=True,
+        task: str,
+        rnd_seed: int,
+        modality: str,
+        results_dir: str,
+        plots_dir: str,
+        triplets_dir: str,
+        device: torch.device,
+        batch_size: int,
+        embed_dim: int,
+        spike: float,
+        slab: float,
+        pi: float,
+        epochs: int,
+        window_size: int,
+        lr: float,
+        mc_samples: int,
+        steps: int,
+        verbose: bool = True,
 ) -> None:
-    #load triplets into memory
-    train_triplets, test_triplets = utils.load_data(device=device, triplets_dir=triplets_dir)
+    # load triplets into memory
+    train_triplets, test_triplets = utils.load_data(
+        device=device, triplets_dir=triplets_dir)
     N = train_triplets.shape[0]
     n_items = utils.get_nitems(train_triplets)
     train_batches, val_batches = utils.load_batches(
-                                                      train_triplets=train_triplets,
-                                                      test_triplets=test_triplets,
-                                                      n_items=n_items,
-                                                      batch_size=batch_size,
-                                                      sampling_method='normal',
-                                                      rnd_seed=rnd_seed,
-                                                      )
+        train_triplets=train_triplets,
+        test_triplets=test_triplets,
+        n_items=n_items,
+        batch_size=batch_size,
+        sampling_method='normal',
+        rnd_seed=rnd_seed,
+    )
     print(f'\nNumber of train batches: {len(train_batches)}\n')
 
-    #TODO: fix softmax temperature
+    # TODO: fix softmax temperature
     temperature = torch.tensor(1.)
     model = VICE(in_size=n_items, out_size=embed_dim, init_weights=True)
     model.to(device)
     optim = Adam(model.parameters(), lr=lr)
 
-    #set mean and sigmas of prior distributions (i.e., spike and slab)
+    # set mean and sigmas of prior distributions (i.e., spike and slab)
     mu = torch.zeros(n_items, embed_dim).to(device)
     sigma_1 = torch.ones(n_items, embed_dim).mul(spike).to(device)
     sigma_2 = torch.ones(n_items, embed_dim).mul(slab).to(device)
 
-    #initialise logger and start logging events
-    logger = setup_logging(file='vice_optimization.log', dir=f'./log_files/{embed_dim}d/seed{rnd_seed:02}/{spike}/{slab}/{pi}')
+    # initialise logger and start logging events
+    logger = setup_logging(file='vice_optimization.log',
+                           dir=f'./log_files/{embed_dim}d/seed{rnd_seed:02}/{spike}/{slab}/{pi}')
     logger.setLevel(logging.INFO)
 
     ################################################
@@ -148,12 +149,14 @@ def run(
 
     print(f'\n...Creating PATHs.\n')
     if results_dir == './results/':
-        results_dir = pjoin(results_dir, modality, 'variational', f'{embed_dim}d', f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
+        results_dir = pjoin(results_dir, modality, 'variational',
+                            f'{embed_dim}d', f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
     if not os.path.exists(results_dir):
         os.makedirs(results_dir, exist_ok=True)
 
     if plots_dir == './plots/':
-        plots_dir = pjoin(plots_dir, modality, 'variational', f'{embed_dim}d', f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
+        plots_dir = pjoin(plots_dir, modality, 'variational',
+                          f'{embed_dim}d', f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
     if not os.path.exists(plots_dir):
         os.makedirs(plots_dir, exist_ok=True)
 
@@ -164,7 +167,8 @@ def run(
     #####################################################################
 
     if os.path.exists(model_dir):
-        models = sorted([m.name for m in os.scandir(model_dir) if m.name.endswith('tar')])
+        models = sorted([m.name for m in os.scandir(
+            model_dir) if m.name.endswith('tar')])
         if len(models) > 0:
             try:
                 PATH = pjoin(model_dir, models[-1])
@@ -179,9 +183,10 @@ def run(
                 val_losses = checkpoint['val_losses']
                 loglikelihoods = checkpoint['loglikelihoods']
                 complexity_losses = checkpoint['complexity_costs']
-                print(f'...Loaded model and optimizer state dicts from previous run. Starting at epoch {start}.\n')
+                print(
+                    f'...Loaded model and optimizer state dicts from previous run. Starting at epoch {start}.\n')
             except RuntimeError:
-                print(f'...Loading model and optimizer state dicts failed. Check whether you are currently using a different set of model parameters.\n')
+                print('...Loading model and optimizer state dicts failed. Check whether you are currently using a different set of model parameters.\n')
                 start = 0
                 train_accs, val_accs = [], []
                 train_losses, val_losses = [], []
@@ -204,7 +209,7 @@ def run(
 
     iter = 0
     results = defaultdict(dict)
-    logger.info(f'Optimization started')
+    logger.info('Optimization started')
 
     for epoch in range(start, epochs):
         model.train()
@@ -216,18 +221,22 @@ def run(
             optim.zero_grad()
             batch = batch.to(device)
             logits, W_mu, W_sigma, W_sampled = model(batch)
-            anchor, positive, negative = torch.unbind(torch.reshape(logits, (-1, 3, embed_dim)), dim=1)
-            c_entropy = utils.trinomial_loss(anchor, positive, negative, task, temperature)
+            anchor, positive, negative = torch.unbind(
+                torch.reshape(logits, (-1, 3, embed_dim)), dim=1)
+            c_entropy = utils.trinomial_loss(
+                anchor, positive, negative, task, temperature)
             log_q = utils.pdf(W_sampled, W_mu, W_sigma).log()
-            log_p = utils.spike_and_slab(W_sampled, mu, sigma_1, sigma_2, pi).log()
-            complexity_loss = (1/N) * (log_q.sum() - log_p.sum())
+            log_p = utils.spike_and_slab(
+                W_sampled, mu, sigma_1, sigma_2, pi).log()
+            complexity_loss = (1 / N) * (log_q.sum() - log_p.sum())
             loss = c_entropy + complexity_loss
             loss.backward()
             optim.step()
             batch_losses_train[i] += loss.item()
             batch_llikelihoods[i] += c_entropy.item()
             batch_closses[i] += complexity_loss.item()
-            batch_accs_train[i] += utils.choice_accuracy(anchor, positive, negative, task)
+            batch_accs_train[i] += utils.choice_accuracy(
+                anchor, positive, negative, task)
             iter += 1
 
         avg_llikelihood = torch.mean(batch_llikelihoods).item()
@@ -244,11 +253,13 @@ def run(
 
         if verbose:
             print("\n===============================================================================================")
-            print(f'====== Epoch: {epoch+1}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f} ======')
+            print(
+                f'====== Epoch: {epoch+1}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f} ======')
             print("=================================================================================================\n")
 
         if (epoch + 1) % steps == 0:
-            avg_val_loss, avg_val_acc = utils.validation(model, val_batches, task, device, mc_samples)
+            avg_val_loss, avg_val_acc = utils.validation(
+                model, val_batches, task, device, mc_samples)
 
             val_losses.append(avg_val_loss)
             val_accs.append(avg_val_acc)
@@ -256,23 +267,24 @@ def run(
             train_losses.append(avg_train_loss)
             train_accs.append(avg_train_acc)
 
-            #save model and optim parameters for inference or to resume training
-            #PyTorch convention is to save checkpoints as .tar files
+            # save model and optim parameters for inference or to resume training
+            # PyTorch convention is to save checkpoints as .tar files
             torch.save({
-                        'epoch': epoch,
-                        'model_state_dict': model.state_dict(),
-                        'optim_state_dict': optim.state_dict(),
-                        'loss': loss,
-                        'train_losses': train_losses,
-                        'train_accs': train_accs,
-                        'val_losses': val_losses,
-                        'val_accs': val_accs,
-                        'loglikelihoods': loglikelihoods,
-                        'complexity_costs': complexity_losses,
-                        }, os.path.join(model_dir, f'model_epoch{epoch+1:04d}.tar'))
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optim_state_dict': optim.state_dict(),
+                'loss': loss,
+                'train_losses': train_losses,
+                'train_accs': train_accs,
+                'val_losses': val_losses,
+                'val_accs': val_accs,
+                'loglikelihoods': loglikelihoods,
+                'complexity_costs': complexity_losses,
+            }, os.path.join(model_dir, f'model_epoch{epoch+1:04d}.tar'))
 
             logger.info(f'Saving model parameters at epoch {epoch+1}')
-            results = {'epoch': len(train_accs), 'train_acc': train_accs[-1], 'val_acc': val_accs[-1], 'val_loss': val_losses[-1]}
+            results = {'epoch': len(
+                train_accs), 'train_acc': train_accs[-1], 'val_acc': val_accs[-1], 'val_loss': val_losses[-1]}
             PATH = pjoin(results_dir, f'results_{epoch+1:04d}.json')
             with open(PATH, 'w') as results_file:
                 json.dump(results, results_file)
@@ -286,14 +298,18 @@ def run(
             """
 
     logger.info(f'Optimization finished after {epoch+1} epochs\n')
-    logger.info('Plotting model performances over time across all lambda values\n')
-    #plot train and validation performance alongside each other to examine a potential overfit to the training data
-    plot_single_performance(plots_dir=plots_dir, val_accs=val_accs, train_accs=train_accs)
-    #plot both log-likelihood of the data (i.e., cross-entropy loss) and complexity loss (i.e., l1 penalty in SPoSE and KLD in VICE)
-    plot_complexities_and_loglikelihoods(plots_dir=plots_dir, loglikelihoods=loglikelihoods, complexity_losses=complexity_losses)
+    logger.info(
+        'Plotting model performances over time across all lambda values\n')
+    # plot train and validation performance alongside each other to examine a potential overfit to the training data
+    plot_single_performance(plots_dir=plots_dir,
+                            val_accs=val_accs, train_accs=train_accs)
+    # plot both log-likelihood of the data (i.e., cross-entropy loss) and complexity loss (i.e., l1 penalty in SPoSE and KLD in VICE)
+    plot_complexities_and_loglikelihoods(
+        plots_dir=plots_dir, loglikelihoods=loglikelihoods, complexity_losses=complexity_losses)
+
 
 if __name__ == "__main__":
-    #parse arguments and set random seeds
+    # parse arguments and set random seeds
     args = parseargs()
     np.random.seed(args.rnd_seed)
     random.seed(args.rnd_seed)
@@ -335,4 +351,4 @@ if __name__ == "__main__":
         lr=args.learning_rate,
         mc_samples=args.mc_samples,
         steps=args.steps,
-        )
+    )

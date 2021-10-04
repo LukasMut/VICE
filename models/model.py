@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
 import re
 import torch
 
-import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -36,13 +34,12 @@ class VICE(nn.Module):
         return eps.mul(sigma).add_(mu)
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        mu = self.encoder_mu(x)
-        log_sigma = self.encoder_logsigma(x)
+        _ = self.encoder_mu(x)
+        _ = self.encoder_logsigma(x)
         W_mu = self.encoder_mu.weight.T
         W_sigma = self.encoder_logsigma.weight.T.exp()
         W_sampled = self.reparameterize(W_mu, W_sigma)
         z = torch.mm(x, W_sampled)
-        # employ rectifier to impose non-negativity constraint on z
         z = F.relu(z)
         return z, W_mu, W_sigma, W_sampled
 

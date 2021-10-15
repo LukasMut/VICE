@@ -5,7 +5,6 @@ import json
 import os
 import random
 import torch
-import utils
 import math
 
 import numpy as np
@@ -13,10 +12,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from collections import defaultdict
-from typing import Any, Iterator
+from typing import Any, Iterator, Tuple
 
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
+
 
 class Trainer(object):
 
@@ -50,11 +50,11 @@ class Trainer(object):
     self.n_items = n_items # number of unique items/objects
     self.latent_dim = latent_dim
     self.optim = optim
-    self.eta = eta
+    self.eta = eta # learning rate
     self.batch_size = batch_size
     self.epochs = epochs
-    self.mc_samples = mc_samples
-    self.prior
+    self.mc_samples = mc_samples # number of weight samples M
+    self.prior # Gaussian or Laplace prior
     self.spike = spike
     self.slab = slab
     self.pi = pi
@@ -64,19 +64,26 @@ class Trainer(object):
     self.device = device
     self.verbose = verbose
 
+
     def initialize_priors_(self):
-        self.mu = torch.zeros(self.n_items, self.laten_dim).to(self.device)
-        self.sigma_spike = torch.ones(self.n_items, self.latent_dim).mul(self.spike).to(self.device)
-        self.sigma_slab = torch.ones(self.n_items, self.latent_dim).mul(self.slab).to(self.device)
+        self.loc = torch.zeros(self.n_items, self.laten_dim).to(self.device)
+        self.scale_spike = torch.ones(self.n_items, self.latent_dim).mul(self.spike).to(self.device)
+        self.scale_slab = torch.ones(self.n_items, self.latent_dim).mul(self.slab).to(self.device)
 
 
-    def pdf(self, W_sample: torch.Tensor, W_mu: torch.Tensor, W_sigma: torch.Tensor) -> torch.Tensor:
-        return torch.exp(-((W_sample - W_mu) ** 2) / (2 * W_sigma.pow(2))) / W_sigma * math.sqrt(2 * math.pi)
+    @staticmethod
+    def norm_pdf(W_sample: torch.Tensor, W_loc: torch.Tensor, W_scale: torch.Tensor) -> torch.Tensor:
+        return torch.exp(-((W_sample - W_loc) ** 2) / (2 * W_scale.pow(2))) / W_scale * math.sqrt(2 * math.pi)
+
+    @staticmethod
+    def laplace_pdf(W_sample: torch.Tensor, W_loc: torch.Tensor, W_scale: torch.Tensor) -> torch.Tensor:
+        return torch.exp(-(W_sample - W_loc).abs() / W_scale) / W_scale.mul(2.)
 
 
     def spike_and_slab(self, W_sample: torch.Tensor) -> torch.Tensor:
-        spike = self.pi * self.pdf(W_sample, self.mu, self.sigma_spike)
-        slab = (1 - self.pi) * self.pdf(W_sample, self.mu, self.sigma_slab)
+        pdf = self.norm_pdf if self.prior == 'gaussian' else self.laplace_pdf
+        spike = self.pi * pdf(W_sample, self.loc, self.scale_spike)
+        slab = (1 - self.pi) * pdf(W_sample, self.loc, self.scale_slab)
         return spike + slab
 
 
@@ -95,26 +102,63 @@ class Trainer(object):
         return avg_val_loss, avg_val_acc
 
 
-    def mc_sampling(self, batch: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    @staticmethod
+    def compute_similarities(anchor: torch.Tensor, positive: torch.Tensor, negative: torch.Tensor, task: str,
+    ) -> tuple:
+        pos_sim = torch.sum(anchor * positive, dim=1)
+        neg_sim = torch.sum(anchor * negative, dim=1)
+        if task == 'odd_one_out':
+            neg_sim_2 = torch.sum(positive * negative, dim=1)
+            return pos_sim, neg_sim, neg_sim_2
+        else:
+            return pos_sim, neg_sim
+
+
+    @staticmethod
+    def softmax(sims: tuple, t: torch.Tensor) -> torch.Tensor:
+        return torch.exp(sims[0] / t) / torch.sum(torch.stack([torch.exp(sim / t) for sim in sims]), dim=0)
+
+
+    @staticmethod
+    def accuracy_(probas: np.ndarray) -> float:
+        choices = np.where(probas.mean(axis=1) == probas.max(axis=1), -1, np.argmax(probas, axis=1))
+        acc = np.where(choices == 0, 1, 0).mean()
+        return acc
+
+
+    def cross_entropy_loss(self, similarities: float) -> torch.Tensor:
+        return torch.mean(-torch.log(self.softmax(similarities, self.temperature)))
+
+
+    def choice_accuracy(self, similarities: float) -> float:
+        probas = F.softmax(torch.stack(similarities, dim=-1), dim=1).detach().cpu().numpy()
+        choice_acc = self.accuracy_(probas)
+        return choice_acc
+
+
+    def mc_sampling(self, batch: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         n_choices = 3 if self.task == 'odd_one_out' else 2
         sampled_probas = torch.zeros(self.mc_samples, batch.shape[0] // n_choices, n_choices).to(self.device)
         sampled_choices = torch.zeros(self.mc_samples, batch.shape[0] // n_choices).to(self.device)
-        for k in range(self.mc_samples):
-            logits, _, _, _ = self.model(batch)
-            anchor, positive, negative = torch.unbind(torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1)
-            similarities = utils.compute_similarities(anchor, positive, negative, self.task)
-            soft_choices = utils.softmax(similarities, self.temperature)
-            probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
-            sampled_probas[k] += probas
-            sampled_choices[k] +=  soft_choices
+        with torch.no_grad():
+            for k in range(self.mc_samples):
+                logits, _, _, _ = self.model(batch)
+                anchor, positive, negative = torch.unbind(torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1)
+                similarities = self.compute_similarities(anchor, positive, negative, self.task)
+                soft_choices = self.softmax(similarities, self.temperature)
+                probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
+                sampled_probas[k] += probas
+                sampled_choices[k] +=  soft_choices
         probas = sampled_probas.mean(dim=0)
-        val_acc = utils.accuracy_(probas.cpu().numpy())
+        val_acc = self.accuracy_(probas.cpu().numpy())
         soft_choices = sampled_choices.mean(dim=0)
         val_loss = torch.mean(-torch.log(soft_choices))
         return val_acc, val_loss, probas
 
 
-    def stepping(self, train_batches):
+    def stepping(self, train_batches: Iterator,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         batch_lilkelihoods = torch.zeros(len(train_batches))
         batch_closses = torch.zeros(len(train_batches))
         batch_losses = torch.zeros(len(train_batches))
@@ -122,12 +166,17 @@ class Trainer(object):
         for i, batch in enumerate(train_batches):
             self.optim.zero_grad()
             batch = batch.to(self.device)
-            logits, W_mu, W_sigma, W_sampled = self.model(batch)
+            logits, W_loc, W_scale, W_sampled = self.model(batch)
             anchor, positive, negativ = torch.unbind(
                 torch.reshape(logits, (-1, 3, self.latent_dim)), dim=1)
-            c_entropy = utils.trinomial_loss(
-                anchor, positive, negative, task, self.temperature)
-            log_q = self.pdf(W_sampled, W_mu, W_sigma).log()
+            c_entropy = self.cross_entropy_loss(
+                self.compute_similarities(anchor, positive, negative, self.task))
+
+            if self.prior == 'gaussian':
+                log_q = self.norm_pdf(W_sampled, W_loc, W_scale).log()
+            else:
+                log_q = self.laplace_pdf(W_sampled, W_loc, W_scale).log() 
+
             log_p = self.spike_and_slab(W_sampled).log()
             complexity_loss = (1 / self.N) * (log_q.sum() - log_p.sum()))
             loss = c_entropy + complexity_loss
@@ -136,11 +185,11 @@ class Trainer(object):
             batch_losses[i] += loss.item()
             batch_llikelihoods[i] += c_entropy.item()
             batch_closses[i] += complexity_loss.item()
-            batch_accs[i] += utils.choice_accuracy(
-                anchor, positive, negative, task
-            )
+            batch_accs[i] += self.choice_accuracy(
+                self.compute_similarities(anchor, positive, negative, self.task))
         return batch_llikelihoods, batch_closses, batch_losses, batch_accs
 
+    # TODO: rename to def __call__()?
     def train(self, train_batches: Iterator, val_batches: Iterator,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         # initialize the spike and slab priors
@@ -173,7 +222,7 @@ class Trainer(object):
                 val_losses.append(avg_val_loss)
                 val_accs.append(avg_val_acc)
 
-            # save model and optim parameters for inference or to resume training
+            # save model and optim parameters for inference or to resume training at a later point
             # PyTorch convention is to save checkpoints as .tar files
             torch.save({
                 'epoch': epoch,
@@ -195,3 +244,11 @@ class Trainer(object):
                 json.dump(results, rf)
         
         return val_accs, train_accs, train_losses, val_losses, loglikelihoods, complexity_losses
+
+
+    @property
+    def parameters(self):
+        W_loc = self.model.encoder_mu.weight.data.T.detach()
+        W_scale = self.model.encoder_logsigma.weight.data.T.exp().detach()
+        W_loc = F.relu(W_loc)
+        return W_loc, W_scale

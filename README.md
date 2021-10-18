@@ -40,7 +40,7 @@ Explanation of arguments in `train.py`.
  --mc_samples (int) / # number of weight matrices to be sampled at inference time (for computationaly efficiency, M is set to 1 during training)
  --spike (float) / # sigma of the spike distribution
  --slab (float) / # sigma of the slab distribution
- --pi (float) / # probability value that determines the relative weighting of the distributions; the higher this value, the higher the probability that weights are drawn from the spike distribution
+ --pi (float) / # probability value that determines the relative weighting of the distributions; the closer this value is to 1, the higher the probability that weights are drawn from the spike distribution
  --steps (int) / # perform validation, save model parameters and create model and optimizer checkpoints every <steps> epochs
  --device (str) / # cuda or cpu
  --rnd_seed (int) / # random seed

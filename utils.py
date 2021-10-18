@@ -332,131 +332,15 @@ def get_choice_distributions(test_set: pd.DataFrame) -> dict:
     return choice_pmfs
 
 
-def collect_choices(probas: np.ndarray, human_choices: np.ndarray, model_choices: dict) -> dict:
+
+def collect_choices(probas:np.ndarray, human_choices:np.ndarray, model_choices:dict) -> dict:
     """collect model choices at inference time"""
     probas = probas.flip(dims=[1])
     for pmf, choices in zip(probas, human_choices):
         sorted_choices = tuple(np.sort(choices))
-        model_choices[sorted_choices].append(
-            pmf[np.argsort(choices)].numpy().tolist())
+        model_choices[sorted_choices].append(pmf[np.argsort(choices)].numpy().tolist())
     return model_choices
-
-
-def mc_sampling(
-    model,
-    batch: torch.Tensor,
-    task: str,
-    n_samples: int,
-    device: torch.device,
-    temp: float = 1.0,
-    compute_stds: bool = False,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    n_alternatives = 3 if task == 'odd_one_out' else 2
-    sampled_probas = torch.zeros(
-        n_samples, batch.shape[0] // n_alternatives, n_alternatives).to(device)
-    sampled_choices = torch.zeros(
-        n_samples, batch.shape[0] // n_alternatives).to(device)
-
-    for k in range(n_samples):
-        logits, _, _, _ = model(batch)
-        anchor, positive, negative = torch.unbind(
-            torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1)
-        similarities = compute_similarities(anchor, positive, negative, task)
-        soft_choices = softmax(similarities, temp)
-        probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
-        sampled_probas[k] += probas
-        sampled_choices[k] += soft_choices
-
-    probas = sampled_probas.mean(dim=0)
-    val_acc = accuracy_(probas.cpu().numpy())
-    soft_choices = sampled_choices.mean(dim=0)
-    val_loss = torch.mean(-torch.log(soft_choices))
-    if compute_stds:
-        stds = sampled_probas.std(dim=0)
-        return val_acc, val_loss, probas, stds
-    return val_acc, val_loss, probas
-
-
-def test(
-        model,
-        test_batches,
-        task: str,
-        device: torch.device,
-        n_samples: int,
-        batch_size: int,
-        temp: float = 1.0,
-        compute_stds: bool = False,
-) -> Tuple:
-    probas = torch.zeros(int(len(test_batches) * batch_size), 3)
-    if compute_stds:
-        triplet_stds = torch.zeros(int(len(test_batches) * batch_size), 3)
-    model_choices = defaultdict(list)
-    model.eval()
-    with torch.no_grad():
-        batch_accs = torch.zeros(len(test_batches))
-        batch_centropies = torch.zeros(len(test_batches))
-        for j, batch in enumerate(test_batches):
-            batch = batch.to(device)
-            if compute_stds:
-                test_acc, test_loss, batch_probas, batch_stds = mc_sampling(
-                    model=model,
-                    batch=batch,
-                    temp=temp,
-                    task=task,
-                    n_samples=n_samples,
-                    device=device,
-                    compute_stds=compute_stds,
-                )
-                triplet_stds[j * batch_size:(j + 1) * batch_size] += batch_stds
-            else:
-                test_acc, test_loss, batch_probas = mc_sampling(
-                    model=model,
-                    batch=batch,
-                    temp=temp,
-                    task=task,
-                    n_samples=n_samples,
-                    device=device,
-                )
-            probas[j * batch_size:(j + 1) * batch_size] += batch_probas
-            batch_accs[j] += test_acc
-            batch_centropies += test_loss
-            human_choices = batch.nonzero(
-                as_tuple=True)[-1].view(batch_size, -1).cpu().numpy()
-            model_choices = collect_choices(
-                batch_probas, human_choices, model_choices)
-
-    probas = probas.cpu().numpy()
-    probas = probas[np.where(probas.sum(axis=1) != 0.)]
-    model_pmfs = compute_pmfs(model_choices, behavior=False)
-    test_acc = batch_accs.mean().item()
-    test_loss = batch_centropies.mean().item()
-    if compute_stds:
-        triplet_stds = triplet_stds.cpu().numpy()
-        triplet_stds = triplet_stds.mean(axis=1)
-        return test_acc, test_loss, probas, model_pmfs, triplet_stds
-    return test_acc, test_loss, probas, model_pmfs
-
-
-def validation(model, val_batches, task: str, device: torch.device, n_samples: int) -> Tuple[float, float]:
-    temp = torch.tensor(1.).to(device)
-    model.eval()
-    with torch.no_grad():
-        batch_losses_val = torch.zeros(len(val_batches))
-        batch_accs_val = torch.zeros(len(val_batches))
-        for j, batch in enumerate(val_batches):
-            batch = batch.to(device)
-            val_acc, val_loss, _ = mc_sampling(
-                model=model, batch=batch, task=task, n_samples=n_samples, device=device, temp=temp)
-            batch_losses_val[j] += val_loss.item()
-            batch_accs_val[j] += val_acc
-    avg_val_loss = torch.mean(batch_losses_val).item()
-    avg_val_acc = torch.mean(batch_accs_val).item()
-    return avg_val_loss, avg_val_acc
-
-
-def sort_results(results: dict) -> dict:
-    return dict(sorted(results.items(), key=lambda kv: kv[0], reverse=False))
-
+    
 
 def merge_dicts(files: list) -> dict:
     """merge multiple .json files efficiently into a single dictionary"""

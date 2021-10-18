@@ -5,13 +5,15 @@ import json
 import os
 import torch
 import math
+import utils
 
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
+from collections import defaultdict
 from torch.optim import SGD, Adam, AdamW
-from typing import Any, Iterator, Tuple
+from typing import Any, Dict, Iterator, Tuple
 
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
@@ -158,11 +160,16 @@ class Trainer(object):
     def softmax(sims: tuple, t: torch.Tensor) -> torch.Tensor:
         return torch.exp(sims[0] / t) / torch.sum(torch.stack([torch.exp(sim / t) for sim in sims]), dim=0)
 
-
+    
     @staticmethod
-    def accuracy_(probas: np.ndarray) -> float:
-        choices = np.where(probas.mean(axis=1) == probas.max(axis=1), -1, np.argmax(probas, axis=1))
-        acc = np.where(choices == 0, 1, 0).mean()
+    def break_ties(probas: np.ndarray) -> np.ndarray:
+        return np.array([-1 if len(np.unique(pmf)) != len(pmf) else np.argmax(pmf) for pmf in probas])
+
+
+    def accuracy_(self, probas: np.ndarray, batching: bool=True) -> float:
+        choices = self.break_ties(probas)
+        argmax = np.where(choices == 0, 1, 0)
+        acc = argmax.mean() if batching else argmax.tolist()
         return acc
 
 
@@ -192,9 +199,10 @@ class Trainer(object):
                 sampled_choices[k] +=  soft_choices
         probas = sampled_probas.mean(dim=0)
         val_acc = self.accuracy_(probas.cpu().numpy())
+        hard_choices = self.accuracy_(probas.cpu().numpy(), batching=False)
         soft_choices = sampled_choices.mean(dim=0)
         val_loss = torch.mean(-torch.log(soft_choices))
-        return val_acc, val_loss, probas
+        return val_acc, val_loss, probas, hard_choices
 
     
     def evaluate(self, val_batches: Iterator) -> Tuple[float, float]:
@@ -204,12 +212,40 @@ class Trainer(object):
             batch_accs_val = torch.zeros(len(val_batches))
             for j, batch in enumerate(val_batches):
                 batch = batch.to(self.device)
-                val_acc, val_loss, _ = self.mc_sampling(batch)
+                val_acc, val_loss, _, _ = self.mc_sampling(batch)
                 batch_losses_val[j] += val_loss.item()
                 batch_accs_val[j] += val_acc
         avg_val_loss = torch.mean(batch_losses_val).item()
         avg_val_acc = torch.mean(batch_accs_val).item()
         return avg_val_loss, avg_val_acc
+
+
+    def inference(self, test_batches: Iterator,
+    ) -> Tuple[float, float, np.ndarray, Dict[tuple, list]]:
+        probas = torch.zeros(int(len(test_batches) * self.batch_size), 3)
+        triplet_choices = []
+        model_choices = defaultdict(list)
+        self.model.eval()
+        with torch.no_grad():
+            batch_accs = torch.zeros(len(test_batches))
+            batch_centropies = torch.zeros(len(test_batches))
+            for j, batch in enumerate(test_batches):
+                batch = batch.to(self.device)
+                test_acc, test_loss, batch_probas, batch_choices = self.mc_sampling(batch)
+                triplet_choices.extend(batch_choices)
+                probas[j * self.batch_size:(j + 1) * self.batch_size] += batch_probas
+                batch_accs[j] += test_acc
+                batch_centropies += test_loss
+                human_choices = batch.nonzero(
+                    as_tuple=True)[-1].view(self.batch_size, -1).cpu().numpy()
+                model_choices = utils.collect_choices(
+                    batch_probas, human_choices, model_choices)
+        probas = probas.cpu().numpy()
+        probas = probas[np.where(probas.sum(axis=1) != 0.)]
+        model_pmfs = utils.compute_pmfs(model_choices, behavior=False)
+        test_acc = batch_accs.mean().item()
+        test_loss = batch_centropies.mean().item()
+        return test_acc, test_loss, probas, model_pmfs, triplet_choices
 
 
     def stepping(self, train_batches: Iterator,

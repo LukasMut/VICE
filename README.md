@@ -107,9 +107,9 @@ Find best hyperparameter combination via `find_best_hypers.py`.
  find_best_hypers.py
  
  --in_path (str) / # path/to/models/and/evaluation/results (should all have the same root directory)
- --percentages (List[int]) / # List of percentages of full dataset used for VICE optimization
+ --percentages (List[int]) / # List of full dataset fractions used for VICE optimization
  --thresh (float) / # reproducibility threshold used for VICE evaluation (e.g., 0.8)
- --seeds (List[int]) / # List of random seeds used to initialize VICE during optimization
+ --seeds (List[int]) / # List of random seeds used to initialize VICE
  ```
 
 #### Example call

@@ -41,7 +41,7 @@ def parseargs():
         choices=['gaussian', 'laplace'],
         help='whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior')
     aa('--mc_samples', type=int,
-        choices=[10, 15, 20, 25, 30, 35, 40, 45, 50],
+        choices=[5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
         help='number of samples to use for MC sampling at inference time')
     aa('--n_components', type=int, nargs='+', default=None,
         help='number of clusters/modes in Gaussian mixture model')
@@ -240,6 +240,10 @@ def inference(
         train_triplets=None, test_triplets=tuning_triplets, n_items=n_items, batch_size=batch_size, inference=True)
 
     print(
+        f'\nNumber of pruning batches in current process: {len(pruning_batches)}\n')
+    print(
+        f'\nNumber of tuning batches in current process: {len(tuning_batches)}\n')
+    print(
         f'\nNumber of test batches in current process: {len(test_batches)}\n')
 
     val_losses = dict()
@@ -282,7 +286,7 @@ def inference(
         model_pmfs_all[seed] = model_pmfs
         model_choices[seed] = triplet_choices
 
-        print(f'Test accuracy for current random seed: {test_acc}')
+        print(f'Test accuracy for current random seed: {test_acc}\n')
 
         with open(os.path.join(model_path, 'test_probas.npy'), 'wb') as f:
             np.save(f, probas)

@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import json
-import logging
 import os
 import random
 import torch
@@ -12,15 +10,13 @@ import visualization
 
 import numpy as np
 
-from collections import defaultdict
-from os.path import join as pjoin
-from torch.optim import Adam
-
 from models.model import VICE
+from trainer import Trainer
+from typing import Tuple
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-# number of cores to be used per Python process (set to 2 iff hyperthreading is enabled)
+# number of threads/CPU cores to be used per Python process (set to 2 if HT is enabled on CPU)
 os.environ['OMP_NUM_THREADS'] = '1'
 
 
@@ -31,87 +27,99 @@ def parseargs():
         parser.add_argument(*args, **kwargs)
     aa('--task', type=str, default='odd_one_out',
         choices=['odd_one_out', 'similarity_task'])
-    aa('--modality', type=str, default='behavioral/',
+    aa('--modality', type=str, default='behavioral',
         help='define current modality (e.g., behavioral, visual, neural, text)')
     aa('--triplets_dir', type=str,
         help='directory from where to load triplets')
     aa('--results_dir', type=str, default='./results/',
-        help='optional specification of results directory (if not provided will resort to ./results/modality/version/lambda/rnd_seed/)')
+        help='optional specification of results directory (if not provided will resort to ./results/modality/latent_dim/optim/prior/seed/spike/slab/pi)')
     aa('--plots_dir', type=str, default='./plots/',
-        help='optional specification of directory for plots (if not provided will resort to ./plots/modality/version/lambda/rnd_seed/)')
-    aa('--learning_rate', type=float, default=0.001,
-        help='learning rate to be used in optimizer')
-    aa('--embed_dim', metavar='D', type=int, default=100,
-        help='dimensionality of the embedding matrix')
-    aa('--batch_size', metavar='B', type=int, default=100,
-        choices=[32, 64, 100, 128, 256],
-        help='number of triplets subsampled during each iteration (i.e., mini-batch size)')
-    aa('--epochs', metavar='T', type=int, default=300,
+        help='optional specification of directory for plots (if not provided will resort to ./plots/modality/latent_dim/optim/prior/seed/spike/slab/pi)')
+    aa('--epochs', metavar='T', type=int, default=1000,
         help='maximum number of epochs to optimize SPoSE model for')
-    aa('--mc_samples', type=int,
+    aa('--eta', type=float, default=0.001,
+        help='learning rate to be used in optimizer')
+    aa('--latent_dim', metavar='D', type=int, default=100,
+        help='dimensionality of the embedding matrix')
+    aa('--batch_size', metavar='B', type=int, default=128,
+        help='number of triplets subsampled during each iteration (i.e., mini-batch size)')
+    aa('--optim', type=str, default='adam',
+        choices=['adam', 'adamw', 'sgd'],
+        help='optimizer')
+    aa('--prior', type=str, metavar='p', default='gaussian',
+        choices=['gaussian', 'laplace'],
+        help='whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior')
+    aa('--mc_samples', type=int, default=20,
         choices=[10, 15, 20, 25, 30, 35, 40, 45, 50],
-        help='number of samples to leverage for MC sampling')
+        help='number of weight samples to use for MC sampling')
     aa('--spike', type=float,
         help='sigma for spike distribution')
     aa('--slab', type=float,
         help='sigma for slab distribution')
     aa('--pi', type=float,
         help='scalar value that determines the relative weight of the spike and slab distributions respectively')
-    aa('--window_size', type=int, default=50,
-        help='window size to be used for checking convergence criterion with linear regression')
     aa('--steps', type=int, default=50,
         help='perform validation and save model parameters every <steps> epochs')
     aa('--device', type=str, default='cpu',
-        choices=['cpu', 'cuda', 'cuda:0', 'cuda:1', 'cuda:2', 'cuda:3', 'cuda:4', 'cuda:5', 'cuda:6', 'cuda:7'])
+        help='whether training should be performed on CPU or GPU (i.e., CUDA).')
     aa('--rnd_seed', type=int, default=42,
-        help='random seed for reproducibility')
+        help='random seed for reproducibility of results')
+    aa('--verbose', action='store_true',
+        help='whether to display print statements about model performance during training')
     args = parser.parse_args()
     return args
 
 
-def setup_logging(file: str, dir: str = './log_files/'):
-    # check whether directory exists
-    if not os.path.exists(dir):
-        os.makedirs(dir, exist_ok=True)
-    # create logger at root level (no need to provide specific name, as our logger won't have children)
-    logger = logging.getLogger()
-    logging.basicConfig(filename=os.path.join(dir, file),
-                        filemode='w', level=logging.DEBUG)
-    # add console handler to logger
-    if len(logger.handlers) < 1:
-        # create console handler and set level to debug (lowest severity level)
-        handler = logging.StreamHandler()
-        # this specifies the lowest-severity log message the logger will handle
-        handler.setLevel(logging.DEBUG)
-        # create formatter to configure order, structure, and content of log messages
-        formatter = logging.Formatter(
-            fmt="%(asctime)s - [%(levelname)s] - %(message)s", datefmt='%d/%m/%Y %I:%M:%S %p')
-        # add formatter to handler
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-    return logger
+def create_dirs(
+    results_dir: str,
+    plots_dir: str,
+    modality: str,
+    latent_dim: int,
+    optim: str,
+    prior: str,
+    spike: float,
+    slab: float,
+    pi: float,
+    rnd_seed: int,
+) -> Tuple[str, str, str]:
+    """Create directories for results, plots, and model parameters."""
+    print('\n...Creating directories.\n')
+    if results_dir == './results/':
+        results_dir = os.path.join(results_dir, modality,
+                                   f'{latent_dim}d', optim, prior, f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir, exist_ok=True)
+    if plots_dir == './plots/':
+        plots_dir = os.path.join(plots_dir, modality,
+                                 f'{latent_dim}d', optim, prior, f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
+    if not os.path.exists(plots_dir):
+        os.makedirs(plots_dir, exist_ok=True)
+    model_dir = os.path.join(results_dir, 'model')
+    return results_dir, plots_dir, model_dir
 
 
 def run(
         task: str,
-        rnd_seed: int,
         modality: str,
         results_dir: str,
         plots_dir: str,
         triplets_dir: str,
-        device: torch.device,
+        epochs: int,
+        eta: float,
         batch_size: int,
-        embed_dim: int,
+        latent_dim: int,
+        optim: str,
+        prior: str,
+        mc_samples: int,
         spike: float,
         slab: float,
         pi: float,
-        epochs: int,
-        window_size: int,
-        lr: float,
-        mc_samples: int,
         steps: int,
+        device: torch.device,
+        rnd_seed: int,
         verbose: bool = True,
 ) -> None:
+    """Perform VICE training."""
     # load triplets into memory
     train_triplets, test_triplets = utils.load_data(
         device=device, triplets_dir=triplets_dir)
@@ -127,185 +135,61 @@ def run(
     )
     print(f'\nNumber of train batches: {len(train_batches)}\n')
 
-    # TODO: fix softmax temperature
-    temperature = torch.tensor(1.)
-    model = VICE(in_size=n_items, out_size=embed_dim, init_weights=True)
-    model.to(device)
-    optim = Adam(model.parameters(), lr=lr)
+    # initialize VICE model
+    vice = VICE(in_size=n_items, out_size=latent_dim, init_weights=True)
+    vice.to(device)
 
-    # set mean and sigmas of prior distributions (i.e., spike and slab)
-    mu = torch.zeros(n_items, embed_dim).to(device)
-    sigma_1 = torch.ones(n_items, embed_dim).mul(spike).to(device)
-    sigma_2 = torch.ones(n_items, embed_dim).mul(slab).to(device)
+    results_dir, plots_dir, model_dir = create_dirs(
+        results_dir=results_dir,
+        plots_dir=plots_dir,
+        modality=modality,
+        latent_dim=latent_dim,
+        optim=optim,
+        prior=prior,
+        spike=spike,
+        slab=slab,
+        pi=pi,
+        rnd_seed=rnd_seed,
+    )
+    # initialize trainer
+    trainer = Trainer(
+        model=vice,
+        task=task,
+        N=N,
+        n_items=n_items,
+        latent_dim=latent_dim,
+        optim=optim,
+        eta=eta,
+        batch_size=batch_size,
+        epochs=epochs,
+        mc_samples=mc_samples,
+        prior=prior,
+        spike=spike,
+        slab=slab,
+        pi=pi,
+        steps=steps,
+        model_dir=model_dir,
+        results_dir=results_dir,
+        device=device,
+        verbose=verbose,
+    )
+    # start training
+    trainer.train(train_batches=train_batches, val_batches=val_batches)
+    train_accs = trainer.train_accs
+    val_accs = trainer.val_accs
+    loglikelihoods = trainer.loglikelihoods
+    complexity_losses = trainer.complexity_losses
+    # get model parameters
+    params = trainer.parameters
 
-    # initialise logger and start logging events
-    logger = setup_logging(file='vice_optimization.log',
-                           dir=f'./log_files/{embed_dim}d/seed{rnd_seed:02}/{spike}/{slab}/{pi}')
-    logger.setLevel(logging.INFO)
-
-    ################################################
-    ############# Creating PATHs ###################
-    ################################################
-
-    print(f'\n...Creating PATHs.\n')
-    if results_dir == './results/':
-        results_dir = pjoin(results_dir, modality, 'variational',
-                            f'{embed_dim}d', f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
-    if not os.path.exists(results_dir):
-        os.makedirs(results_dir, exist_ok=True)
-
-    if plots_dir == './plots/':
-        plots_dir = pjoin(plots_dir, modality, 'variational',
-                          f'{embed_dim}d', f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
-    if not os.path.exists(plots_dir):
-        os.makedirs(plots_dir, exist_ok=True)
-
-    model_dir = pjoin(results_dir, 'model')
-
-    #####################################################################
-    ######### Load model from previous checkpoint, if available #########
-    #####################################################################
-
-    if os.path.exists(model_dir):
-        models = sorted([m.name for m in os.scandir(
-            model_dir) if m.name.endswith('tar')])
-        if len(models) > 0:
-            try:
-                PATH = pjoin(model_dir, models[-1])
-                checkpoint = torch.load(PATH, map_location=device)
-                model.load_state_dict(checkpoint['model_state_dict'])
-                optim.load_state_dict(checkpoint['optim_state_dict'])
-                start = checkpoint['epoch'] + 1
-                loss = checkpoint['loss']
-                train_accs = checkpoint['train_accs']
-                val_accs = checkpoint['val_accs']
-                train_losses = checkpoint['train_losses']
-                val_losses = checkpoint['val_losses']
-                loglikelihoods = checkpoint['loglikelihoods']
-                complexity_losses = checkpoint['complexity_costs']
-                print(
-                    f'...Loaded model and optimizer state dicts from previous run. Starting at epoch {start}.\n')
-            except RuntimeError:
-                print('...Loading model and optimizer state dicts failed. Check whether you are currently using a different set of model parameters.\n')
-                start = 0
-                train_accs, val_accs = [], []
-                train_losses, val_losses = [], []
-                loglikelihoods, complexity_losses = [], []
-        else:
-            start = 0
-            train_accs, val_accs = [], []
-            train_losses, val_losses = [], []
-            loglikelihoods, complexity_losses = [], []
-    else:
-        os.makedirs(model_dir)
-        start = 0
-        train_accs, val_accs = [], []
-        train_losses, val_losses = [], []
-        loglikelihoods, complexity_losses = [], []
-
-    ################################################
-    ################## Training ####################
-    ################################################
-
-    iter = 0
-    results = defaultdict(dict)
-    logger.info('Optimization started')
-
-    for epoch in range(start, epochs):
-        model.train()
-        batch_llikelihoods = torch.zeros(len(train_batches))
-        batch_closses = torch.zeros(len(train_batches))
-        batch_losses_train = torch.zeros(len(train_batches))
-        batch_accs_train = torch.zeros(len(train_batches))
-        for i, batch in enumerate(train_batches):
-            optim.zero_grad()
-            batch = batch.to(device)
-            logits, W_mu, W_sigma, W_sampled = model(batch)
-            anchor, positive, negative = torch.unbind(
-                torch.reshape(logits, (-1, 3, embed_dim)), dim=1)
-            c_entropy = utils.trinomial_loss(
-                anchor, positive, negative, task, temperature)
-            log_q = utils.pdf(W_sampled, W_mu, W_sigma).log()
-            log_p = utils.spike_and_slab(
-                W_sampled, mu, sigma_1, sigma_2, pi).log()
-            complexity_loss = (1 / N) * (log_q.sum() - log_p.sum())
-            loss = c_entropy + complexity_loss
-            loss.backward()
-            optim.step()
-            batch_losses_train[i] += loss.item()
-            batch_llikelihoods[i] += c_entropy.item()
-            batch_closses[i] += complexity_loss.item()
-            batch_accs_train[i] += utils.choice_accuracy(
-                anchor, positive, negative, task)
-            iter += 1
-
-        avg_llikelihood = torch.mean(batch_llikelihoods).item()
-        avg_closs = torch.mean(batch_closses).item()
-        avg_train_loss = torch.mean(batch_losses_train).item()
-        avg_train_acc = torch.mean(batch_accs_train).item()
-
-        loglikelihoods.append(avg_llikelihood)
-        complexity_losses.append(avg_closs)
-
-        logger.info(f'Epoch: {epoch+1}/{epochs}')
-        logger.info(f'Train acc: {avg_train_acc:.3f}')
-        logger.info(f'Train loss: {avg_train_loss:.3f}')
-
-        if verbose:
-            print("\n===============================================================================================")
-            print(
-                f'====== Epoch: {epoch+1}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f} ======')
-            print("=================================================================================================\n")
-
-        if (epoch + 1) % steps == 0:
-            avg_val_loss, avg_val_acc = utils.validation(
-                model, val_batches, task, device, mc_samples)
-
-            val_losses.append(avg_val_loss)
-            val_accs.append(avg_val_acc)
-
-            train_losses.append(avg_train_loss)
-            train_accs.append(avg_train_acc)
-
-            # save model and optim parameters for inference or to resume training
-            # PyTorch convention is to save checkpoints as .tar files
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optim_state_dict': optim.state_dict(),
-                'loss': loss,
-                'train_losses': train_losses,
-                'train_accs': train_accs,
-                'val_losses': val_losses,
-                'val_accs': val_accs,
-                'loglikelihoods': loglikelihoods,
-                'complexity_costs': complexity_losses,
-            }, os.path.join(model_dir, f'model_epoch{epoch+1:04d}.tar'))
-
-            logger.info(f'Saving model parameters at epoch {epoch+1}')
-            results = {'epoch': len(
-                train_accs), 'train_acc': train_accs[-1], 'val_acc': val_accs[-1], 'val_loss': val_losses[-1]}
-            PATH = pjoin(results_dir, f'results_{epoch+1:04d}.json')
-            with open(PATH, 'w') as results_file:
-                json.dump(results, results_file)
-
-            """
-            if (epoch + 1) > window_size:
-                #check termination condition
-                lmres = linregress(range(window_size), train_losses[(epoch + 1 - window_size):(epoch + 2)])
-                if (lmres.slope > 0) or (lmres.pvalue > .1):
-                    break
-            """
-
-    logger.info(f'Optimization finished after {epoch+1} epochs\n')
-    logger.info(
-        'Plotting model performances over time across all lambda values\n')
-    # plot train and validation performance alongside each other to examine a potential overfit to the training data
-    visualization.plot_single_performance(plots_dir=plots_dir,
-                                          val_accs=val_accs, train_accs=train_accs)
-    # plot both log-likelihood of the data (i.e., cross-entropy loss) and complexity loss (i.e., l1 penalty in SPoSE and KLD in VICE)
+    visualization.plot_single_performance(
+        plots_dir=plots_dir, val_accs=val_accs, train_accs=train_accs[::steps])
     visualization.plot_complexities_and_loglikelihoods(
         plots_dir=plots_dir, loglikelihoods=loglikelihoods, complexity_losses=complexity_losses)
+
+    # compress model params and store as binary files
+    with open(os.path.join(results_dir, 'parameters.npz'), 'wb') as f:
+        np.savez_compressed(f, W_loc=params[0], W_scale=params[1])
 
 
 if __name__ == "__main__":
@@ -335,20 +219,22 @@ if __name__ == "__main__":
 
     run(
         task=args.task,
-        rnd_seed=args.rnd_seed,
         modality=args.modality,
         results_dir=args.results_dir,
         plots_dir=args.plots_dir,
         triplets_dir=args.triplets_dir,
-        device=device,
+        epochs=args.epochs,
+        eta=args.eta,
         batch_size=args.batch_size,
-        embed_dim=args.embed_dim,
+        latent_dim=args.latent_dim,
+        optim=args.optim,
+        prior=args.prior,
+        mc_samples=args.mc_samples,
         spike=args.spike,
         slab=args.slab,
         pi=args.pi,
-        epochs=args.epochs,
-        window_size=args.window_size,
-        lr=args.learning_rate,
-        mc_samples=args.mc_samples,
         steps=args.steps,
+        device=device,
+        rnd_seed=args.rnd_seed,
+        verbose=args.verbose,
     )

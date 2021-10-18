@@ -302,7 +302,7 @@ def run(
         'Plotting model performances over time across all lambda values\n')
     # plot train and validation performance alongside each other to examine a potential overfit to the training data
     visualization.plot_single_performance(plots_dir=plots_dir,
-                            val_accs=val_accs, train_accs=train_accs)
+                                          val_accs=val_accs, train_accs=train_accs)
     # plot both log-likelihood of the data (i.e., cross-entropy loss) and complexity loss (i.e., l1 penalty in SPoSE and KLD in VICE)
     visualization.plot_complexities_and_loglikelihoods(
         plots_dir=plots_dir, loglikelihoods=loglikelihoods, complexity_losses=complexity_losses)

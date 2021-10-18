@@ -1,27 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-__all__ = [
-            'plot_aggregated_weights',
-            'plot_complexities_and_loglikelihoods',
-            'plot_density_scatters',
-            'plot_dim_correlations',
-            'plot_dim_evolution',
-            'plot_grid_search_results',
-            'plot_imgs_along_dimensions',
-            'plot_top_k_dim_correlations',
-            'plot_weight_violins',
-            'plot_nneg_dims_over_time',
-            'plot_multiple_performances',
-            'plot_pruning_results',
-            'plot_single_performance',
-            'plot_vspose_against_dpose_pcs',
-            'plot_vspose_along_dpose_pcs',
-            'plot_rsm',
-            'plot_most_dissim_pairs',
-            'visualize_dims_across_modalities',
-            'plot_val_accs_across_seeds',
-            ]
 import json
 import os
 import re
@@ -34,7 +13,6 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 
 from scipy.stats import pearsonr, rankdata
 
@@ -776,141 +754,6 @@ def visualize_dims_across_modalities(
         plt.show()
     plt.close()
 
-def plot_density_scatters(
-                          plots_dir:str,
-                          ref_images:np.ndarray,
-                          rsm_mod1:np.ndarray,
-                          rsm_mod2:np.ndarray,
-                          mod1:str,
-                          mod2:str,
-                          concepts:pd.DataFrame,
-                          top_k:int,
-) -> None:
-    #create directory for density scatter plots
-    scatter_dir = 'density_scatters'
-    PATH = pjoin(plots_dir, scatter_dir)
-    if not os.path.exists(PATH):
-        print(f'\nCreating directories...\n')
-        os.makedirs(PATH)
-
-    colors = ['silver', 'red', 'blue']
-
-    for i, concept in enumerate(concepts.columns):
-        assignments = np.where(concepts.loc[:, concept] == 1)[0]
-        #create RSMs for each modality wrt current concept
-        rsm_mod1_c = rsm_mod1[assignments]
-        rsm_mod1_c = rsm_mod1_c[:, assignments]
-        rsm_mod2_c = rsm_mod2[assignments]
-        rsm_mod2_c = rsm_mod2_c[:, assignments]
-        assert rsm_mod1_c.shape == rsm_mod2_c.shape, '\nRSMs must be of equal size.\n'
-        #compute lower triangular parts of symmetric RSMs (zero elements above and including main diagonal)
-        tril_inds = np.tril_indices(len(rsm_mod1_c), k=-1)
-        tril_mod1 = rsm_mod1_c[tril_inds]
-        tril_mod2 = rsm_mod2_c[tril_inds]
-        #calculate Pearson correlation between lower triangular parts of modality specific RSMs
-        rho = pearsonr(tril_mod1, tril_mod2)[0].round(3)
-
-        #find object pairs that are most dissimilar between minds (SPoSE Behavior) and machines (SPoSE VGG 16)
-        most_dissim_mod1 = np.argsort(rankdata(tril_mod1) - rankdata(tril_mod2))[::-1][:top_k]
-        most_dissim_mod2 = np.argsort(rankdata(tril_mod2) - rankdata(tril_mod1))[::-1][:top_k]
-        #most_dissim_mod1 = np.argsort(tril_mod1 - tril_mod2)[::-1][:top_k]
-        #most_dissim_mod2 = np.argsort(tril_mod2 - tril_mod1)[::-1][:top_k]
-        most_dissim_pairs = [most_dissim_mod1, most_dissim_mod2]
-
-        categories = np.zeros(len(tril_mod1), dtype=int)
-        categories[most_dissim_mod1] += 1
-        categories[most_dissim_mod2] += 2
-
-        obj_sims = pd.DataFrame(np.c_[tril_mod1, tril_mod2, categories], columns=[mod1, mod2, 'cat'])
-        with sns.axes_style('white'):
-            g = sns.jointplot(data=obj_sims, x=mod1, y=mod2, kind='scatter', hue='cat', palette=dict(enumerate(colors)), legend=False, height=7)
-            x = obj_sims[mod1]
-            y = obj_sims[mod2]
-            m, b = np.polyfit(x, y, 1)
-            #draw (regression) line of best fit
-            g.ax_joint.plot(x, m*x+b, linewidth=2, c='black')
-            g.ax_joint.set_xticks([])
-            g.ax_joint.set_yticks([])
-            g.ax_joint.set_xlabel(mod1, fontsize=13)
-            g.ax_joint.set_ylabel(mod2, fontsize=13)
-            g.ax_joint.annotate(''.join((r'$\rho$',' = ', str(rho))), (np.min(tril_mod1), np.max(tril_mod2)), fontsize=11)
-            #plt.title(concept)
-            g.savefig(pjoin(PATH, ''.join((concept, '.jpg'))))
-            plt.close()
-
-        mods = [mod1, mod2]
-        ref_images_c = ref_images[assignments]
-        for i, most_dissim in enumerate(most_dissim_pairs):
-            img_pairs = get_img_pairs(tril_inds, most_dissim, ref_images_c)
-            fig = plt.figure(figsize=(18, 12), dpi=100)
-            ax = plt.subplot(111)
-
-            for spine in ax.spines:
-                ax.spines[spine].set_color(colors[i+1])
-                ax.spines[spine].set_linewidth(1.75)
-
-            ax.imshow(img_pairs)
-            ax.set_xticks([])
-            ax.set_yticks([])
-            ax.set_ylabel(mods[i], fontsize=12)
-            plt.savefig(pjoin(PATH, ''.join(('most_dissim_obj_pairs', '_', concept, '_', '_'.join(mods[i].lower().split()), '.jpg'))))
-            plt.close()
-
-def plot_most_dissim_pairs(
-                            plots_dir:str,
-                            ref_images:np.ndarray,
-                            tril_mod1:np.ndarray,
-                            tril_mod2:np.ndarray,
-                            mod1:str,
-                            mod2:str,
-                            tril_inds:tuple,
-                            top_k:int,
-) -> None:
-    #create directory for density scatter plots
-    PATH = pjoin(plots_dir, ''.join(('density_scatters', '_', 'overall')))
-    if not os.path.exists(PATH):
-        print(f'\nCreating directories...\n')
-        os.makedirs(PATH)
-
-    rho = pearsonr(tril_mod1, tril_mod2)[0].round(3)
-    most_dissim_mod1 = np.argsort(tril_mod1 - tril_mod2)[::-1][:top_k]
-    most_dissim_mod2 = np.argsort(tril_mod2 - tril_mod1)[::-1][:top_k]
-    most_dissim_pairs = [most_dissim_mod1, most_dissim_mod2]
-    colors = ['grey', 'red', 'blue']
-
-    labels = np.zeros(len(tril_mod1))
-    labels[most_dissim_mod1] += 1
-    labels[most_dissim_mod2] += 2
-    obj_sims = pd.DataFrame(np.c_[tril_mod1, tril_mod2, labels], columns=[mod1, mod2, 'labels'])
-    with sns.axes_style('ticks'):
-        g = sns.jointplot(data=obj_sims, x=mod1, y=mod2, hue='labels', palette=dict(enumerate(colors)), height=7, alpha=.6, kind='scatter', legend=False)
-        x = obj_sims[mod1]
-        y = obj_sims[mod2]
-        m, b = np.polyfit(x, y, 1)
-        g.ax_joint.plot(x, m*x+b, linewidth=2, c='black')
-        g.ax_joint.set_xticks([])
-        g.ax_joint.set_yticks([])
-        g.ax_joint.set_xlabel(obj_sims.columns[0], fontsize=13)
-        g.ax_joint.set_ylabel(obj_sims.columns[1], fontsize=13)
-        g.ax_joint.annotate(''.join((r'$\rho$',' = ', str(rho))), (np.min(tril_mod1), np.max(tril_mod2)), fontsize=10)
-        g.savefig(pjoin(PATH, 'most_dissim_obj_pairs.jpg'))
-
-    mods = [mod1, mod2]
-    for i, most_dissim in enumerate(most_dissim_pairs):
-        img_pairs = get_img_pairs(tril_inds, most_dissim, ref_images)
-        fig = plt.figure(figsize=(18, 12), dpi=100)
-        ax = plt.subplot(111)
-
-        for spine in ax.spines:
-            ax.spines[spine].set_color(colors[i+1])
-            ax.spines[spine].set_linewidth(1.75)
-
-        ax.imshow(img_pairs)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_ylabel(mods[i])
-        plt.savefig(pjoin(PATH, ''.join(('most_dissim_obj_pairs', '_', '_'.join(mods[i].lower().split()), '.jpg'))))
-        plt.close()
 
 def get_img_pairs(tril_inds:tuple, most_dissim:np.ndarray, ref_images:np.ndarray) -> np.ndarray:
     tril_inds_i = tril_inds[0][most_dissim]

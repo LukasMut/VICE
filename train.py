@@ -45,7 +45,7 @@ def parseargs():
         help='number of triplets subsampled during each iteration (i.e., mini-batch size)')
     aa('--optim', type=str, default='adam',
         choices=['adam', 'adamw', 'sgd'],
-        help='optimizer')
+        help='optimizer to train VICE')
     aa('--prior', type=str, metavar='p', default='gaussian',
         choices=['gaussian', 'laplace'],
         help='whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior')
@@ -86,12 +86,12 @@ def create_dirs(
     print('\n...Creating directories.\n')
     if results_dir == './results/':
         results_dir = os.path.join(results_dir, modality,
-                                   f'{latent_dim}d', optim, prior, f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
+                                   f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi), f'seed{rnd_seed:02d}')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir, exist_ok=True)
     if plots_dir == './plots/':
         plots_dir = os.path.join(plots_dir, modality,
-                                 f'{latent_dim}d', optim, prior, f'seed{rnd_seed:02d}', str(spike), str(slab), str(pi))
+                                 f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi), f'seed{rnd_seed:02d}')
     if not os.path.exists(plots_dir):
         os.makedirs(plots_dir, exist_ok=True)
     model_dir = os.path.join(results_dir, 'model')

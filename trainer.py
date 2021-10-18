@@ -142,21 +142,6 @@ class Trainer(object):
         return spike + slab
 
 
-    def evaluate(self, val_batches: Iterator) -> Tuple[float, float]:
-        self.model.eval()
-        with torch.no_grad():
-            batch_losses_val = torch.zeros(len(val_batches))
-            batch_accs_val = torch.zeros(len(val_batches))
-            for j, batch in enumerate(val_batches):
-                batch = batch.to(self.device)
-                val_acc, val_loss, _ = self.mc_sampling(batch)
-                batch_losses_val[j] += val_loss.item()
-                batch_accs_val[j] += val_acc
-        avg_val_loss = torch.mean(batch_losses_val).item()
-        avg_val_acc = torch.mean(batch_accs_val).item()
-        return avg_val_loss, avg_val_acc
-
-
     @staticmethod
     def compute_similarities(anchor: torch.Tensor, positive: torch.Tensor, negative: torch.Tensor, task: str,
     ) -> tuple:
@@ -210,6 +195,21 @@ class Trainer(object):
         soft_choices = sampled_choices.mean(dim=0)
         val_loss = torch.mean(-torch.log(soft_choices))
         return val_acc, val_loss, probas
+
+    
+    def evaluate(self, val_batches: Iterator) -> Tuple[float, float]:
+        self.model.eval()
+        with torch.no_grad():
+            batch_losses_val = torch.zeros(len(val_batches))
+            batch_accs_val = torch.zeros(len(val_batches))
+            for j, batch in enumerate(val_batches):
+                batch = batch.to(self.device)
+                val_acc, val_loss, _ = self.mc_sampling(batch)
+                batch_losses_val[j] += val_loss.item()
+                batch_accs_val[j] += val_acc
+        avg_val_loss = torch.mean(batch_losses_val).item()
+        avg_val_acc = torch.mean(batch_accs_val).item()
+        return avg_val_loss, avg_val_acc
 
 
     def stepping(self, train_batches: Iterator,
@@ -308,4 +308,4 @@ class Trainer(object):
         W_loc = self.model.encoder_mu.weight.data.T.detach()
         W_scale = self.model.encoder_logsigma.weight.data.T.exp().detach()
         W_loc = F.relu(W_loc)
-        return W_loc.numpy(), W_scale.numpy()
+        return W_loc.cpu().numpy(), W_scale.cpu().numpy()

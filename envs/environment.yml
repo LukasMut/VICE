@@ -13,6 +13,7 @@ dependencies:
  - tqdm=4.47.*
  - numba=0.53.*
  - matplotlib=3.2.*
+ - statsmodels
  - regex
  - scipy
  - h5py

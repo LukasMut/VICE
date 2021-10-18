@@ -9,13 +9,14 @@ import re
 import torch
 import utils
 import itertools
-import shutil
 import copy
 
 import numpy as np
 import pandas as pd
+import torch.nn as nn
 
 from models.model import VICE
+from trainer import Trainer
 from os.path import join as pjoin
 from typing import Tuple, List, Any, Iterator
 from sklearn import mixture
@@ -40,25 +41,31 @@ def parseargs():
         help='current modality (e.g., behavioral, fMRI, text, DNNs)')
     aa('--n_items', type=int,
         help='number of unique items/stimuli/objects in dataset')
-    aa('--dim', type=int, default=100,
+    aa('--latent_dim', type=int, default=100,
         help='latent dimensionality of VICE representations')
     aa('--thresh', type=float, default=0.8,
         choices=[0.75, 0.8, 0.85, 0.9, 0.95],
         help='reproducibility threshold (0.8 used in the ICLR paper)')
     aa('--batch_size', metavar='B', type=int, default=128,
         help='number of triplets in each mini-batch')
+    aa('--optim', type=str, metavar='o', default='adam',
+        choices=['adam', 'adamw', 'sgd'],
+        help='optimizer that was used to train VICE')
+    aa('--prior', type=str, metavar='p', default='gaussian',
+        choices=['gaussian', 'laplace'],
+        help='whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior')
     aa('--spike', type=float,
         help='sigma of spike distribution')
     aa('--slab', type=float,
         help='sigma of slab distribution')
     aa('--pi', type=float,
         help='probability value with which to sample from the spike')
-    aa('--triplets_dir', type=str, default=None,
+    aa('--triplets_dir', type=str,
         help='directory from where to load triplets data')
-    aa('--n_components', type=int, nargs='+', default=None,
+    aa('--n_components', type=int, nargs='+',
         help='number of clusters/modes in the Gaussian Mixture Model (GMM) used for pruning')
-    aa('--mc_samples', type=int, default=None,
-        choices=[5, 10, 15, 20, 25],
+    aa('--mc_samples', type=int,
+        choices=[5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
         help='number of weight samples used in Monte Carlo (MC) sampling')
     aa('--things', action='store_true',
         help='whether pruning should be performed for models that were training on the THINGS objects')
@@ -165,7 +172,6 @@ def compute_robustness(Ws_mu: list, Ws_sigma: list = None, thresh: float = .9):
     scores['avg_loc_robustness'] = avg_loc_robustness
     scores['std_loc_robustness'] = std_loc_robustness
     scores['avg_scale_robustness'] = avg_scale_robustness
-    scores['avg_sparsity'] = utils.avg_sparsity(Ws_mu)
     scores['avg_ndims'] = avg_ndims(Ws_mu)
     scores['hist'] = list(map(lambda W: W.shape[0], Ws_mu))
     scores['std_ndims'] = std_ndims(Ws_mu)
@@ -178,9 +184,11 @@ def compute_robustness(Ws_mu: list, Ws_sigma: list = None, thresh: float = .9):
 def get_model_paths(PATH: str):
     paths = []
     for root, _, files in os.walk(PATH, followlinks=True):
-        for f in files:
-            if f.endswith('1000.tar'):
-                paths.append('/'.join(root.split('/')[:-1]))
+        files = sorted(list(filter(lambda f: re.search(r'tar$', f), files)))
+        if files:
+            for f in files:
+                if f == files[-1]:
+                    paths.append('/'.join(root.split('/')[:-1]))
     return paths
 
 
@@ -228,7 +236,8 @@ def get_cluster_indices(clusters: np.ndarray, subset: Tuple[int]) -> np.ndarray:
     return np.hstack([np.where(clusters == k)[0] for k in subset])
 
 
-def get_best_subset_and_noise(val_losses: np.ndarray, clusters: np.ndarray, cluster_combs: List[Tuple[int]], n_clusters: int) -> Tuple[np.ndarray, np.ndarray]:
+def get_best_subset_and_noise(val_losses: np.ndarray, clusters: np.ndarray, cluster_combs: List[Tuple[int]], n_clusters: int,
+                              ) -> Tuple[np.ndarray, np.ndarray]:
     best_subset = cluster_combs[np.argmin(val_losses)]
     remaining_subset = tuple(i for i in range(
         n_clusters) if i not in best_subset)
@@ -238,21 +247,18 @@ def get_best_subset_and_noise(val_losses: np.ndarray, clusters: np.ndarray, clus
 
 
 def pruning(
-    model: Any,
-    task: str,
-    val_batches: Iterator[torch.Tensor],
+    trainer: object,
+    pruning_batches: Iterator[torch.Tensor],
     n_components: List[int],
-    mc_samples: int,
     device: torch.device,
     things: bool = False,
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    W_mu, W_sigma = utils.load_weights(model)
-    W_mu = W_mu.cpu().numpy()
-    W_sigma = W_sigma.cpu().numpy()
+) -> Tuple[torch.Tensor, torch.Tensor, nn.Module, float]:
+    model = trainer.model
+    W_loc, W_scale = trainer.parameters
     if things:
-        W_mu = W_mu[sortindex].cpu().numpy()
-        W_sigma = W_sigma[sortindex].cpu().numpy()
-    importance = get_importance(fdr_correction(compute_pvals(W_mu, W_sigma)))
+        W_loc = W_loc[sortindex]
+        W_scale = W_scale[sortindex]
+    importance = get_importance(fdr_correction(compute_pvals(W_loc, W_scale)))
     clusters, n_clusters = fit_gmm(importance, n_components)
     if n_clusters > 1:
         cluster_combs = get_cluster_combinations(n_clusters)
@@ -268,45 +274,46 @@ def pruning(
                 torch.LongTensor).to(device)
             model_copy = copy.deepcopy(model)
             model_pruned = prune_weights(model_copy, indices)
-            val_loss, _ = utils.validation(
-                model=model_pruned, task=task, val_batches=val_batches, device=device, n_samples=mc_samples)
+            trainer.model = model_pruned
+            val_loss, _ = trainer.evaluate(pruning_batches)
             val_losses[i] += val_loss
             pruned_models.append(model_pruned)
         best_subset, _ = get_best_subset_and_noise(
             val_losses, clusters, cluster_combs, n_clusters)
-        W_mu = W_mu[:, best_subset]
-        W_sigma = W_sigma[:, best_subset]
+        W_loc = W_loc[:, best_subset]
+        W_scale = W_scale[:, best_subset]
         best_model = pruned_models[np.argmin(val_losses)]
         pruning_loss = np.min(val_losses)
     else:
         best_model = model
-        pruning_loss, _ = utils.validation(
-            model=model, task=task, val_batches=val_batches, device=device, n_samples=mc_samples)
-    return W_mu.T, W_sigma, best_model, pruning_loss
+        pruning_loss, _ = trainer.evaluate(pruning_batches)
+    return W_loc.T, W_scale, best_model, pruning_loss
 
 
 def evaluate_models(
     results_dir: str,
     modality: str,
     n_items: int,
-    dim: int,
+    latent_dim: int,
+    optim: str,
+    prior: str,
     spike: float,
     slab: float,
     pi: float,
     thresh: float,
     device: torch.device,
-    task=None,
-    batch_size=None,
-    triplets_dir=None,
-    n_components=None,
-    mc_samples=None,
+    task: str,
+    batch_size: int,
+    triplets_dir: str,
+    n_components: int,
+    mc_samples: int,
     things: bool = False,
 ) -> None:
-    PATH = os.path.join(results_dir, modality,
-                        f'{dim}d', str(spike), str(slab), str(pi))
-    # model_path = get_mode_paths_(PATH)
-    model_paths = get_model_paths(PATH)
-    Ws_mu_best, Ws_sigma_best = [], []
+    # in_path = os.path.join(results_dir, modality,
+    #        f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi))
+    in_path = results_dir
+    model_paths = get_model_paths(in_path)
+    Ws_loc_best, Ws_scale_best = [], []
     _, pruning_triplets = utils.load_data(
         device=device, triplets_dir=triplets_dir, val_set='pruning_set', inference=False)
     _, tuning_triplets = utils.load_data(
@@ -318,38 +325,58 @@ def evaluate_models(
     pruning_losses = np.zeros(len(model_paths))
     tuning_losses = np.zeros(len(model_paths))
     for i, model_path in enumerate(model_paths):
-        print(f'Pruning model: {i+1}\n')
+        print(f'Currently pruning model: {i+1}\n')
         try:
-            model = VICE(in_size=n_items, out_size=dim, init_weights=True)
+            model = VICE(in_size=n_items, out_size=latent_dim,
+                         init_weights=True)
             model = utils.load_model(
                 model=model, PATH=model_path, device=device)
-            W_mu_best, W_sigma_best, pruned_model, pruning_loss = pruning(
-                model=model, task=task, val_batches=pruning_batches, n_components=n_components, mc_samples=mc_samples, device=device, things=things)
-            tuning_loss, _ = utils.validation(
-                model=pruned_model, task=task, val_batches=tuning_batches, device=device, n_samples=mc_samples)
+            trainer = Trainer(
+                model=model,
+                task=task,
+                N=None,
+                n_items=n_items,
+                latent_dim=latent_dim,
+                optim=None,
+                eta=None,
+                batch_size=batch_size,
+                epochs=None,
+                mc_samples=mc_samples,
+                prior=prior,
+                spike=spike,
+                slab=slab,
+                pi=pi,
+                steps=None,
+                model_dir=os.path.join(model_path, 'model'),
+                results_dir=results_dir,
+                device=device)
+            W_loc_best, W_scale_best, pruned_model, pruning_loss = pruning(
+                trainer=trainer, pruning_batches=pruning_batches, n_components=n_components,  device=device, things=things)
+            trainer.model = pruned_model
+            tuning_loss, _ = trainer.evaluate(tuning_batches)
             pruning_losses[i] += pruning_loss
             tuning_losses[i] += tuning_loss
         except FileNotFoundError:
             raise Exception(f'Could not find final weights for {model_path}\n')
-        Ws_mu_best.append(W_mu_best)
-        Ws_sigma_best.append(W_sigma_best)
+        Ws_loc_best.append(W_loc_best)
+        Ws_scale_best.append(W_scale_best)
 
     model_robustness_best_subset = compute_robustness(
-        Ws_mu=Ws_mu_best, Ws_sigma=Ws_sigma_best, thresh=thresh)
+        Ws_mu=Ws_loc_best, Ws_sigma=Ws_scale_best, thresh=thresh)
     print(
-        f"\nRobustness scores for latent dim = {dim}: {model_robustness_best_subset}\n")
+        f"\nRobustness scores for latent dim = {latent_dim}: {model_robustness_best_subset}\n")
 
-    out_path = pjoin(PATH, 'robustness_scores', str(thresh))
+    out_path = pjoin(in_path, 'robustness_scores', str(thresh))
     if not os.path.exists(out_path):
         os.makedirs(out_path)
 
     with open(pjoin(out_path, 'robustness.txt'), 'wb') as f:
         f.write(pickle.dumps(model_robustness_best_subset))
 
-    with open(os.path.join(PATH, 'tuning_cross_entropies.npy'), 'wb') as f:
+    with open(os.path.join(in_path, 'tuning_cross_entropies.npy'), 'wb') as f:
         np.save(f, tuning_losses)
 
-    with open(os.path.join(PATH, 'pruning_cross_entropies.npy'), 'wb') as f:
+    with open(os.path.join(in_path, 'pruning_cross_entropies.npy'), 'wb') as f:
         np.save(f, pruning_losses)
 
 
@@ -359,7 +386,7 @@ if __name__ == '__main__':
     np.random.seed(args.rnd_seed)
     if args.things:
         assert isinstance(
-            args.sortindex, str), '\nPath to sortindex is missing.\n'
+            args.index_path, str), '\nPath to sortindex is missing.\n'
         try:
             global sortindex
             sortindex = pd.read_table(args.index_path, header=None)[0].values
@@ -371,7 +398,9 @@ if __name__ == '__main__':
         modality=args.modality,
         task=args.task,
         n_items=args.n_items,
-        dim=args.dim,
+        latent_dim=args.latent_dim,
+        optim=args.optim,
+        prior=args.prior,
         spike=args.spike,
         slab=args.slab,
         pi=args.pi,

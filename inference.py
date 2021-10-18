@@ -242,9 +242,9 @@ def inference(
     print(
         f'\nNumber of pruning batches in current process: {len(pruning_batches)}\n')
     print(
-        f'\nNumber of tuning batches in current process: {len(tuning_batches)}\n')
+        f'Number of tuning batches in current process: {len(tuning_batches)}\n')
     print(
-        f'\nNumber of test batches in current process: {len(test_batches)}\n')
+        f'Number of test batches in current process: {len(test_batches)}\n')
 
     val_losses = dict()
     test_accs = dict()

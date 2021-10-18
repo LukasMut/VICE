@@ -293,6 +293,7 @@ def pruning(
 def evaluate_models(
     results_dir: str,
     modality: str,
+    task: str,
     n_items: int,
     latent_dim: int,
     optim: str,
@@ -302,16 +303,14 @@ def evaluate_models(
     pi: float,
     thresh: float,
     device: torch.device,
-    task: str,
     batch_size: int,
     triplets_dir: str,
     n_components: int,
     mc_samples: int,
     things: bool = False,
 ) -> None:
-    # in_path = os.path.join(results_dir, modality,
-    #        f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi))
-    in_path = results_dir
+    in_path = os.path.join(results_dir, modality,
+                           f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi))
     model_paths = get_model_paths(in_path)
     Ws_loc_best, Ws_scale_best = [], []
     _, pruning_triplets = utils.load_data(
@@ -327,8 +326,8 @@ def evaluate_models(
     for i, model_path in enumerate(model_paths):
         print(f'Currently pruning model: {i+1}\n')
         try:
-            model = VICE(in_size=n_items, out_size=latent_dim,
-                         init_weights=True)
+            model = VICE(prior=prior, in_size=n_items,
+                         out_size=latent_dim, init_weights=True)
             model = utils.load_model(
                 model=model, PATH=model_path, device=device)
             trainer = Trainer(
@@ -393,6 +392,7 @@ if __name__ == '__main__':
         except FileNotFoundError:
             raise Exception(
                 '\nDownload sortindex file for THINGS objects and provide correct path.\n')
+
     evaluate_models(
         results_dir=args.results_dir,
         modality=args.modality,

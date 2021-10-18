@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from torch.distributions.laplace import Laplace
 from typing import Tuple
 
 
@@ -14,12 +15,14 @@ class VICE(nn.Module):
 
     def __init__(
         self,
+        prior: str,
         in_size: int,
         out_size: int,
         init_weights: bool = True,
         bias: bool = False,
     ):
         super(VICE, self).__init__()
+        self.prior = prior
         self.in_size = in_size
         self.out_size = out_size
         self.encoder_mu = nn.Linear(self.in_size, self.out_size, bias=bias)
@@ -29,16 +32,25 @@ class VICE(nn.Module):
         if init_weights:
             self._initialize_weights()
 
-    def reparameterize(self, mu: torch.Tensor, sigma: torch.Tensor) -> torch.Tensor:
-        eps = sigma.data.new(sigma.size()).normal_()
-        return eps.mul(sigma).add_(mu)
+    @staticmethod
+    def reparameterize(prior: str, loc: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+        if prior == 'gaussian':
+            eps = scale.data.new(scale.size()).normal_()
+            W_sampled = eps.mul(scale).add(loc)
+        else:
+            laplace = Laplace(loc=torch.zeros(scale.size()),
+                              scale=torch.ones(scale.size()))
+            U = laplace.sample().to(scale.device)
+            W_sampled = U.mul(scale).add(loc)
+        return W_sampled
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor,
+                ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         _ = self.encoder_mu(x)
         _ = self.encoder_logsigma(x)
         W_mu = self.encoder_mu.weight.T
         W_sigma = self.encoder_logsigma.weight.T.exp()
-        W_sampled = self.reparameterize(W_mu, W_sigma)
+        W_sampled = self.reparameterize(self.prior, W_mu, W_sigma)
         z = torch.mm(x, W_sampled)
         z = F.relu(z)
         return z, W_mu, W_sigma, W_sampled

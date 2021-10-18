@@ -136,9 +136,9 @@ def run(
     print(f'\nNumber of train batches: {len(train_batches)}\n')
 
     # initialize VICE model
-    vice = VICE(in_size=n_items, out_size=latent_dim, init_weights=True)
+    vice = VICE(prior=prior, in_size=n_items, out_size=latent_dim, init_weights=True)
     vice.to(device)
-
+ 
     results_dir, plots_dir, model_dir = create_dirs(
         results_dir=results_dir,
         plots_dir=plots_dir,

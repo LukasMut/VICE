@@ -1,5 +1,5 @@
-[![Unittests](https://github.com/ViCCo-Group/VSPoSE/actions/workflows/python-package.yml/badge.svg)](https://github.com/ViCCo-Group/VSPoSE/actions/workflows/python-package.yml)
-[![Code Coverage](https://codecov.io/gh/ViCCo-Group/VSPoSE/branch/main/graph/badge.svg?token=0RKlKIYtbd)](https://github.com/ViCCo-Group/VSPoSE/actions/workflows/coverage.yml)
+[![Unittests](https://github.com/ViCCo-Group/VICE/actions/workflows/python-package.yml/badge.svg)](https://github.com/ViCCo-Group/VICE/actions/workflows/python-package.yml)
+[![Code Coverage](https://codecov.io/gh/ViCCo-Group/VICE/branch/main/graph/badge.svg?token=0RKlKIYtbd)](https://github.com/ViCCo-Group/VICE/actions/workflows/coverage.yml)
 
 # VICE: Variational Inference for Concept Embeddings
 
@@ -29,12 +29,14 @@ Explanation of arguments in `train.py`.
  --task (str) / # odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task
  --modality (str) / # e.g., behavioral, text, visual
  --triplets_dir (str) / # path/to/triplets
- --results_dir (str) / # optional specification of results directory (if not provided will resort to ./results/modality/version/dim/lambda/seed/)
- --plots_dir (str) / # optional specification of directory for plots (if not provided will resort to ./plots/modality/version/dim/lambda/seed/)
- --learning_rate (float) / # learning rate for Adam
- --embed_dim (int) / # initial dimensionality of the latent space
+ --results_dir (str) / # optional specification of results directory (if not provided will resort to ./results/modality/latent_dim/optim/prior/seed/spike/slab/pi)
+ --plots_dir (str) / # optional specification of directory for plots (if not provided will resort to ./plots/modality/latent_dim/optim/prior/seed/spike/slab/pi)
+ --epochs (int) / # maximum number of epochs to train VICE
+ --eta (float) / # learning rate
+ --latent_dim (int) / # initial dimensionality of the model's latent space
  --batch_size (int) / # mini-batch size
- --epochs (int) / # maximum number of epochs
+ --optim (str) / # optimizer (e.g., 'adam', 'adamw', 'sgd')
+ --prior (str) / # whether to use a mixture of Gaussians or Laplacians in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
  --mc_samples (int) / # number of weight matrices to be sampled at inference time (for computationaly efficiency, M is set to 1 during training)
  --spike (float) / # sigma of the spike distribution
  --slab (float) / # sigma of the slab distribution
@@ -42,12 +44,13 @@ Explanation of arguments in `train.py`.
  --steps (int) / # perform validation, save model parameters and create model and optimizer checkpoints every <steps> epochs
  --device (str) / # cuda or cpu
  --rnd_seed (int) / # random seed
+ --verbose (bool) / # show print statements about model performance during training (can be piped into log file)
  ```
 
 #### Example call
 
 ```python
-$ python train.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --learning_rate 0.001 --embed_dim 100 --batch_size 128 --epochs 1000 --mc_samples 25 --spike 0.1 --slab 1.0 --pi 0.5 --steps 50 --device cuda --rnd_seed 42
+$ python train.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 1000 --eta 0.001 --latent_dim 100 --batch_size 128 --optim adam --prior gaussian --epochs 1000 --mc_samples 25 --spike 0.1 --slab 1.0 --pi 0.5 --steps 50 --device cuda --rnd_seed 42 --verbose
 ```
 
 ### NOTES:
@@ -66,26 +69,28 @@ Explanation of arguments in `evaluate_robustness.py`.
  --results_dir (str) / # path/to/models
  --task (str) / # odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task
  --modality (str) / # e.g., behavioral, fMRI, EEG, DNNs
- --n_items (int) / # number of unique items/stimuli/objects in dataset
- --dim (int) / # initial latent space dimensionality of V-SPoSE params
- --thresh (float) / # reproducibility threshold (e.g., 0.8)
- --batch_size (int) / # batch size used for training V-SPoSE
+ --n_items (int) / # number of unique items/stimuli/objects in the dataset
+ --latent_dim (int) / # latent space dimensionality with which VICE was initialized
+ --batch_size (int) / # mini-batch size used during VICE training
+ --thresh (float) / # Pearson correlation threshold (e.g., 0.8)
+ --optim (str) / # optimizer that was used during training (e.g., 'adam', 'adamw', 'sgd')
+ --prior (str) / # whether a mixture of Gaussians or Laplacians was used in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
  --spike (float) / # sigma of spike distribution
  --slab (float) / # sigma of slab distribution
  --pi (float) / # probability value with which to sample from the spike
  --triplets_dir (str) / # path/to/triplets
- --n_components (List[int]) / # number of modes in the Gaussian Mixture Model (GMM)
+ --n_components (List[int]) / # number of modes to use in the Gaussian Mixture Model (GMM)
  --mc_samples (int) / # number of weight matrices to be sampled at inference time
- --things (bool) / # whether pruning pipeline should be applied to models that were training on THINGS objects
+ --things (bool) / # whether pruning pipeline should be applied to models that were trained on objects from the THINGS database
  --index_path (str) / # if objects from THINGS database are used, path/to/sortindex must be provided
- --device (str) / # cuda or cpu
+ --device (str) / # cpu or cuda
  --rnd_seed (int) / # random seed
  ```
 
 #### Example call
 
 ```python
-$ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --modality behavioral --n_items number/of/unique/stimuli --dim 100 --thresh 0.85 --batch_size 128 --spike 0.125 --slab 1.0 --pi 0.5 --triplets_dir path/to/triplets --n_components 2 3 4 5 6 --mc_samples 30 --things --index_path ./data/sortindex --device cpu --rnd_seed 42
+$ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --modality behavioral --n_items number/of/unique/stimuli (e.g., 1854) --latent_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.125 --slab 1.0 --pi 0.5 --triplets_dir path/to/triplets --n_components 2 3 4 5 6 --mc_samples 30 --things --index_path ./data/sortindex --device cpu --rnd_seed 42
 ```
 
 ### NOTES:

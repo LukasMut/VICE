@@ -29,7 +29,7 @@ class TripletLoadingTestCase(unittest.TestCase):
     def test_loading(self):
         triplets = helper.create_triplets()
         train_triplets_before, test_triplets_before = helper.create_train_test_split(triplets)
-        self.save_triplets(triplets)
+        self.save_triplets(train_triplets_before, test_triplets_before)
         train_triplets_after, test_triplets_after = utils.load_data(device=device, triplets_dir=test_dir)
         shutil.rmtree(test_dir)
         self.assertEqual(train_triplets_before, train_triplets_after)

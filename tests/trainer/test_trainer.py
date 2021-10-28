@@ -27,7 +27,6 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class TrainerTestCase(unittest.TestCase):
 
-
     def get_model(self, hypers: dict) -> Any:
         vice = VICE(prior=hypers['prior'], in_size=hypers['M'], out_size=hypers['P'], init_weights=True)
         vice.to(device)

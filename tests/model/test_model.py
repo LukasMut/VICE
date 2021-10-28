@@ -56,7 +56,7 @@ class VICETestCase(unittest.TestCase):
             self.assertEqual(len(out), 4)
             z, W_mu, W_sigma, W_sample = out
             self.assertTrue(z.min() >= 0.)
-            self.assertTrue(W_sigma >= 0.)
+            self.assertTrue(W_sigma.min() >= 0.)
             self.assertEqual(W_mu.shape, W_sigma.shape, W_sample.shape)
             self.assertEqual(z.shape, (int(batch_size * 3), M))
 

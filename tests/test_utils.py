@@ -21,6 +21,8 @@ class TripletLoadingTestCase(unittest.TestCase):
 
     @staticmethod
     def save_triplets(train_triplets, test_triplets) -> None:
+        if not os.path.exists(test_dir):
+            os.mkdir(test_dir)
         with open(os.path.join(test_dir, train_file), 'wb') as f:
             np.save(f, train_triplets)
         with open(os.path.join(test_dir, test_file), 'wb') as f:

@@ -108,6 +108,13 @@ class TrainerTestCase(unittest.TestCase):
         self.assertTrue(self.assert_difference(W_loc_init, W_loc_opt))
         self.assertTrue(self.assert_difference(W_scale_init, W_scale_opt))
 
+        val_loss, val_acc = trainer.evaluate(val_batches)
+
+        self.assertTrue(type(val_loss) == float)
+        self.assertTrue(type(val_acc) == float)
+        self.assertTrue(val_loss < np.log(3))
+        self.assertTrue(val_acc > 1/3)
+
 
     @staticmethod
     def assert_difference(A: np.ndarray, B: np.ndarray) -> bool:

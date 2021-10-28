@@ -1,37 +1,37 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
+import shutil
 import torch
 import unittest
-import utils
 
 import numpy as np
 import tests.helper as helper
-import torch.nn as nn
+import torch.nn.functional as F
 
 from train.trainer import Trainer
-from models.model import VICE, SPoSE
+from models.model import VICE
 
-batch_size = 128
+test_dir = './test'
+model_dir = os.path.join(test_dir, 'model')
+hypers = helper.get_hypers()
 triplets = helper.create_triplets()
-M = utils.get_nitems(triplets)
-
-subsample = triplets[np.random.choice(triplets.shape[0], size=batch_size, replace=False)]
+subsample = triplets[np.random.choice(triplets.shape[0], size=hypers['batch_size'], replace=False)]
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class TrainerTestCase(unittest.TestCase):
 
 
-    def get_model(self):
-        vice = VICE(prior=prior, in_size=M, out_size=int(M/2), init_weights=True)
+    def get_model(self, hypers):
+        vice = VICE(prior=hypers['prior'], in_size=hypers['M'], out_size=hypers['P'], init_weights=True)
         vice.to(device)
         return vice
 
     def test_properties(self):
-        vice = self.get_model()
-        triplets = helper.create_triplets()
-        hypers = helper.get_hypers()
+        triplets = helper.create_triplets()        
+        vice = self.get_model(hypers)
         trainer = Trainer(
                           model=vice,
                           task=hypers['task'],
@@ -48,6 +48,8 @@ class TrainerTestCase(unittest.TestCase):
                           slab=hypers['slab'],
                           pi=hypers['pi'],
                           steps=hypers['steps'],
+                          model_dir=model_dir,
+                          results_dir=test_dir,
                           device=device,
                           verbose=True,
         )
@@ -74,10 +76,10 @@ class TrainerTestCase(unittest.TestCase):
         self.assertTrue(hasattr(trainer, 'scale_spike'))
         self.assertTrue(hasattr(trainer, 'scale_slab'))
         
-        self.assertEqual(trainer.loc, torch.zeros(hypers['M'], hypers['P'].to(device)))
-        self.assertEqual(trainer.scale_spike, torch.zeros(hypers['M'], hypers['P']).mul(hypers['spike']).to(device))
-        self.assertEqual(trainer.scale_slab, torch.zeros(hypers['M'], hypers['P']).mul(hypers['slab']).to(device))
+        np.testing.assert_allclose(trainer.loc, torch.zeros(hypers['M'], hypers['P']).to(device))
+        np.testing.assert_allclose(trainer.scale_spike, torch.ones(hypers['M'], hypers['P']).mul(hypers['spike']).to(device))
+        np.testing.assert_allclose(trainer.scale_slab, torch.ones(hypers['M'], hypers['P']).mul(hypers['slab']).to(device))
 
-        W_loc, W_scale = trainer.parameters()
-        self.assertEqual(W_loc, F.relu(vice.encoder_mu.weight.data.T.cpu().numpy())
-        self.assertEqual(W_loc, vice.encoder_mu.weight.data.T.exp()cpu().numpy())
+        W_loc, W_scale = trainer.parameters
+        np.testing.assert_allclose(W_loc, F.relu(vice.encoder_mu.weight.data.T.cpu()).numpy())
+        np.testing.assert_allclose(W_scale, vice.encoder_logsigma.weight.data.T.exp().cpu().numpy())

@@ -24,7 +24,7 @@ def get_choice(S: np.ndarray, triplet: np.ndarray) -> np.ndarray:
     positive = combs[np.argmax(probas)]
     ooo = list(set(triplet).difference(set(positive)))
     choice = np.hstack((positive, ooo))
-    return choice
+    return choice.tolist()
 
 
 def random_choice(N: int, combs: np.ndarray):
@@ -36,7 +36,7 @@ def create_triplets(N: int=N_TRIALS, M: int=N_ITEMS, P: int=LATENT_DIM, k: int=k
     """Create synthetic triplet data."""
     X = np.random.randn(M, P)
     S = X @ X.T
-    triplets = np.zeros((N, k), dtype=int)
+    triplets = torch.zeros(N, k, dtype=torch.long)
     combs = np.array(list(itertools.combinations(range(M), k)))
     random_sample = random_choice(N, combs)
     for i, triplet in enumerate(random_sample):

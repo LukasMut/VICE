@@ -89,16 +89,6 @@ def assert_nneg(X: np.ndarray, thresh: float = 1e-5) -> np.ndarray:
     return X
 
 
-def load_features(PATH: str) -> np.ndarray:
-    if re.search(r'text', PATH):
-        E = np.loadtxt(PATH, delimiter=',')
-        E = remove_nans(E)  # remove all objects that contain NaN values
-    else:
-        with open(PATH, 'rb') as f:
-            E = np.load(f)
-    return E
-
-
 def filter_triplets(rnd_samples: np.ndarray, n_samples: float) -> np.ndarray:
     """filter for unique triplets (i, j, k have to be different indices)"""
     rnd_samples = np.asarray(list(filter(lambda triplet: len(
@@ -107,48 +97,6 @@ def filter_triplets(rnd_samples: np.ndarray, n_samples: float) -> np.ndarray:
     rnd_samples = np.unique(rnd_samples, axis=0)[:int(n_samples)]
     return rnd_samples
 
-
-def tripletize_data(PATH: str, method: str, n_samples: float, sampling_constant: float, folder: str, dir: str = './triplets', device: torch.device = torch.device('cpu')) -> Tuple[np.ndarray]:
-    """create triplets of object embedding similarities, and for each triplet find the odd-one-out"""
-    # load word embeddings or DNN hidden unit activations into memory
-    E = load_features(PATH)
-    # compute similarity matrix
-    # TODO: figure out whether an affinity matrix might be more reasonable (i.e., informative) than a simple similarity matrix
-    S = E @ E.T
-    N = S.shape[0]
-    # draw random samples of triplets of concepts
-    rnd_samples = np.random.randint(
-        N, size=(int(n_samples + sampling_constant), 3))
-    # filter for unique triplets and remove all duplicates
-    rnd_samples = filter_triplets(rnd_samples, n_samples)
-
-    triplets = np.zeros((int(n_samples), 3), dtype=int)
-    for idx, [i, j, k] in enumerate(rnd_samples):
-        odd_one_outs = np.asarray([k, j, i])
-        sims = np.array([S[i, j], S[i, k], S[j, k]])
-        choices = odd_one_outs[np.argsort(sims)]
-        triplets[idx] = choices
-
-    PATH = pjoin(dir, folder)
-    if not os.path.exists(PATH):
-        os.makedirs(PATH)
-
-    rnd_indices = np.random.permutation(len(triplets))
-    train_triplets = triplets[rnd_indices[:int(len(rnd_indices) * .9)]]
-    test_triplets = triplets[rnd_indices[int(len(rnd_indices) * .9):]]
-
-    with open(pjoin(PATH, 'train_90.npy'), 'wb') as train_file:
-        np.save(train_file, train_triplets)
-
-    with open(pjoin(PATH, 'test_10.npy'), 'wb') as test_file:
-        np.save(test_file, test_triplets)
-
-    train_triplets = torch.from_numpy(
-        train_triplets).to(device).type(torch.LongTensor)
-    test_triplets = torch.from_numpy(test_triplets).to(
-        device).type(torch.LongTensor)
-
-    return train_triplets, test_triplets
 
 
 def load_inds_and_item_names(folder: str = './data') -> Tuple[np.ndarray]:
@@ -342,15 +290,6 @@ def collect_choices(probas:np.ndarray, human_choices:np.ndarray, model_choices:d
     return model_choices
     
 
-def merge_dicts(files: list) -> dict:
-    """merge multiple .json files efficiently into a single dictionary"""
-    results = {}
-    for f in files:
-        with open(f, 'r') as f:
-            results.update(dict(json.load(f)))
-    results = sort_results(results)
-    return results
-
 
 def load_model(
     model,
@@ -364,26 +303,6 @@ def load_model(
     checkpoint = torch.load(PATH, map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
     return model
-
-
-def save_weights_(out_path: str, W_mu: torch.tensor, W_b: torch.tensor) -> None:
-    with open(pjoin(out_path, 'weights_mu_sorted.npy'), 'wb') as f:
-        np.save(f, W_mu)
-    with open(pjoin(out_path, 'weights_b_sorted.npy'), 'wb') as f:
-        np.save(f, W_b)
-
-
-def load_final_weights(out_path: str, version: str = 'variational') -> None:
-    if version == 'variational':
-        with open(pjoin(out_path, 'weights_mu_sorted.npy'), 'rb') as f:
-            W_mu = np.load(f)
-        with open(pjoin(out_path, 'weights_b_sorted.npy'), 'rb') as f:
-            W_b = np.load(f)
-        return W_mu, W_b
-    else:
-        with open(pjoin(out_path, 'weights_sorted.npy'), 'rb') as f:
-            W = np.load(f)
-        return W
 
 
 def load_weights(model) -> Tuple[torch.Tensor, torch.Tensor]:

@@ -11,28 +11,29 @@ import utils
 
 import numpy as np
 import tests.helper as helper
+import torch.nn as nn
 import torch.nn.functional as F
 
 from train.trainer import Trainer
 from models.model import VICE
+from typing import Any
 
 test_dir = './test'
 model_dir = os.path.join(test_dir, 'model')
 hypers = helper.get_hypers()
 triplets = helper.create_triplets()
-subsample = triplets[np.random.choice(triplets.shape[0], size=hypers['batch_size'], replace=False)]
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class TrainerTestCase(unittest.TestCase):
 
 
-    def get_model(self, hypers):
+    def get_model(self, hypers: dict) -> Any:
         vice = VICE(prior=hypers['prior'], in_size=hypers['M'], out_size=hypers['P'], init_weights=True)
         vice.to(device)
         return vice
     
-    def get_trainer(self, model, hypers):
+    def get_trainer(self, model: nn.Module, hypers: dict) -> object:
         trainer = Trainer(
                           model=model,
                           task=hypers['task'],
@@ -56,7 +57,7 @@ class TrainerTestCase(unittest.TestCase):
         )
         return trainer
         
-    def test_properties(self):     
+    def test_properties(self) -> None:     
         vice = self.get_model(hypers)
         trainer = self.get_trainer(vice, hypers)
         self.assertEqual(trainer.model, vice)
@@ -90,7 +91,7 @@ class TrainerTestCase(unittest.TestCase):
         np.testing.assert_allclose(W_loc, F.relu(vice.encoder_mu.weight.data.T.cpu()).numpy())
         np.testing.assert_allclose(W_scale, vice.encoder_logsigma.weight.data.T.exp().cpu().numpy())
 
-    def test_optimization(self):
+    def test_optimization(self) -> None:
         vice = self.get_model(hypers)
         trainer = self.get_trainer(vice, hypers)
         # get model parameters at initilization
@@ -110,7 +111,7 @@ class TrainerTestCase(unittest.TestCase):
 
 
     @staticmethod
-    def assert_difference(A, B):
+    def assert_difference(A: np.ndarray, B: np.ndarray) -> bool:
         try:
             np.testing.assert_allclose(A, B)
             return False
@@ -118,7 +119,7 @@ class TrainerTestCase(unittest.TestCase):
             return True
 
 
-    def test_results(self):
+    def test_results(self) -> None:
         results = []
         regex = r'(?=.*\d)(?=.*json$)'
         for root, _, files in os.walk(test_dir):

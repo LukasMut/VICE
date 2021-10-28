@@ -1,5 +1,5 @@
-[![Unittests](https://github.com/ViCCo-Group/VICE/actions/workflows/python-package.yml/badge.svg)](https://github.com/ViCCo-Group/VICE/actions/workflows/python-package.yml)
-[![Code Coverage](https://codecov.io/gh/ViCCo-Group/VICE/branch/main/graph/badge.svg?token=0RKlKIYtbd)](https://github.com/ViCCo-Group/VICE/actions/workflows/coverage.yml)
+[![Unittests](https://github.com/LukasMut/VICE/actions/workflows/python-package.yml/badge.svg)](https://github.com/LukasMut/VICE/actions/workflows/python-package.yml)
+[![Code Coverage](https://codecov.io/gh/LukasMut/VICE/branch/main/graph/badge.svg?token=0RKlKIYtbd)](https://github.com/LukasMut/VICE/actions/workflows/coverage.yml)
 
 # VICE: Variational Inference for Concept Embeddings
 

@@ -24,7 +24,8 @@ def get_choice(S: np.ndarray, triplet: np.ndarray) -> np.ndarray:
     positive = combs[np.argmax(probas)]
     ooo = list(set(triplet).difference(set(positive)))
     choice = np.hstack((positive, ooo))
-    return choice.tolist()
+    choice = torch.from_numpy(choice)
+    return choice
 
 
 def random_choice(N: int, combs: np.ndarray):

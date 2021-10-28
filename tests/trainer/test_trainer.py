@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import re
 import os
+import json
 import shutil
 import torch
 import unittest
+import utils
 
 import numpy as np
 import tests.helper as helper
@@ -28,12 +31,10 @@ class TrainerTestCase(unittest.TestCase):
         vice = VICE(prior=hypers['prior'], in_size=hypers['M'], out_size=hypers['P'], init_weights=True)
         vice.to(device)
         return vice
-
-    def test_properties(self):
-        triplets = helper.create_triplets()        
-        vice = self.get_model(hypers)
+    
+    def get_trainer(self, model, hypers):
         trainer = Trainer(
-                          model=vice,
+                          model=model,
                           task=hypers['task'],
                           N=hypers['N'],
                           n_items=hypers['M'],
@@ -53,6 +54,11 @@ class TrainerTestCase(unittest.TestCase):
                           device=device,
                           verbose=True,
         )
+        return trainer
+        
+    def test_properties(self):     
+        vice = self.get_model(hypers)
+        trainer = self.get_trainer(vice, hypers)
         self.assertEqual(trainer.model, vice)
         self.assertEqual(trainer.task, hypers['task'])
         self.assertEqual(trainer.N, hypers['N'])
@@ -83,3 +89,45 @@ class TrainerTestCase(unittest.TestCase):
         W_loc, W_scale = trainer.parameters
         np.testing.assert_allclose(W_loc, F.relu(vice.encoder_mu.weight.data.T.cpu()).numpy())
         np.testing.assert_allclose(W_scale, vice.encoder_logsigma.weight.data.T.exp().cpu().numpy())
+
+    def test_optimization(self):
+        vice = self.get_model(hypers)
+        trainer = self.get_trainer(vice, hypers)
+        # get model parameters at initilization
+        W_loc_init, W_scale_init = trainer.parameters
+        
+        train_triplets, test_triplets = helper.create_train_test_split(triplets)
+        train_batches, val_batches = utils.load_batches(train_triplets=train_triplets, test_triplets=test_triplets, 
+                    n_items=hypers['M'], batch_size=hypers['batch_size'], inference=False)
+        
+        trainer.train(train_batches=train_batches, val_batches=val_batches)
+        # get model paramters after optimization
+        W_loc_opt, W_scale_opt = trainer.parameters
+
+        # check whether model parameters have changed during optimization
+        self.assertTrue(self.assert_difference(W_loc_init, W_loc_opt))
+        self.assertTrue(self.assert_difference(W_scale_init, W_scale_opt))
+
+
+    @staticmethod
+    def assert_difference(A, B):
+        try:
+            np.testing.assert_allclose(A, B)
+            return False
+        except:
+            return True
+
+
+    def test_results(self):
+        results = []
+        regex = r'(?=.*\d)(?=.*json$)'
+        for root, _, files in os.walk(test_dir):
+            for f in files:
+                if re.compile(regex).search(f):
+                    with open(os.path.join(root, f), 'r') as rf:
+                        r = json.load(rf)
+                    self.assertTrue(isinstance(r, dict))
+                    results.append(r)
+        self.assertEqual(len(results), int(hypers['epochs'] / hypers['steps']))
+        shutil.rmtree(test_dir)
+        

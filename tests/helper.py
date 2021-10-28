@@ -24,13 +24,13 @@ def get_hypers():
     hypers['optim'] = 'adam'
     hypers['eta'] = 0.001
     hypers['batch_size'] = 128
-    hypers['epochs'] = 1000
+    hypers['epochs'] = 10
     hypers['mc_samples'] = 20
     hypers['prior'] = 'gaussian' 
     hypers['spike'] = 0.1
     hypers['slab'] = 1.0
     hypers['pi'] = 0.5
-    hypers['steps'] = 20
+    hypers['steps'] = 2
     return hypers
           
 

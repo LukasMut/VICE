@@ -48,3 +48,13 @@ class TripletLoadingTestCase(unittest.TestCase):
 
         M = utils.get_nitems(train_triplets)
         self.assertTrue(type(M) == int)
+
+
+class CorrelationTestCase(unittest.TestCase):
+
+    def test_correlation(self):
+        u = np.random.normal(loc=0., scale=1., size=(100,))
+        v = np.random.normal(loc=0., scale=1., size=(100,))
+        r = utils.pearsonr(u, v)
+        self.assertTrue(type(r) == np.float64)
+        self.assertTrue(r >= float(-1) and r <= float(1))

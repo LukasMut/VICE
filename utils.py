@@ -113,12 +113,6 @@ def load_ref_images(img_folder: str, item_names: np.ndarray) -> np.ndarray:
     return ref_images
 
 
-def load_concepts(folder: str = './data') -> pd.DataFrame:
-    concepts = pd.read_csv(
-        pjoin(folder, 'category_mat_manual.tsv'), encoding='utf-8', sep='\t')
-    return concepts
-
-
 def load_data(device: torch.device, triplets_dir: str, val_set: str = 'test_10', inference: bool = False) -> Tuple[torch.Tensor]:
     """load train and test triplet datasets into memory"""
     if inference:

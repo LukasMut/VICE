@@ -329,10 +329,6 @@ def prune_weights(model, version: str, indices: torch.Tensor, fraction: float):
     return model
 
 
-#############################################################################################
-######### helper functions to load weight matrices and compare RSMs across modalities #######
-#############################################################################################
-
 def pearsonr(u: np.ndarray, v: np.ndarray, a_min: float = -1., a_max: float = 1.) -> np.ndarray:
     u_c = u - np.mean(u)
     v_c = v - np.mean(v)
@@ -344,21 +340,3 @@ def pearsonr(u: np.ndarray, v: np.ndarray, a_min: float = -1., a_max: float = 1.
 
 def robustness(corrs: np.ndarray, thresh: float) -> float:
     return len(corrs[corrs > thresh]) / len(corrs)
-
-
-def cross_correlate_latent_dims(X, thresh: float = None) -> float:
-    if isinstance(X, np.ndarray):
-        W_mu_i = np.copy(X)
-        W_mu_j = np.copy(X)
-    else:
-        W_mu_i, W_mu_j = X
-    corrs = np.zeros(min(W_mu_i.shape))
-    for i, w_i in enumerate(W_mu_i):
-        if np.all(W_mu_i == W_mu_j):
-            corrs[i] = np.max([pearsonr(w_i, w_j)
-                              for j, w_j in enumerate(W_mu_j) if j != i])
-        else:
-            corrs[i] = np.max([pearsonr(w_i, w_j) for w_j in W_mu_j])
-    if thresh:
-        return robustness(corrs, thresh)
-    return np.mean(corrs)

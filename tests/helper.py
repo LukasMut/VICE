@@ -13,6 +13,27 @@ N_ITEMS = 60
 LATENT_DIM = N_ITEMS // 2
 k = 3
 
+
+
+def get_hypers():
+    hypers = {}
+    hypers['N'] = N_TRIALS
+    hypers['M'] = N_ITEMS
+    hypers['P'] = LATENT_DIM
+    hypers['task'] = 'odd_one_out'
+    hypers['optim'] = 'adam'
+    hypers['eta'] = 0.001
+    hypers['batch_size'] = 128
+    hypers['epochs'] = 1000
+    hypers['mc_samples'] = 20
+    hypers['prior'] = 'gaussian' 
+    hypers['spike'] = 0.1
+    hypers['slab'] = 1.0
+    hypers['pi'] = 0.5
+    hypers['steps'] = 20
+    return hypers
+          
+
 def softmax(z: np.ndarray) -> np.ndarray:
     return np.exp(z) / np.sum(np.exp(z))
 

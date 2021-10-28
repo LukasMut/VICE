@@ -20,11 +20,11 @@ $ pip install -r requirements.txt
 
 ### VICE optimization
 
-Explanation of arguments in `train.py`.
+Explanation of arguments in `run.py`.
 
 ```python
  
- train.py
+ run.py
   
  --task (str) / # odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task
  --modality (str) / # e.g., behavioral, text, visual
@@ -50,7 +50,7 @@ Explanation of arguments in `train.py`.
 #### Example call
 
 ```python
-$ python train.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 1000 --eta 0.001 --latent_dim 100 --batch_size 128 --optim adam --prior gaussian --epochs 1000 --mc_samples 25 --spike 0.1 --slab 1.0 --pi 0.5 --steps 50 --device cuda --rnd_seed 42 --verbose
+$ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 1000 --eta 0.001 --latent_dim 100 --batch_size 128 --optim adam --prior gaussian --epochs 1000 --mc_samples 25 --spike 0.1 --slab 1.0 --pi 0.5 --steps 50 --device cuda --rnd_seed 42 --verbose
 ```
 
 ### NOTES:

@@ -34,16 +34,17 @@ class TripletLoadingTestCase(unittest.TestCase):
         self.save_triplets(train_triplets_before, test_triplets_before)
         train_triplets_after, test_triplets_after = utils.load_data(device=device, triplets_dir=test_dir)
         shutil.rmtree(test_dir)
-        self.assertEqual(train_triplets_before, train_triplets_after)
-        self.assertEqual(test_triplets_before, test_triplets_after)
+        
+        np.testing.assert_allclose(train_triplets_before, train_triplets_after)
+        np.testing.assert_allclose(test_triplets_before, test_triplets_after)
 
         train_triplets = train_triplets_after
         test_triplets = test_triplets_after
 
         self.assertEqual(train_triplets.shape[1], test_triplets.shape[1])
         self.assertEqual(type(train_triplets), type(test_triplets))
-        self.assertTrue(isinstance(train_triplets), torch.Tensor)
-        self.assertTrue(isinstance(test_triplets), torch.Tensor)
+        self.assertTrue(isinstance(train_triplets, torch.Tensor))
+        self.assertTrue(isinstance(test_triplets, torch.Tensor))
 
         M = utils.get_nitems(train_triplets)
         self.assertTrue(type(M) == int)

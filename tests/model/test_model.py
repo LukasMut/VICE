@@ -13,8 +13,8 @@ from models.model import VICE, SPoSE
 
 batch_size = 128
 triplets = helper.create_triplets()
-subsample = triplets[np.random.choice(triplets.shape[0], size=batch_size, replace=False)]
 M = utils.get_nitems(triplets)
+subsample = triplets[np.random.choice(triplets.shape[0], size=batch_size, replace=False)]
 prior = 'gaussian'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -52,13 +52,14 @@ class VICETestCase(unittest.TestCase):
         vice = self.get_model()
         batches = utils.load_batches(train_triplets=None, test_triplets=subsample, n_items=M, batch_size=batch_size, inference=True)
         for batch in batches:
+            self.assertEqual(batch.shape, (int(batch_size * 3), M))
             out = vice(batch)
             self.assertEqual(len(out), 4)
             z, W_mu, W_sigma, W_sample = out
             self.assertTrue(z.min() >= 0.)
             self.assertTrue(W_sigma.min() >= 0.)
             self.assertEqual(W_mu.shape, W_sigma.shape, W_sample.shape)
-            self.assertEqual(z.shape, (int(batch_size * 3), M))
+            self.assertEqual(z.shape, (int(batch_size * 3), int(M/2)))
 
 
 class SPoSETestCase(unittest.TestCase):
@@ -83,7 +84,7 @@ class SPoSETestCase(unittest.TestCase):
         spose = self.get_model()
         batches = utils.load_batches(train_triplets=None, test_triplets=subsample, n_items=M, batch_size=batch_size, inference=True)
         for batch in batches:
+            self.assertEqual(batch.shape, (int(batch_size * 3), M))
             out = spose(batch)
-            self.assertEqual(out.shape, (int(batch_size * 3), M))
-
+            self.assertEqual(out.shape, (int(batch_size * 3), int(M/2)))
 

@@ -120,7 +120,7 @@ $ python find_best_hypers.py --in_path path/to/models/and/evaluation/results --p
 
 ### NOTES:
 
-1. After correctly calling `find_best_hypers.py`, you will find a `json` file called `validation_results.json` in `path/to/models/and/evaluation/results` with keys `tuning_cross_entropies`, `pruning_cross_entropies`, `robustness`, and `best_comb`, summarizing both the validation performance and the reliability scores of the best hyperparameter combination for VICE per data split and random seed.
+1. After calling `find_best_hypers.py`, you will find a `json` file named `validation_results.json` in `path/to/models/and/evaluation/results` with keys `tuning_cross_entropies`, `pruning_cross_entropies`, `robustness`, and `best_comb`, summarizing both the validation performance and the reliability scores of the best hyperparameter combination for VICE per data split and random seed.
 
 2. Additionally, for each data split, a `txt` file called `model_paths.txt` is saved to the data split subfolder in `path/to/models/and/evaluation/results` pointing towards the latest model checkpoint (i.e., last epoch) for the best hyperparameter combination per data split and random seed.
 

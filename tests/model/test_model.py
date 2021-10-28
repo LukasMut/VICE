@@ -51,13 +51,14 @@ class VICETestCase(unittest.TestCase):
     def test_output(self):
         vice = self.get_model()
         batches = utils.load_batches(train_triplets=None, test_triplets=subsample, n_items=M, batch_size=batch_size, inference=True)
-        out = vice(next(batches))
-        self.assertEqual(len(out), 4)
-        z, W_mu, W_sigma, W_sample = out
-        self.assertTrue(z.min() >= 0.)
-        self.assertTrue(W_sigma >= 0.)
-        self.assertEqual(W_mu.shape, W_sigma.shape, W_sample.shape)
-        self.assertEqual(z.shape, (int(batch_size * 3), M))
+        for batch in batches:
+            out = vice(batch)
+            self.assertEqual(len(out), 4)
+            z, W_mu, W_sigma, W_sample = out
+            self.assertTrue(z.min() >= 0.)
+            self.assertTrue(W_sigma >= 0.)
+            self.assertEqual(W_mu.shape, W_sigma.shape, W_sample.shape)
+            self.assertEqual(z.shape, (int(batch_size * 3), M))
 
 
 class SPoSETestCase(unittest.TestCase):
@@ -81,7 +82,8 @@ class SPoSETestCase(unittest.TestCase):
     def test_output(self):
         spose = self.get_model()
         batches = utils.load_batches(train_triplets=None, test_triplets=subsample, n_items=M, batch_size=batch_size, inference=True)
-        out = spose(next(batches))
-        self.assertEqual(out.shape, (int(batch_size * 3), M))
+        for batch in batches:
+            out = spose(batch)
+            self.assertEqual(out.shape, (int(batch_size * 3), M))
 
 

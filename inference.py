@@ -4,7 +4,6 @@
 from statsmodels.stats.multitest import multipletests
 from scipy.stats import norm
 from sklearn import mixture
-from trainer import Trainer
 from typing import Tuple, List, Any, Iterator
 from models.model import VICE
 from collections import defaultdict
@@ -149,14 +148,15 @@ def get_cluster_combinations(n_clusters: int, c_min: int = 1):
 
 
 def pruning_(
-    trainer: object,
+    model: VICE,
     pruning_batches: Iterator[torch.Tensor],
     n_components: List[int],
     device: torch.device,
     things: bool = False,
 ) -> Tuple[torch.Tensor, torch.Tensor, nn.Module, float]:
-    model = trainer.model
-    W_loc, W_scale = trainer.parameters
+    params = model.detached_params
+    W_loc = params['loc']
+    W_scale = params['scale']
     if things:
         W_loc = W_loc[sortindex]
         W_scale = W_scale[sortindex]
@@ -176,8 +176,7 @@ def pruning_(
                 torch.LongTensor).to(device)
             model_copy = copy.deepcopy(model)
             model_pruned = prune_weights(model_copy, indices)
-            trainer.model = model_pruned
-            val_loss, _ = trainer.evaluate(pruning_batches)
+            val_loss, _ = model_pruned.evaluate(pruning_batches)
             val_losses[i] += val_loss
             pruned_models.append(model_pruned)
         best_model = pruned_models[np.argmin(val_losses)]
@@ -186,13 +185,39 @@ def pruning_(
     return best_model
 
 
-def get_models(model_paths: List[str], prior: str, n_items: int, latent_dim: int, device: torch.device,
-               ) -> List[nn.Module]:
+def get_models(
+    model_paths: List[str],
+    task: str,
+    prior: str,
+    n_items: int,
+    latent_dim: int,
+    batch_size: int,
+    mc_samples: int,
+    results_dir: str,
+    device: torch.device,
+) -> List[VICE]:
     models = []
     for model_path in model_paths:
         seed = model_path.split('/')[-1]
-        model = VICE(prior=prior, in_size=n_items,
-                     out_size=latent_dim, init_weights=True)
+        model = VICE(
+                    task=task,
+                    n_train=None,
+                    n_items=n_items,
+                    latent_dim=latent_dim,
+                    optim=None,
+                    eta=None,
+                    batch_size=batch_size,
+                    epochs=None,
+                    mc_samples=mc_samples,
+                    prior=prior,
+                    spike=None,
+                    slab=None,
+                    pi=None,
+                    steps=None,
+                    model_dir=None,
+                    results_dir=results_dir,
+                    device=device,
+                    init_weights=True)
         try:
             model = utils.load_model(
                 model=model, PATH=model_path, device=device)
@@ -222,8 +247,8 @@ def inference(
 
     in_path = os.path.join(results_dir, f'{latent_dim}d')
     model_paths = get_model_paths(in_path)
-    seeds, models = zip(*get_models(model_paths, prior,
-                        n_items, latent_dim, device))
+    seeds, models = zip(*get_models(model_paths, task, prior, n_items,
+                        latent_dim, batch_size, mc_samples, results_dir, device))
 
     test_triplets = utils.load_data(
         device=device, triplets_dir=triplets_dir_test, inference=True)
@@ -253,32 +278,11 @@ def inference(
     model_pmfs_all = defaultdict(dict)
 
     for seed, model, model_path in zip(seeds, models, model_paths):
-        trainer = Trainer(
-            model=model,
-            task=task,
-            N=None,
-            n_items=n_items,
-            latent_dim=latent_dim,
-            optim=None,
-            eta=None,
-            batch_size=batch_size,
-            epochs=None,
-            mc_samples=mc_samples,
-            prior=prior,
-            spike=None,
-            slab=None,
-            pi=None,
-            steps=None,
-            model_dir=None,
-            results_dir=results_dir,
-            device=device,
-        )
         if pruning:
-            model_pruned = pruning_(
-                trainer=trainer, pruning_batches=pruning_batches, n_components=n_components,  device=device, things=things)
-        trainer.model = model_pruned
-        val_loss, _ = trainer.evaluate(tuning_batches)
-        test_acc, test_loss, probas, model_pmfs, triplet_choices = trainer.inference(
+            model = pruning_(
+                model=model, pruning_batches=pruning_batches, n_components=n_components,  device=device, things=things)
+        val_loss, _ = model.evaluate(tuning_batches)
+        test_acc, test_loss, probas, model_pmfs, triplet_choices = model.inference(
             test_batches)
         val_losses[seed] = val_loss
         test_accs[seed] = test_acc

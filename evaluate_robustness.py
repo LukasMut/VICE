@@ -16,7 +16,6 @@ import pandas as pd
 import torch.nn as nn
 
 from models.model import VICE
-from trainer import Trainer
 from os.path import join as pjoin
 from typing import Tuple, List, Any, Iterator
 from sklearn import mixture
@@ -247,14 +246,15 @@ def get_best_subset_and_noise(val_losses: np.ndarray, clusters: np.ndarray, clus
 
 
 def pruning(
-    trainer: object,
+    model: VICE,
     pruning_batches: Iterator[torch.Tensor],
     n_components: List[int],
     device: torch.device,
     things: bool = False,
 ) -> Tuple[torch.Tensor, torch.Tensor, nn.Module, float]:
-    model = trainer.model
-    W_loc, W_scale = trainer.parameters
+    params = model.detached_params
+    W_loc = params['loc']
+    W_scale = params['scale']
     if things:
         W_loc = W_loc[sortindex]
         W_scale = W_scale[sortindex]
@@ -274,8 +274,7 @@ def pruning(
                 torch.LongTensor).to(device)
             model_copy = copy.deepcopy(model)
             model_pruned = prune_weights(model_copy, indices)
-            trainer.model = model_pruned
-            val_loss, _ = trainer.evaluate(pruning_batches)
+            val_loss, _ = model_pruned.evaluate(pruning_batches)
             val_losses[i] += val_loss
             pruned_models.append(model_pruned)
         best_subset, _ = get_best_subset_and_noise(
@@ -286,7 +285,7 @@ def pruning(
         pruning_loss = np.min(val_losses)
     else:
         best_model = model
-        pruning_loss, _ = trainer.evaluate(pruning_batches)
+        pruning_loss, _ = model.evaluate(pruning_batches)
     return W_loc.T, W_scale, best_model, pruning_loss
 
 
@@ -311,6 +310,7 @@ def evaluate_models(
 ) -> None:
     in_path = os.path.join(results_dir, modality,
                            f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi))
+    in_path = results_dir
     model_paths = get_model_paths(in_path)
     Ws_loc_best, Ws_scale_best = [], []
     _, pruning_triplets = utils.load_data(
@@ -326,14 +326,9 @@ def evaluate_models(
     for i, model_path in enumerate(model_paths):
         print(f'Currently pruning model: {i+1}\n')
         try:
-            model = VICE(prior=prior, in_size=n_items,
-                         out_size=latent_dim, init_weights=True)
-            model = utils.load_model(
-                model=model, PATH=model_path, device=device)
-            trainer = Trainer(
-                model=model,
+            model = VICE(
                 task=task,
-                N=None,
+                n_train=None,
                 n_items=n_items,
                 latent_dim=latent_dim,
                 optim=None,
@@ -348,11 +343,13 @@ def evaluate_models(
                 steps=None,
                 model_dir=os.path.join(model_path, 'model'),
                 results_dir=results_dir,
-                device=device)
+                device=device,
+                init_weights=True)
+            model = utils.load_model(
+                model=model, PATH=model_path, device=device)
             W_loc_best, W_scale_best, pruned_model, pruning_loss = pruning(
-                trainer=trainer, pruning_batches=pruning_batches, n_components=n_components,  device=device, things=things)
-            trainer.model = pruned_model
-            tuning_loss, _ = trainer.evaluate(tuning_batches)
+                model=model, pruning_batches=pruning_batches, n_components=n_components,  device=device, things=things)
+            tuning_loss, _ = pruned_model.evaluate(tuning_batches)
             pruning_losses[i] += pruning_loss
             tuning_losses[i] += tuning_loss
         except FileNotFoundError:

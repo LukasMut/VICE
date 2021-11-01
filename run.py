@@ -11,7 +11,6 @@ import visualization
 import numpy as np
 
 from models.model import VICE
-from train.trainer import Trainer
 from typing import Tuple
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
@@ -133,12 +132,7 @@ def run(
         sampling_method='normal',
         rnd_seed=rnd_seed,
     )
-    print(f'\nNumber of train batches: {len(train_batches)}\n')
-
-    # initialize VICE model
-    vice = VICE(prior=prior, in_size=n_items, out_size=latent_dim, init_weights=True)
-    vice.to(device)
- 
+    print(f'\nNumber of train batches: {len(train_batches)}\n') 
     results_dir, plots_dir, model_dir = create_dirs(
         results_dir=results_dir,
         plots_dir=plots_dir,
@@ -151,11 +145,10 @@ def run(
         pi=pi,
         rnd_seed=rnd_seed,
     )
-    # initialize trainer
-    trainer = Trainer(
-        model=vice,
+    # initialize VICE model
+    vice = VICE(
         task=task,
-        N=N,
+        n_train=N,
         n_items=n_items,
         latent_dim=latent_dim,
         optim=optim,
@@ -172,15 +165,17 @@ def run(
         results_dir=results_dir,
         device=device,
         verbose=verbose,
-    )
+        init_weights=True,
+        )
+    vice.to(device)
     # start training
-    trainer.train(train_batches=train_batches, val_batches=val_batches)
-    train_accs = trainer.train_accs
-    val_accs = trainer.val_accs
-    loglikelihoods = trainer.loglikelihoods
-    complexity_losses = trainer.complexity_losses
+    vice.fit(train_batches=train_batches, val_batches=val_batches)
+    train_accs = vice.train_accs
+    val_accs = vice.val_accs
+    loglikelihoods = vice.loglikelihoods
+    complexity_losses = vice.complexity_losses
     # get model parameters
-    params = trainer.parameters
+    params = vice.detached_params
 
     visualization.plot_single_performance(
         plots_dir=plots_dir, val_accs=val_accs, train_accs=train_accs[::steps])
@@ -189,7 +184,7 @@ def run(
 
     # compress model params and store as binary files
     with open(os.path.join(results_dir, 'parameters.npz'), 'wb') as f:
-        np.savez_compressed(f, W_loc=params[0], W_scale=params[1])
+        np.savez_compressed(f, W_loc=params['loc'], W_scale=params['scale'])
 
 
 if __name__ == "__main__":

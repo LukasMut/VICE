@@ -1,4 +1,4 @@
-[![Unittests](https://github.com/LukasMut/VICE/actions/workflows/tests.yml/badge.svg)](https://github.com/LukasMut/VICE/actions/workflows/tests.yml)
+[![Unittests](https://github.com/LukasMut/VICE/actions/workflows/python-package.yml/badge.svg)](https://github.com/LukasMut/VICE/actions/workflows/python-package.yml)
 [![codecov](https://codecov.io/gh/LukasMut/VICE/branch/main/graph/badge.svg?token=gntaL1yrXI)](https://codecov.io/gh/LukasMut/VICE)
 
 

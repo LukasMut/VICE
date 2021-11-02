@@ -16,23 +16,47 @@ def parseargs():
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
     aa('--in_path', type=str,
-        help='folder where to find latent representations of stimuli/images/words')
+        help='path/to/design/matrix')
     aa('--out_path', type=str,
-        help='folder where to store triplets')
-    aa('--method', type=str,
-        choices=['deterministic', 'probabilistic'],
-        help='whether to deterministically (argmax) or probabilistically (conditioned on PMF) sample odd-one-out choices')
-    aa('--temperature', type=float, default=None,
-        help='softmax temperature (beta param) in probabilistic tripletizing approach')
+        help='path/to/triplets')
     aa('--n_samples', type=float,
         help='number of triplet samples')
     aa('--rnd_seed', type=int, default=42,
-        help='random seed for reproducibility')
+        help='random seed')
     args = parser.parse_args()
     return args
 
-def load_data(in_path:str) -> np.ndarray:
-    if re.search(r'(mat|txt|csv|npy)$', in_path):
+
+class Tripletizer(object):
+
+    def __init__(
+                self,
+                in_path: str,
+                out_path: str,
+                n_samples: float,
+                rnd_seed: int,
+                k: int=3,
+                train_frac: float=.8,
+                )
+        
+        self.in_path = in_path
+        self.out_path = out_path
+        self.n_samples = n_samples
+        self.k = k
+        self.train_frac = train_frac
+
+        if not re.search(r'(mat|txt|csv|npy|hdf5)$', in_path):
+            raise Exception('\nCannot tripletize input data other than .mat, .txt, .csv, .npy, or .hdf5 formats\n')
+        
+        if not os.path.exists(self.out_path):
+            print(f'\n....Creating output directory: {self.out_path}\n')
+            os.makedirs(self.out_path)
+
+        np.random.seed(rnd_seed)
+        random.seed(rnd_seed)
+
+    @staticmethod
+    def load_data(in_path: str) -> np.ndarray:
         try:
             if re.search(r'mat$', in_path):
                 X = np.vstack([v for v in scipy.io.loadmat(in_path).values() if isinstance(v, np.ndarray) and v.dtype == np.float])
@@ -40,96 +64,77 @@ def load_data(in_path:str) -> np.ndarray:
                 X = np.loadtxt(in_path)
             elif re.search(r'csv$', in_path):
                 X = np.loadtxt(in_path, delimiter=',')
-            else:
-                with open(in_path, 'rb') as f:
-                    X = np.load(f)
-            X = remove_nans_(X)
+            elif re.search(r'npy$', in_path):
+                X = np.load(in_path)
+            elif re.search(r'hdf5$', in_path):
+                with h5py.File(in_path, 'r') as f:
+                    X = list(f.values())[0][:]
+            X = self.remove_nans_(X)
             return X
         except:
-            raise Exception('\nInput data is not in the correct format\n')
-    else:
-        raise Exception('\nCannot tripletize input data other than .mat, .txt, .csv, .npy\n')
+            raise Exception('\nInput data does not seem to be in the correct format\n')
+            
+    @staticmethod
+    def remove_nans_(X: np.ndarray) -> np.ndarray:
+        nan_indices = np.isnan(X[:, :]).any(axis=1)
+        return X[~nan_indices]
 
-def remove_nans_(X:np.ndarray) -> np.ndarray:
-    nan_indices = np.isnan(X[:, :]).any(axis=1)
-    return X[~nan_indices]
+    @staticmethod
+    def softmax(z: np.ndarray) -> np.ndarray:
+        return np.exp(z) / np.sum(np.exp(z))
 
-def filter_triplets(rnd_samples:np.ndarray, n_samples:float) -> np.ndarray:
-    """filter for unique triplets (i, j, k have to be different indices)"""
-    def is_set_(triplet:np.ndarray) -> bool:
-        return len(np.unique(triplet)) == len(triplet)
-    rnd_samples = np.asarray(list(filter(is_set_, rnd_samples)))
-    rnd_samples = np.unique(rnd_samples, axis=0)[:int(n_samples)]
-    return rnd_samples
+    @staticmethod
+    def get_choice(S: np.ndarray, triplet: np.ndarray) -> np.ndarray:
+        combs = list(itertools.combinations(triplet, 2))
+        sims = [S[comb[0], comb[1]] for comb in combs]
+        probas = self.softmax(sims)
+        positive = combs[np.argmax(probas)]
+        ooo = list(set(triplet).difference(set(positive)))
+        choice = np.hstack((positive, ooo))
+        return choice
 
-def tripletize_(
-                in_path:str,
-                out_path:str,
-                method:str,
-                temperature:float,
-                n_samples:float,
-) -> None:
-    """create triplets of object embedding similarities, and for each triplet find the odd-one-out"""
-    sampling_constant = n_samples / 10
-    #load input data (e.g., word embeddings, image features)
-    X = load_data(in_path)
-    #create similarity matrix
-    #TODO: figure out whether an affinity matrix might be more reasonable (i.e., informative) than a simple similarity matrix
-    S = X @ X.T
-    N = S.shape[0]
-    #draw random triplet samples
-    rnd_samples = np.random.randint(N, size=(int(n_samples + sampling_constant), 3))
-    #filter for unique triplets and remove all duplicates
-    rnd_samples = filter_triplets(rnd_samples, n_samples)
+    def random_choice(combs: np.ndarray):
+        return combs[np.random.choice(combs.shape[0], size=self.n_samples, replace=False)]
 
-    if method == 'probabilistic':
-        assert isinstance(temperature, float), '\nFloat for softmax temperature is required in probabilistic approach\n'
-        max_probas = np.zeros(int(n_samples))
-        def softmax(x:np.ndarray, temperature:float) -> np.ndarray:
-            return np.exp(temperature * x)/np.sum(np.exp(temperature * x))
+    def sample_triplets(self) -> np.ndarray:
+        """Create synthetic triplet data."""
+        X = self.load_domain(self.in_path)
+        M = X.shape[0]
+        S = X @ X.T
+        triplets = np.zeros((self.n_samples, self.k), dtype=int)
+        combs = np.array(list(itertools.combinations(range(M), self.k)))
+        random_sample = self.random_choice(combs)
+        for i, triplet in enumerate(random_sample):
+            choice = self.get_choice(S, triplet)
+            triplets[i] = choice
+        return triplets
 
-        def sample_choices(odd_one_outs:np.ndarray, sims:np.ndarray, temperature:float) -> np.ndarray:
-            """sample triplet choices probabilistically (conditioned on PMF obtained by softmax over similarity values)"""
-            probas = softmax(sims, temperature)
-            choices = np.random.choice(odd_one_outs, size=len(probas), replace=False, p=probas)
-            choices = choices[::-1]
-            return choices, max(probas)
+    def create_train_test_split(triplets: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """Split triplet data into train and test splits."""
+        N = triplets.shape[0]
+        rnd_perm = np.random.permutation(N)
+        train_split = triplets[rnd_perm[:int(len(rnd_perm) * self.train_frac)]]
+        test_split = triplets[rnd_perm[int(len(rnd_perm) * self.train_frac):]]
+        return train_split, test_split
 
-    triplets = np.zeros((int(n_samples), 3), dtype=int)
-    for idx, [i, j, k] in enumerate(rnd_samples):
-        odd_one_outs = np.asarray([k, j, i])
-        sims = np.array([S[i, j], S[i, k], S[j, k]])
-        if method == 'probabilistic':
-            choices, max_p = sample_choices(odd_one_outs, sims, temperature)
-            max_probas[idx] += max_p
-        else:
-            #simply use the argmax to (deterministically) find the odd-one-out choice
-            choices = odd_one_outs[np.argsort(sims)]
-        triplets[idx] = choices
 
-    if not os.path.exists(out_path):
-        os.makedirs(out_path)
+    def save_triplets(self, triplets: np.ndarray) -> None:
+        train_split, test_split = self.create_train_test_split(triplets)
+        with open(os.path.join(self.out_path, 'train_90.npy'), 'wb') as train_file:
+            np.save(train_file, train_split)
+        with open(os.path.join(self.out_path, 'test_10.npy'), 'wb') as test_file:
+            np.save(test_file, test_split)
 
-    rnd_indices = np.random.permutation(len(triplets))
-    train_triplets = triplets[rnd_indices[:int(len(rnd_indices)*.9)]]
-    test_triplets = triplets[rnd_indices[int(len(rnd_indices)*.9):]]
-
-    with open(os.path.join(out_path, 'train_90.npy'), 'wb') as train_file:
-        np.save(train_file, train_triplets)
-
-    with open(os.path.join(out_path, 'test_10.npy'), 'wb') as test_file:
-        np.save(test_file, test_triplets)
 
 if __name__ == "__main__":
     #parse all arguments
     args = parseargs()
-    np.random.seed(args.rnd_seed)
-    random.seed(args.rnd_seed)
-    #tripletize data
-    tripletize_(
-                in_path=args.in_path,
-                out_path=args.out_path,
-                method=args.method,
-                temperature=args.temperature,
-                n_samples=args.n_samples,
-    )
+    
+    tripletizer = Tripletizer(
+                            in_path=args.in_path,
+                            out_path=args.out_path,
+                            n_samples=args.n_samples,
+                            rnd_seed=args.rnd_seed,
+                            )
+    triplets = tripletizer.sample_triplets()
+    tripletizer.save_triplets(triplets)

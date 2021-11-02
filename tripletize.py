@@ -60,7 +60,7 @@ class Tripletizer(object):
         np.random.seed(rnd_seed)
         random.seed(rnd_seed)
 
-    def load_data(self, in_path: str) -> np.ndarray:
+    def load_domain(self, in_path: str) -> np.ndarray:
         try:
             if re.search(r'mat$', in_path):
                 X = np.vstack([v for v in scipy.io.loadmat(in_path).values(

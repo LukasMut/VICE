@@ -132,7 +132,7 @@ def run(
         sampling_method='normal',
         rnd_seed=rnd_seed,
     )
-    print(f'\nNumber of train batches: {len(train_batches)}\n') 
+    print(f'\nNumber of train batches: {len(train_batches)}\n')
     results_dir, plots_dir, model_dir = create_dirs(
         results_dir=results_dir,
         plots_dir=plots_dir,

@@ -14,7 +14,8 @@ import tests.helper as helper
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models.model import VICE, Trainer
+from models.model import VICE
+from models.trainer import Trainer
 from typing import Any
 
 batch_size = 128

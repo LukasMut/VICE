@@ -284,7 +284,6 @@ def collect_choices(probas:np.ndarray, human_choices:np.ndarray, model_choices:d
     return model_choices
     
 
-
 def load_model(
     model,
     PATH: str,
@@ -296,30 +295,6 @@ def load_model(
     PATH = pjoin(model_path, models[-1])
     checkpoint = torch.load(PATH, map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
-    return model
-
-
-def load_weights(model) -> Tuple[torch.Tensor, torch.Tensor]:
-    W_mu = model.encoder_mu.weight.data.T.detach()
-    W_sigma = model.encoder_logsigma.weight.data.T.exp().detach()
-    W_mu = F.relu(W_mu)
-    return W_mu, W_sigma
-
-
-def prune_weights(model, version: str, indices: torch.Tensor, fraction: float):
-    indices = indices[:int(len(indices) * fraction)]
-    for n, m in model.named_parameters():
-        if version == 'variational':
-            if re.search(r'encoder', n):
-                # prune output weights and biases of encoder
-                m.data = m.data[indices]
-            else:
-                # only prune input weights of decoder
-                if re.search(r'weight', n):
-                    m.data = m.data[:, indices]
-        else:
-            # prune output weights of fc layer
-            m.data = m.data[indices]
     return model
 
 

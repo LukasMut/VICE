@@ -13,7 +13,7 @@ dependencies:
  - tqdm=4.47.*
  - numba=0.53.*
  - matplotlib=3.2.*
- - seaborn=11.*
+ - seaborn=0.11.*
  - statsmodels
  - regex
  - scipy

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from functools import partial
 from statsmodels.stats.multitest import multipletests
 from scipy.stats import norm
 from sklearn import mixture
@@ -128,8 +129,10 @@ def fit_gmm(X: np.ndarray, n_components: List[int]) -> Tuple[int, Any]:
     return clusters, n_clusters
 
 
-def compute_pvals(W_mu: np.ndarray, W_b: np.ndarray) -> np.ndarray:
-    return np.array([norm.cdf(0, W_mu[:, j], W_b[:, j]) for j in range(W_mu.shape[1])])
+def compute_pvals(W_loc: np.ndarray, W_scale: np.ndarray) -> np.ndarray:
+    def pval(W_loc, W_scale, j):
+        return norm.cdf(0., W_loc[:, j], W_scale[:, j])
+    return partial(pval, W_loc, W_scale)(np.arange(W_loc.shape[1])).T
 
 
 def fdr_correction(p_vals: np.ndarray, alpha: float = 0.01) -> np.ndarray:

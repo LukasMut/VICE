@@ -75,15 +75,15 @@ class VICE(Trainer):
             self._initialize_weights()
 
     @staticmethod
-    def reparameterize(prior: str, loc: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
-        if prior == 'gaussian':
-            eps = scale.data.new(scale.size()).normal_()
-            W_sampled = eps.mul(scale).add(loc)
-        else:
-            laplace = Laplace(loc=torch.zeros(scale.size()),
-                              scale=torch.ones(scale.size()))
-            U = laplace.sample().to(scale.device)
-            W_sampled = U.mul(scale).add(loc)
+    def reparameterize(loc: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+        # if prior == 'gaussian':
+        eps = scale.data.new(scale.size()).normal_()
+        W_sampled = eps.mul(scale).add(loc)
+        # else:
+        #    laplace = Laplace(loc=torch.zeros(scale.size()),
+        #                      scale=torch.ones(scale.size()))
+        #    U = laplace.sample().to(scale.device)
+        #    W_sampled = U.mul(scale).add(loc)
         return W_sampled
 
     def forward(self, x: torch.Tensor
@@ -92,7 +92,8 @@ class VICE(Trainer):
         _ = self.encoder_logsigma(x)
         W_mu = self.encoder_mu.weight.T
         W_sigma = self.encoder_logsigma.weight.T.exp()
-        W_sampled = self.reparameterize(self.prior, W_mu, W_sigma)
+        # W_sampled = self.reparameterize(self.prior, W_mu, W_sigma)
+        W_sampled = self.reparameterize(W_mu, W_sigma)
         z = torch.mm(x, W_sampled)
         z = F.relu(z)
         return z, W_mu, W_sigma, W_sampled

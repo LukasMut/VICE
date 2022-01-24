@@ -26,113 +26,73 @@ def parseargs():
     aa('--percentages', type=int, nargs='+',
         choices=[5, 10, 20, 50, 100],
         help='percentage of full dataset used within a subsample')
-    aa('--thresh', type=float,
-        choices=[0.75, 0.8, 0.85, 0.9, 0.95],
-        help='reproducibility threshold')
-    aa('--seeds', type=int, nargs='+',
-        help='list of random seeds used for training')
     args = parser.parse_args()
     return args
 
 
-def get_split_results(
-                        PATH: str,
-                        percentages: List[int],
-                        thresh: float,
-) -> Tuple[Dict[str, dict], Dict[int, List[str]]]:
-    split_results = defaultdict(lambda: defaultdict(dict))
+def get_split_results(PATH: str, fractions: List[int]) -> Dict[int, List[str]]:
     trees = defaultdict(list)
-    for p in percentages:
+    for p in fractions:
         split_path = os.path.join(PATH, f'{p:02d}')
         for d in os.scandir(split_path):
             # check whether path refers to random seed
             if d.is_dir() and d.name[-2:].isdigit():
-                results = get_results(os.path.join(split_path, d.name), thresh)
-                best_comb = get_best_comb(results)
-                del_paths(os.path.join(split_path, d.name), best_comb)
-                tuning_cross_entropies = results[best_comb]['tuning_cross_entropies']
-                pruning_cross_entropies = results[best_comb]['pruning_cross_entropies']
-                robustness = results[best_comb]['robustness'] 
-                root = results[best_comb]['root']
-                split_results[p]['_'.join(d.name.split('_')[-2:])]['tuning_cross_entropies'] = list(tuning_cross_entropies)
-                split_results[p]['_'.join(d.name.split('_')[-2:])]['pruning_cross_entropies'] = list(pruning_cross_entropies)
-                split_results[p]['_'.join(d.name.split('_')[-2:])]['robustness'] = robustness
-                split_results[p]['_'.join(d.name.split('_')[-2:])]['best_comb'] = best_comb
-                trees[p].append(root)
-    return split_results, trees
+                roots = get_results(os.path.join(split_path, d.name))
+                trees[p].extend(roots)
+    return trees
 
 
-def get_results(PATH: str, thresh: float) -> Dict[tuple, dict]:
-    results = defaultdict(dict)
-    nans = []
+def get_results(PATH: str) -> Dict[tuple, dict]:
+    results = defaultdict(list)
+    trees = defaultdict(list)
     for root, _, files in os.walk(PATH):
         for f in files:
-            path_list = root.split('/')
-            if re.search(r'(?=^robust)(?=.*txt$)', f):
-                matches = re.compile(r'(?<=\.)\d+').findall(root)
-                match = re.compile(f'(?<=\.){matches[-1]}').search(root)
-                start, end = match.span()
-                try:
-                    corr = float(root[start-1:end+1])
-                except ValueError:
-                    corr = float(root[start-1:end]) 
-                comb = tuple(path_list[-5:-2])
-                if corr == thresh:
-                    robustness = pickle.loads(open(os.path.join(root, f), 'rb').read())
-                    results[comb]['robustness'] = robustness
-            elif re.search(r'(?=^tuning)(?=.*npy$)', f):
-                comb = tuple(path_list[-3:])
-                tuning_cross_entropies = np.load(os.path.join(root, f))
-                if any(np.isnan(tuning_cross_entropies)):
-                    nans.append(comb)
-                else:
-                    results[comb]['tuning_cross_entropies'] = tuning_cross_entropies
-                    results[comb]['root'] = root
-            elif re.search(r'(?=^pruning)(?=.*npy$)', f):
-                comb = tuple(path_list[-3:])
-                pruning_cross_entropies = np.load(os.path.join(root, f))
-                if any(np.isnan(pruning_cross_entropies)):
-                    if not comb in nans:
-                        nans.append(comb)
-                else:
-                    results[comb]['pruning_cross_entropies'] = pruning_cross_entropies
-    for nan in nans:
-        del results[nan]
-    return results
+            if f.endswith('2000.json'):
+                hypers = tuple(map(float, root.split('/')[-3:]))
+                with open(os.path.join(root, f), 'r') as r:
+                    val_centropy = json.load(r)['val_loss']
+                    if np.isnan(val_centropy):
+                        print(f'Found NaN in cross-entropy loss for: {root}')
+                        val_centropy = np.inf
+                results[hypers].append(val_centropy)
+                trees[hypers].append(root)
+    avg_centropies = aggregate_centropies(results)
+    if sum(np.isinf(list(avg_centropies.values()))) == len(results):
+        raise Exception(f'\nFound NaN values in cross-entropy error for every model. Change hyperparameter grid.\n')
+    best_comb = get_best_comb(avg_centropies)
+    roots = trees[best_comb]
+    del trees[best_comb]
+    del_paths(trees)
+    print(f'\nBest hyperparameter combination: {best_comb}')
+    print(f'Average cross-entropy error: {avg_centropies[best_comb]}\n')
+    return roots
 
 
-def get_best_comb(results: Dict[tuple, dict]) -> tuple:
-    return min({comb : np.mean(metrics['tuning_cross_entropies']) for comb, metrics in results.items()}.items(), key=lambda kv:kv[1])[0]
+def aggregate_centropies(results: Dict[tuple, list]) -> Dict[tuple, float]:
+    return {hypers: np.mean(centropies) for hypers, centropies in results.items()}
 
 
-def del_paths(PATH: str, best_comb: tuple) -> None:
-    for root, _, files in os.walk(PATH):
-        for f in files:
-            if re.search(r'(?=.*entropies)(?=.*npy$)', f): 
-                comb = tuple(root.split('/')[-3:])
-                if comb != best_comb:
-                    try:
-                        shutil.rmtree(root)
-                    except:
-                        print(f'{root} does not exist. It has been deleted before.\n')
-                        pass
+def get_best_comb(avg_centropies: Dict[tuple, float]) -> tuple:
+    return min(avg_centropies.items(), key=lambda kv:kv[1])[0]
+
+
+def del_paths(trees: Dict[tuple, list]) -> None:
+    for roots in trees.values():
+        for root in roots:
+            shutil.rmtree(root)
 
 
 if __name__ == '__main__':
     args = parseargs()
-    results, trees = get_split_results(args.in_path, args.percentages, args.thresh)
-    
-    with open(os.path.join(args.in_path, 'validation_results.json'), 'w') as f:
-        json.dump(results, f)
+    trees = get_split_results(args.in_path, args.percentages)
     
     for p, roots in trees.items():
-        with open(os.path.join(args.in_path, f'{p:02d}', 'model_paths.txt'), 'w') as f:
+        with open(os.path.join(args.in_path, f'{p:02d}', f'model_paths.txt'), 'w') as f:
             count = 0
             for root in roots:
-                for seed in args.seeds:
-                    model_file = '/'.join((root, f'seed{seed:02d}', 'model', 'model_epoch1000.tar'))
-                    f.write(model_file)
-                    f.write('\n')
-                    count += 1
-            assert count == int((100 // p) * len(args.seeds))
+                model_files = '/'.join((root, 'models'))
+                f.write(model_files)
+                f.write('\n')
+                count += 1
+            #assert count == int((100 // p) * 20)
 

@@ -16,7 +16,7 @@ from typing import Tuple
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 # number of threads/CPU cores to be used per Python process (set to 2 if HT is enabled on CPU)
-os.environ['OMP_NUM_THREADS'] = '1'
+# os.environ['OMP_NUM_THREADS'] = '1'
 
 
 def parseargs():

@@ -315,18 +315,19 @@ class Trainer(nn.Module):
 
                 # save model and optim parameters for inference or to resume training at a later point
                 # PyTorch convention is to save checkpoints as .tar files
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': self.state_dict(),
-                    'optim_state_dict': self.optim.state_dict(),
-                    'loss': self.loss,
-                    'train_losses': self.train_losses,
-                    'train_accs': self.train_accs,
-                    'val_losses': self.val_losses,
-                    'val_accs': self.val_accs,
-                    'loglikelihoods': self.loglikelihoods,
-                    'complexity_costs': self.complexity_losses,
-                }, os.path.join(self.model_dir, f'model_epoch{epoch + 1:04d}.tar'))
+                checkpoint = {
+                            'epoch': epoch,
+                            'model_state_dict': self.state_dict(),
+                            'optim_state_dict': self.optim.state_dict(),
+                            'loss': self.loss,
+                            'train_losses': self.train_losses,
+                            'train_accs': self.train_accs,
+                            'val_losses': self.val_losses,
+                            'val_accs': self.val_accs,
+                            'loglikelihoods': self.loglikelihoods,
+                            'complexity_costs': self.complexity_losses,
+                        }
+                torch.save(checkpoint, os.path.join(self.model_dir, f'model_epoch{epoch+1:04d}.tar'))
 
                 results = {'epoch': len(
                     self.train_accs), 'train_acc': self.train_accs[-1], 'val_acc': self.val_accs[-1], 'val_loss': self.val_losses[-1]}

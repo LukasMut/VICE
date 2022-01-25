@@ -6,6 +6,7 @@ import math
 import os
 import torch
 import utils
+import copy
 
 import numpy as np
 import torch.nn as nn
@@ -317,9 +318,9 @@ class Trainer(nn.Module):
                 # PyTorch convention is to save checkpoints as .tar files
                 checkpoint = {
                             'epoch': epoch,
-                            'model_state_dict': self.state_dict(),
-                            'optim_state_dict': self.optim.state_dict(),
-                            'loss': self.loss,
+                            'model_state_dict': copy.deepcopy(self.state_dict()),
+                            'optim_state_dict': copy.deepcopy(self.optim.state_dict()),
+                            'loss': copy.deepcopy(self.loss),
                             'train_losses': self.train_losses,
                             'train_accs': self.train_accs,
                             'val_losses': self.val_losses,

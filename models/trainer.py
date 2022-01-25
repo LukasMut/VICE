@@ -121,11 +121,11 @@ class Trainer(nn.Module):
 
     def initialize_optim_(self) -> None:
         if self.optim == 'adam':
-            self.optim = Adam(self.parameters(), betas=(
-                0.9, 0.999), eps=1e-08, lr=self.eta)
+            self.optim = Adam(self.parameters(), eps=1e-08, 
+            lr=self.eta)
         elif self.optim == 'adamw':
-            self.optim = AdamW(self.parameters(), betas=(
-                0.9, 0.999), eps=1e-08, lr=self.eta)
+            self.optim = AdamW(self.parameters(), 
+            eps=1e-08, lr=self.eta)
         else:
             self.optim = SGD(self.parameters(), lr=self.eta)
 

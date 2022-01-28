@@ -20,27 +20,20 @@ from skimage.transform import resize
 from typing import Tuple, Iterator, List, Dict
 
 
-class BatchGenerator(object):
+class DataLoader(object):
 
     def __init__(
         self,
         I: torch.tensor,
         dataset: torch.Tensor,
         batch_size: int,
-        sampling_method: str = 'normal',
-        p=None,
+        train: bool=True,
     ):
         self.I = I
         self.dataset = dataset
         self.batch_size = batch_size
-        self.sampling_method = sampling_method
-        self.p = p
-
-        if sampling_method == 'soft':
-            assert isinstance(self.p, float)
-            self.n_batches = int(len(self.dataset) * self.p) // self.batch_size
-        else:
-            self.n_batches = len(self.dataset) // self.batch_size
+        self.train = train
+        self.n_batches = math.ceil(len(self.dataset) / self.batch_size)
 
     def __len__(self) -> int:
         return self.n_batches
@@ -48,16 +41,9 @@ class BatchGenerator(object):
     def __iter__(self) -> Iterator[torch.Tensor]:
         return self.get_batches(self.I, self.dataset)
 
-    def sampling(self, triplets: torch.Tensor) -> torch.Tensor:
-        """randomly sample training data during each epoch"""
-        rnd_perm = torch.randperm(len(triplets))
-        if self.sampling_method == 'soft':
-            rnd_perm = rnd_perm[:int(len(rnd_perm) * self.p)]
-        return triplets[rnd_perm]
-
     def get_batches(self, I: torch.Tensor, triplets: torch.Tensor) -> Iterator[torch.Tensor]:
-        if not isinstance(self.sampling_method, type(None)):
-            triplets = self.sampling(triplets)
+        if self.train:
+            triplets = triplets[torch.randperm(triplets.shape[0])]
         for i in range(self.n_batches):
             batch = encode_as_onehot(
                 I, triplets[i * self.batch_size: (i + 1) * self.batch_size])
@@ -152,23 +138,20 @@ def load_batches(
     n_items: int,
     batch_size: int,
     inference: bool = False,
-    sampling_method: str = None,
-    rnd_seed: int = None,
-    p=None,
 ):
     # initialize an identity matrix of size n_items x n_items for one-hot-encoding of triplets
     I = torch.eye(n_items)
     if inference:
         assert train_triplets is None
-        test_batches = BatchGenerator(
-            I=I, dataset=test_triplets, batch_size=batch_size, sampling_method=None, p=None)
+        test_batches = DataLoader(
+            I=I, dataset=test_triplets, batch_size=batch_size, train=False)
         return test_batches
     else:
         # create two iterators of train and validation mini-batches respectively
-        train_batches = BatchGenerator(
-            I=I, dataset=train_triplets, batch_size=batch_size, sampling_method=sampling_method, p=p)
-        val_batches = BatchGenerator(
-            I=I, dataset=test_triplets, batch_size=batch_size, sampling_method=None, p=None)
+        train_batches = DataLoader(
+            I=I, dataset=train_triplets, batch_size=batch_size, train=True)
+        val_batches = DataLoader(
+            I=I, dataset=test_triplets, batch_size=batch_size, train=False)
     return train_batches, val_batches
 
 

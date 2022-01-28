@@ -129,8 +129,6 @@ def run(
         test_triplets=test_triplets,
         n_items=n_items,
         batch_size=batch_size,
-        sampling_method='normal',
-        rnd_seed=rnd_seed,
     )
     print(f'\nNumber of train batches: {len(train_batches)}\n')
     results_dir, plots_dir, model_dir = create_dirs(

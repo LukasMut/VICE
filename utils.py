@@ -1,25 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import json
-import math
 import os
 import pickle
-import re
 import torch
 
 import numpy as np
 import pandas as pd
 import skimage.io as io
-import torch.nn.functional as F
 
 from dataloader import DataLoader
 from collections import defaultdict
-from itertools import islice
 from os.path import join as pjoin
 from skimage.transform import resize
-from typing import Tuple, Iterator, List, Dict
-
+from typing import Tuple, Dict
 
 
 def pickle_file(file: dict, out_path: str, file_name: str) -> None:

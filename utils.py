@@ -13,41 +13,13 @@ import pandas as pd
 import skimage.io as io
 import torch.nn.functional as F
 
+from dataloader import DataLoader
 from collections import defaultdict
 from itertools import islice
 from os.path import join as pjoin
 from skimage.transform import resize
 from typing import Tuple, Iterator, List, Dict
 
-
-class DataLoader(object):
-
-    def __init__(
-        self,
-        I: torch.tensor,
-        dataset: torch.Tensor,
-        batch_size: int,
-        train: bool=True,
-    ):
-        self.I = I
-        self.dataset = dataset
-        self.batch_size = batch_size
-        self.train = train
-        self.n_batches = math.ceil(len(self.dataset) / self.batch_size)
-
-    def __len__(self) -> int:
-        return self.n_batches
-
-    def __iter__(self) -> Iterator[torch.Tensor]:
-        return self.get_batches(self.I, self.dataset)
-
-    def get_batches(self, I: torch.Tensor, triplets: torch.Tensor) -> Iterator[torch.Tensor]:
-        if self.train:
-            triplets = triplets[torch.randperm(triplets.shape[0])]
-        for i in range(self.n_batches):
-            batch = encode_as_onehot(
-                I, triplets[i * self.batch_size: (i + 1) * self.batch_size])
-            yield batch
 
 
 def pickle_file(file: dict, out_path: str, file_name: str) -> None:
@@ -139,25 +111,18 @@ def load_batches(
     batch_size: int,
     inference: bool = False,
 ):
-    # initialize an identity matrix of size n_items x n_items for one-hot-encoding of triplets
-    I = torch.eye(n_items)
     if inference:
         assert train_triplets is None
         test_batches = DataLoader(
-            I=I, dataset=test_triplets, batch_size=batch_size, train=False)
+            dataset=test_triplets, n_items=n_items, batch_size=batch_size, train=False)
         return test_batches
     else:
         # create two iterators of train and validation mini-batches respectively
         train_batches = DataLoader(
-            I=I, dataset=train_triplets, batch_size=batch_size, train=True)
+            dataset=train_triplets, n_items=n_items, batch_size=batch_size, train=True)
         val_batches = DataLoader(
-            I=I, dataset=test_triplets, batch_size=batch_size, train=False)
+            dataset=test_triplets, n_items=n_items, batch_size=batch_size, train=False)
     return train_batches, val_batches
-
-
-def encode_as_onehot(I: torch.Tensor, triplets: torch.Tensor) -> torch.Tensor:
-    """encode item triplets as one-hot-vectors"""
-    return I[triplets.flatten(), :]
 
 
 ################################################

@@ -320,7 +320,7 @@ class Trainer(nn.Module):
                             'epoch': epoch,
                             'model_state_dict': copy.deepcopy(self.state_dict()),
                             'optim_state_dict': copy.deepcopy(self.optim.state_dict()),
-                            'loss': copy.deepcopy(self.loss),
+                            'loss': self.loss,
                             'train_losses': self.train_losses,
                             'train_accs': self.train_accs,
                             'val_losses': self.val_losses,

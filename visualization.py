@@ -47,6 +47,7 @@ def plot_single_performance(
                             plots_dir:str,
                             val_accs:list,
                             train_accs:list,
+                            steps: int,
                             show_plot: bool=False,
                             ) -> None:
     fig = plt.figure(figsize=(10, 6), dpi=100)
@@ -61,17 +62,17 @@ def plot_single_performance(
     ax.xaxis.set_ticks_position('bottom')
 
     ax.plot(val_accs,'-+',  alpha=.5, label='Test')
-    ax.plot(train_accs, '-+', alpha=.5, label='Train')
+    ax.plot(train_accs[steps-1::steps], '-+', alpha=.5, label='Train')
     ax.annotate('Val acc: {:.3f}'.format(np.max(val_accs)), (len(val_accs) - len(val_accs) * 0.1, np.max(val_accs) / 2))
-    ax.set_xlim([0, len(val_accs)])
+    ax.set_xticks(ticks=range(val_accs), labels=list(range(steps, len(train_accs)+1, steps)))
     ax.set_xlabel(r'Epochs')
     ax.set_ylabel(r'Accuracy')
-    ax.legend(fancybox=True, shadow=True, loc='lower left')
+    ax.legend(fancybox=True, shadow=True, loc='best')
 
     PATH = pjoin(plots_dir, 'grid_search')
     if not os.path.exists(PATH):
         os.makedirs(PATH)
-
+    plt.tight_layout()
     plt.savefig(pjoin(PATH, 'single_model_performance_over_time.png'))
     if show_plot:
         plt.show()

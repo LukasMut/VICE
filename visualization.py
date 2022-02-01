@@ -47,6 +47,7 @@ def plot_single_performance(
                             plots_dir:str,
                             val_accs:list,
                             train_accs:list,
+                            show_plot: bool=False,
                             ) -> None:
     fig = plt.figure(figsize=(10, 6), dpi=100)
     ax = plt.subplot(111)
@@ -72,6 +73,8 @@ def plot_single_performance(
         os.makedirs(PATH)
 
     plt.savefig(pjoin(PATH, 'single_model_performance_over_time.png'))
+    if show_plot:
+        plt.show()
     plt.close()
 
 def plot_multiple_performances(
@@ -255,6 +258,7 @@ def plot_complexities_and_loglikelihoods(
                                          plots_dir:str,
                                          loglikelihoods:list,
                                          complexity_losses:list,
+                                         show_plot: bool=False,
                                          ) -> None:
     losses = [loglikelihoods, complexity_losses]
     labels = [r'$L^{E}$', r'$L^{C}$']
@@ -282,6 +286,8 @@ def plot_complexities_and_loglikelihoods(
         os.makedirs(PATH)
 
     plt.savefig(pjoin(PATH, 'llikelihood_and_complexity_over_time.png'))
+    if show_plot:
+        plt.show()
     plt.close()
 
 def plot_aggregated_weights(

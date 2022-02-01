@@ -74,10 +74,10 @@ def plot_single_performance(
     if not os.path.exists(PATH):
         os.makedirs(PATH)
         
-    plt.tight_layout()
     plt.savefig(pjoin(PATH, 'single_model_performance_over_time.png'))
     if show_plot:
         plt.show()
+    
     plt.close()
 
 def plot_multiple_performances(

@@ -21,7 +21,7 @@ class DataLoader(object):
         self.I = torch.eye(n_items)
         self.batch_size = batch_size
         self.train = train
-        self.n_batches = math.ceil(len(self.dataset) / self.batch_size)
+        self.n_batches = int(math.ceil(len(self.dataset) / self.batch_size))
 
     def __len__(self) -> int:
         return self.n_batches

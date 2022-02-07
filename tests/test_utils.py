@@ -49,6 +49,9 @@ class TripletLoadingTestCase(unittest.TestCase):
         M = utils.get_nitems(train_triplets)
         self.assertTrue(type(M) == int)
 
+        hypers = helper.get_hypers()
+        self.assertEqual(M, hypers['M'])
+
 
 class CorrelationTestCase(unittest.TestCase):
 

@@ -1,6 +1,5 @@
 [![Unittests](https://github.com/LukasMut/VICE/actions/workflows/python-package.yml/badge.svg)](https://github.com/LukasMut/VICE/actions/workflows/python-package.yml)
 [![codecov](https://codecov.io/gh/LukasMut/VICE/branch/main/graph/badge.svg?token=gntaL1yrXI)](https://codecov.io/gh/LukasMut/VICE)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/LukasMut/VICE/blob/main/DEMO.ipynb)
 
 
 

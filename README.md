@@ -14,7 +14,7 @@ $ conda env create --prefix /path/to/conda/envs/vice --file envs/environment.yml
 $ conda activate vice
 ```
 
-Alternatively, dependencies can be installed via `pip` in the usual way.
+Alternatively, dependencies can be installed via `pip`
 
 ```bash
 $ pip install -r requirements.txt

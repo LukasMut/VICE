@@ -175,7 +175,7 @@ def run(
     params = vice.detached_params
 
     visualization.plot_single_performance(
-        plots_dir=plots_dir, val_accs=val_accs, train_accs=train_accs[::steps])
+        plots_dir=plots_dir, val_accs=val_accs, train_accs=train_accs, steps=steps)
     visualization.plot_complexities_and_loglikelihoods(
         plots_dir=plots_dir, loglikelihoods=loglikelihoods, complexity_losses=complexity_losses)
 

@@ -5,6 +5,7 @@ import re
 import os
 import json
 import shutil
+from sqlite3 import paramstyle
 import torch
 import unittest
 import utils
@@ -135,6 +136,7 @@ class VICETestCase(unittest.TestCase):
                     n_items=hypers['M'], batch_size=hypers['batch_size'], inference=False)
 
         vice.fit(train_batches=train_batches, val_batches=val_batches)
+
         # get model paramters after optimization / end of training
         params_opt = vice.detached_params
 
@@ -148,6 +150,17 @@ class VICETestCase(unittest.TestCase):
         self.assertTrue(type(val_acc) == float)
         self.assertTrue(val_loss < np.log(3))
         self.assertTrue(val_acc > 1/3)
+
+        vice.fit(train_batches=train_batches, val_batches=val_batches)
+        # examine whether model parameters haven't changed after loading from checkpoint
+        np.testing.assert_allclose(params_opt['loc'], vice.detached_params['loc'])
+        np.testing.assert_allclose(params_opt['scale'], vice.detached_params['scale'])
+
+        hypers['epochs'] *= 2        
+        vice = self.get_model(hypers)
+        vice.fit(train_batches=train_batches, val_batches=val_batches)
+        self.assertTrue(self.assert_difference(params_opt['loc'], vice.detached_params['loc']))
+        self.assertTrue(self.assert_difference(params_opt['scale'], vice.detached_params['scale']))
 
 
     @staticmethod

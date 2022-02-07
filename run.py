@@ -48,8 +48,7 @@ def parseargs():
     aa('--prior', type=str, metavar='p', default='gaussian',
         choices=['gaussian', 'laplace'],
         help='whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior')
-    aa('--mc_samples', type=int, default=20,
-        choices=[10, 15, 20, 25, 30, 35, 40, 45, 50],
+    aa('--mc_samples', type=int, default=10,
         help='number of weight samples to use for MC sampling')
     aa('--spike', type=float,
         help='sigma for spike distribution')

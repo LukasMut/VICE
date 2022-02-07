@@ -4,6 +4,7 @@
 import argparse
 import os
 import random
+import re
 import torch
 import utils
 import visualization
@@ -191,7 +192,7 @@ if __name__ == "__main__":
     random.seed(args.rnd_seed)
     torch.manual_seed(args.rnd_seed)
 
-    if args.device != 'cpu':
+    if re.search(r'cuda', args.device):
         device = torch.device(args.device)
         torch.cuda.manual_seed_all(args.rnd_seed)
         try:

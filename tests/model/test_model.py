@@ -168,7 +168,7 @@ class VICETestCase(unittest.TestCase):
         try:
             np.testing.assert_allclose(A, B)
             return False
-        except:
+        except AssertionError:
             return True
 
 

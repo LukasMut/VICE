@@ -38,7 +38,7 @@ class Mu(nn.Module):
         self.out_size = out_size
         self.mu = nn.Linear(
             self.in_size, self.out_size, bias=bias)
-        # initialize weights
+        # initialize means
         nn.init.kaiming_normal_(
             self.mu.weight, mode='fan_out', nonlinearity='relu')
 
@@ -119,7 +119,7 @@ class VICE(Trainer):
         return z, W_mu, W_sigma, W_sampled
 
     def _initialize_weights(self) -> None:
-        # this is equivalent to 1/std(mu)
+        # this is equivalent to 1 / std(mu)
         eps = -(self.mu.mu.weight.data.std().log() * -1.0).exp()
         nn.init.constant_(self.sigma.logsigma.weight, eps)
 

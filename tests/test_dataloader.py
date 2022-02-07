@@ -47,7 +47,7 @@ class TripletLoadingTestCase(unittest.TestCase):
 
     @staticmethod
     def collect_order(batches: Iterator[torch.Tensor]) ->  Dict[str, List[torch.Tensor]]:
-        return {f'order_{epoch+1:02d}': [torch.nonzero(batch)[:, 1] for batch in batches] for epoch in range(2)}
+        return {f'order_{order+1:02d}': [torch.nonzero(batch)[:, 1] for batch in batches] for order in range(2)}
 
 
     def test_batches(self) -> None:

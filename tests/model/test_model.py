@@ -63,21 +63,21 @@ class VICETestCase(unittest.TestCase):
         self.assertTrue(
             hasattr(vice, 'cuda' if torch.cuda.is_available() else 'cpu'))
 
-        self.assertTrue(hasattr(vice, 'encoder_mu'))
-        self.assertTrue(hasattr(vice, 'encoder_logsigma'))
+        self.assertTrue(hasattr(vice, 'mu'))
+        self.assertTrue(hasattr(vice, 'sigma'))
         self.assertTrue(vice.prior, 'gaussian')
 
         self.assertEqual(
-            len(torch.unique(vice.encoder_logsigma.weight.data)), 1)
+            len(torch.unique(vice.sigma.logsigma.weight.data)), 1)
 
-        self.assertTrue(vice.encoder_logsigma.weight.data.sum() < 0.)
-        self.assertTrue(vice.encoder_logsigma.weight.data.exp().min() >= 0.)
+        self.assertTrue(vice.sigma.logsigma.weight.data.sum() < 0.)
+        self.assertTrue(vice.sigma.logsigma.weight.data.exp().min() >= 0.)
 
-        self.assertEqual(vice.encoder_mu.in_features,
-                         vice.encoder_logsigma.in_features, M)
+        self.assertEqual(vice.mu.mu.in_features,
+                         vice.sigma.logsigma.in_features, M)
 
-        self.assertEqual(vice.encoder_mu.out_features,
-                         vice.encoder_logsigma.out_features, int(M/2))
+        self.assertEqual(vice.mu.mu.out_features,
+                         vice.sigma.logsigma.out_features, int(M/2))
 
     def test_output(self):
         vice = self.get_model(hypers)
@@ -122,8 +122,8 @@ class VICETestCase(unittest.TestCase):
         np.testing.assert_allclose(vice.scale_slab, torch.ones(hypers['M'], hypers['P']).mul(hypers['slab']).to(device))
 
         params = vice.detached_params
-        np.testing.assert_allclose(params['loc'], F.relu(vice.encoder_mu.weight.data.T.cpu()).numpy())
-        np.testing.assert_allclose(params['scale'], vice.encoder_logsigma.weight.data.T.exp().cpu().numpy())
+        np.testing.assert_allclose(params['loc'], F.relu(vice.mu.mu.weight.data.T.cpu()).numpy())
+        np.testing.assert_allclose(params['scale'], vice.sigma.logsigma.weight.data.T.exp().cpu().numpy())
 
     def test_optimization(self) -> None:
         vice = self.get_model(hypers)

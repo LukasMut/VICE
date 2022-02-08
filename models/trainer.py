@@ -62,8 +62,8 @@ class Trainer(nn.Module):
         self.spike = spike
         self.slab = slab
         self.pi = pi
-        self.ws = ws
         self.k = k
+        self.ws = ws
         self.steps = steps
         self.model_dir = model_dir
         self.results_dir = results_dir

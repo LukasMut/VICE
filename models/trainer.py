@@ -337,11 +337,11 @@ class Trainer(nn.Module):
 
             if self.verbose:
                 print(
-                    "\n===============================================================================================")
+                    "\n======================================================================================")
                 print(
                     f'====== Epoch: {epoch+1:02d}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Latent causes: {n_latents:02d} ======')
                 print(
-                    "=================================================================================================\n")
+                    "======================================================================================\n")
 
             if (epoch + 1) % self.steps == 0:
                 avg_val_loss, avg_val_acc = self.evaluate(val_batches)
@@ -372,11 +372,11 @@ class Trainer(nn.Module):
             if epoch > self.burnin:
                 # evaluate model convergence
                 if self.convergence(self.latent_causes, self.ws):
-                    print(f'\nStopping VICE optimzation.')
+                    print('\n...Stopping VICE optimzation.')
                     print(f'Latent dimensionality converged after {epoch+1:02d} epochs.\n')
                     break
         
-        self.save_latent_causes()
+        self.save_final_latents()
 
     @staticmethod
     def save_results(out_path: str, epoch: int, results: dict) -> None:
@@ -384,7 +384,7 @@ class Trainer(nn.Module):
             json.dump(results, rf)
 
     
-    def save_latent_causes(self):
+    def save_final_latents(self):
         _, pruned_loc, pruned_scale = self.pruning()
         with open(os.path.join(self.results_dir, 'pruned_params.npz'), 'wb') as f:
             np.savez_compressed(f, pruned_loc=pruned_loc, pruned_scale=pruned_scale)

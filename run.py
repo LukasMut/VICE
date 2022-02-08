@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+from collections import defaultdict
 import os
 import random
 import re
@@ -35,8 +36,10 @@ def parseargs():
         help='optional specification of results directory (if not provided will resort to ./results/modality/latent_dim/optim/prior/seed/spike/slab/pi)')
     aa('--plots_dir', type=str, default='./plots/',
         help='optional specification of directory for plots (if not provided will resort to ./plots/modality/latent_dim/optim/prior/seed/spike/slab/pi)')
-    aa('--epochs', metavar='T', type=int, default=1000,
-        help='maximum number of epochs to optimize SPoSE model for')
+    aa('--epochs', metavar='T', type=int, default=2000,
+        help='maximum number of epochs to run VICE optimization')
+    aa('--burnin', type=int, default=500,
+        help='minimum number of epochs to run VICE optimization')
     aa('--eta', type=float, default=0.001,
         help='learning rate to be used in optimizer')
     aa('--latent_dim', metavar='D', type=int, default=100,
@@ -57,6 +60,11 @@ def parseargs():
         help='sigma for slab distribution')
     aa('--pi', type=float,
         help='scalar value that determines the relative weight of the spike and slab distributions respectively')
+    aa('--k', type=int, default=5,
+        choices=[5, 10],
+        help='minimum number of items that compose a latent dimension (according to importance scores)')
+    aa('--ws', type=int, default=500,
+        help='determines for how many epochs the number of latent causes (after pruning) is not allowed to vary')
     aa('--steps', type=int, default=50,
         help='perform validation and save model parameters every <steps> epochs')
     aa('--device', type=str, default='cpu',
@@ -104,6 +112,7 @@ def run(
         plots_dir: str,
         triplets_dir: str,
         epochs: int,
+        burnin: int,
         eta: float,
         batch_size: int,
         latent_dim: int,
@@ -113,6 +122,8 @@ def run(
         spike: float,
         slab: float,
         pi: float,
+        k: int,
+        ws: int,
         steps: int,
         device: torch.device,
         rnd_seed: int,
@@ -153,11 +164,14 @@ def run(
         eta=eta,
         batch_size=batch_size,
         epochs=epochs,
+        burnin=burnin,
         mc_samples=mc_samples,
         prior=prior,
         spike=spike,
         slab=slab,
         pi=pi,
+        k=k,
+        ws=ws,
         steps=steps,
         model_dir=model_dir,
         results_dir=results_dir,
@@ -165,13 +179,16 @@ def run(
         verbose=verbose,
         init_weights=True,
         )
+    # move model to current device
     vice.to(device)
     # start training
     vice.fit(train_batches=train_batches, val_batches=val_batches)
+    # get performance scores
     train_accs = vice.train_accs
     val_accs = vice.val_accs
     loglikelihoods = vice.loglikelihoods
     complexity_losses = vice.complexity_losses
+    latent_causes = vice.latent_causes
     # get model parameters
     params = vice.detached_params
 
@@ -217,6 +234,7 @@ if __name__ == "__main__":
         plots_dir=args.plots_dir,
         triplets_dir=args.triplets_dir,
         epochs=args.epochs,
+        burnin=args.burnin,
         eta=args.eta,
         batch_size=args.batch_size,
         latent_dim=args.latent_dim,
@@ -226,6 +244,8 @@ if __name__ == "__main__":
         spike=args.spike,
         slab=args.slab,
         pi=args.pi,
+        k=args.k,
+        ws=args.ws,
         steps=args.steps,
         device=device,
         rnd_seed=args.rnd_seed,

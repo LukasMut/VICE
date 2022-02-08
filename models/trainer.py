@@ -14,7 +14,7 @@ import torch.nn.functional as F
 
 from collections import defaultdict
 from torch.optim import SGD, Adam, AdamW
-from typing import Any, Dict, Iterator, Tuple
+from typing import Any, Dict, Iterator, List, Tuple
 
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
@@ -32,11 +32,14 @@ class Trainer(nn.Module):
         eta: str,
         batch_size: int,
         epochs: int,
+        burnin: int,
         mc_samples: int,
         prior: str,
         spike: float,
         slab: float,
         pi: float,
+        k: int,
+        ws: int,
         steps: int,
         model_dir: str,
         results_dir: str,
@@ -53,11 +56,14 @@ class Trainer(nn.Module):
         self.eta = eta  # learning rate
         self.batch_size = batch_size
         self.epochs = epochs
+        self.burnin = burnin
         self.mc_samples = mc_samples  # number of weight samples M
         self.prior = prior  # Gaussian or Laplace prior
         self.spike = spike
         self.slab = slab
         self.pi = pi
+        self.ws = ws
+        self.k = k
         self.steps = steps
         self.model_dir = model_dir
         self.results_dir = results_dir
@@ -91,6 +97,7 @@ class Trainer(nn.Module):
                     self.val_losses = checkpoint['val_losses']
                     self.loglikelihoods = checkpoint['loglikelihoods']
                     self.complexity_losses = checkpoint['complexity_costs']
+                    self.latent_causes = checkpoint['latent_causes']
                     print(
                         f'...Loaded model and optimizer params from previous run. Resuming training at epoch {self.start}.\n')
                 except RuntimeError:
@@ -101,17 +108,20 @@ class Trainer(nn.Module):
                     self.train_accs, self.val_accs = [], []
                     self.train_losses, self.val_losses = [], []
                     self.loglikelihoods, self.complexity_losses = [], []
+                    self.latent_causes = []
             else:
                 self.start = 0
                 self.train_accs, self.val_accs = [], []
                 self.train_losses, self.val_losses = [], []
                 self.loglikelihoods, self.complexity_losses = [], []
+                self.latent_causes = []
         else:
             os.makedirs(self.model_dir)
             self.start = 0
             self.train_accs, self.val_accs = [], []
             self.train_losses, self.val_losses = [], []
             self.loglikelihoods, self.complexity_losses = [], []
+            self.latent_causes = []
 
     def initialize_priors_(self) -> None:
         self.loc = torch.zeros(self.n_items, self.latent_dim).to(self.device)
@@ -178,8 +188,28 @@ class Trainer(nn.Module):
         choice_acc = self.accuracy_(probas)
         return choice_acc
 
+    def pruning(self, alpha: float=.05,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        loc = self.detached_params['loc']                    
+        scale = self.detached_params['scale']
+        p_vals = utils.compute_pvals(loc, scale)
+        rejections = utils.fdr_corrections(p_vals, alpha)
+        importance = utils.get_importance(rejections).reshape(-1)
+        signal = np.where(importance > self.k)[0]
+        pruned_loc = loc[:, signal]
+        pruned_scale = scale[:, signal]
+        return signal, pruned_loc, pruned_scale
+
+    @staticmethod
+    def convergence(latent_causes: List[int], ws: int) -> bool:
+        causes_over_time = set(latent_causes[-ws:])
+        divergence = len(causes_over_time)
+        if (divergence == 1 and causes_over_time.pop() != 0):
+            return True
+        return False
+
     def mc_sampling(self, batch: torch.Tensor,
-                    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Perform Monte Carlo sampling."""
         n_choices = 3 if self.task == 'odd_one_out' else 2
         sampled_probas = torch.zeros(
@@ -301,11 +331,15 @@ class Trainer(nn.Module):
             self.train_losses.append(avg_train_loss)
             self.train_accs.append(avg_train_acc)
 
+            signal, _, _ = self.pruning()
+            n_latents = signal.shape[0]
+            self.latent_causes.append(n_latents)
+
             if self.verbose:
                 print(
                     "\n===============================================================================================")
                 print(
-                    f'====== Epoch: {epoch+1}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f} ======')
+                    f'====== Epoch: {epoch+1:02d}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Latent causes: {n_latents:02d} ======')
                 print(
                     "=================================================================================================\n")
 
@@ -327,14 +361,30 @@ class Trainer(nn.Module):
                             'val_accs': self.val_accs,
                             'loglikelihoods': self.loglikelihoods,
                             'complexity_costs': self.complexity_losses,
+                            'latent_causes': self.latent_causes,
                         }
                 torch.save(checkpoint, os.path.join(self.model_dir, f'model_epoch{epoch+1:04d}.tar'))
 
                 results = {'epoch': len(
                     self.train_accs), 'train_acc': self.train_accs[-1], 'val_acc': self.val_accs[-1], 'val_loss': self.val_losses[-1]}
                 self.save_results(self.results_dir, epoch, results)
+            
+            if epoch > self.burnin:
+                # evaluate model convergence
+                if self.convergence(self.latent_causes, self.ws):
+                    print(f'\nStopping VICE optimzation.')
+                    print(f'Latent dimensionality converged after {epoch+1:02d} epochs.\n')
+                    break
+        
+        self.save_latent_causes()
 
     @staticmethod
     def save_results(out_path: str, epoch: int, results: dict) -> None:
         with open(os.path.join(out_path, f'results_{epoch+1:04d}.json'), 'w') as rf:
             json.dump(results, rf)
+
+    
+    def save_latent_causes(self):
+        _, pruned_loc, pruned_scale = self.pruning()
+        with open(os.path.join(self.results_dir, 'pruned_params.npz'), 'wb') as f:
+            np.savez_compressed(f, pruned_loc=pruned_loc, pruned_scale=pruned_scale)

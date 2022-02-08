@@ -11,8 +11,11 @@ import skimage.io as io
 
 from dataloader import DataLoader
 from collections import defaultdict
+from functools import partial
 from os.path import join as pjoin
+from scipy.stats import norm
 from skimage.transform import resize
+from statsmodels.stats.multitest import multipletests
 from typing import Tuple, Dict
 
 
@@ -31,14 +34,6 @@ def remove_nans(E: np.ndarray) -> np.ndarray:
     nan_indices = np.isnan(E_cp).any(axis=1)
     E_cp = E_cp[~nan_indices]
     return E_cp
-
-
-def assert_nneg(X: np.ndarray, thresh: float = 1e-5) -> np.ndarray:
-    """if data matrix X contains negative real numbers, transform matrix into R+ (i.e., positive real number(s) space)"""
-    if np.any(X < 0):
-        X -= np.amin(X, axis=0)
-        return X + thresh
-    return X
 
 
 def filter_triplets(rnd_samples: np.ndarray, n_samples: float) -> np.ndarray:
@@ -248,6 +243,20 @@ def pearsonr(u: np.ndarray, v: np.ndarray, a_min: float = -1., a_max: float = 1.
     rho = (num / denom).clip(min=a_min, max=a_max)
     return rho
 
-
 def robustness(corrs: np.ndarray, thresh: float) -> float:
     return len(corrs[corrs > thresh]) / len(corrs)
+
+#### pruning
+
+def compute_pvals(W_loc: np.ndarray, W_scale: np.ndarray) -> np.ndarray:
+    def pval(W_loc, W_scale, j):
+        return norm.cdf(0., W_loc[:, j], W_scale[:, j])
+    return partial(pval, W_loc, W_scale)(np.arange(W_loc.shape[1])).T
+
+
+def fdr_corrections(p_vals: np.ndarray, alpha: float=.05) -> np.ndarray:
+    return np.array(list(map(lambda p: multipletests(p, alpha=alpha, method='fdr_bh')[0], p_vals)))
+
+
+def get_importance(rejections: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    return np.array(list(map(sum, rejections)))[:, np.newaxis]

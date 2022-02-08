@@ -42,11 +42,14 @@ class VICETestCase(unittest.TestCase):
                     eta=hypers['eta'],
                     batch_size=hypers['batch_size'],
                     epochs=hypers['epochs'],
+                    burnin=hypers['burnin'],
                     mc_samples=hypers['mc_samples'],
                     prior=hypers['prior'],
                     spike=hypers['spike'],
                     slab=hypers['slab'],
                     pi=hypers['pi'],
+                    k=hypers['k'],
+                    ws=hypers['ws'],
                     steps=hypers['steps'],
                     model_dir=model_dir,
                     results_dir=test_dir,
@@ -182,5 +185,5 @@ class VICETestCase(unittest.TestCase):
                         r = json.load(rf)
                     self.assertTrue(isinstance(r, dict))
                     results.append(r)
-        self.assertEqual(len(results), int(hypers['epochs'] / hypers['steps']))
+        self.assertTrue(len(results) <= int(hypers['epochs'] / hypers['steps']))
         shutil.rmtree(test_dir)

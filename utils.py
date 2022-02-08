@@ -45,17 +45,8 @@ def filter_triplets(rnd_samples: np.ndarray, n_samples: float) -> np.ndarray:
     return rnd_samples
 
 
-
-def load_inds_and_item_names(folder: str = './data') -> Tuple[np.ndarray]:
-    item_names = pd.read_csv(
-        pjoin(folder, 'item_names.tsv'), encoding='utf-8', sep='\t').uniqueID.values
-    sortindex = pd.read_table(
-        pjoin(folder, 'sortindex'), header=None)[0].values
-    return item_names, sortindex
-
-
 def load_ref_images(img_folder: str, item_names: np.ndarray) -> np.ndarray:
-    ref_images = np.array([resize(io.imread(pjoin('./reference_images', name + '.jpg')),
+    ref_images = np.array([resize(io.imread(os.path.join(img_folder, name + '.jpg')),
                           (400, 400), anti_aliasing=True) for name in item_names])
     return ref_images
 

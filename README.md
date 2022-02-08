@@ -33,7 +33,8 @@ Explanation of arguments in `run.py`.
  --triplets_dir (str) / # path/to/triplets
  --results_dir (str) / # optional specification of results directory (if not provided will resort to ./results/modality/latent_dim/optim/prior/seed/spike/slab/pi)
  --plots_dir (str) / # optional specification of directory for plots (if not provided will resort to ./plots/modality/latent_dim/optim/prior/seed/spike/slab/pi)
- --epochs (int) / # maximum number of epochs to train VICE
+ --epochs (int) / # maximum number of epochs to run VICE optimization
+ --burnin (int) / # minimum number of epochs to run VICE optimization
  --eta (float) / # learning rate
  --latent_dim (int) / # initial dimensionality of the model's latent space
  --batch_size (int) / # mini-batch size
@@ -43,6 +44,8 @@ Explanation of arguments in `run.py`.
  --spike (float) / # sigma of the spike distribution
  --slab (float) / # sigma of the slab distribution
  --pi (float) / # probability value that determines the relative weighting of the distributions; the closer this value is to 1, the higher the probability that weights are drawn from the spike distribution
+ --k (int) / # minimum number of items that compose a latent dimension (according to importance scores)
+ --ws (int) / # determines for how many epochs the number of latent causes (after pruning) is not allowed to vary
  --steps (int) / # perform validation, save model parameters and create model and optimizer checkpoints every <steps> epochs
  --device (str) / # cuda or cpu
  --rnd_seed (int) / # random seed
@@ -52,7 +55,7 @@ Explanation of arguments in `run.py`.
 #### Example call
 
 ```python
-$ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 1000 --eta 0.001 --latent_dim 100 --batch_size 128 --optim adam --prior gaussian --mc_samples 25 --spike 0.1 --slab 1.0 --pi 0.5 --steps 50 --device cuda --rnd_seed 42 --verbose
+$ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 1000 --burnin 500 --eta 0.001 --latent_dim 100 --batch_size 128 --k 10 --ws 100 --optim adam --prior gaussian --mc_samples 25 --spike 0.1 --slab 1.0 --pi 0.5 --steps 50 --device cuda --rnd_seed 42 --verbose
 ```
 
 ### NOTES:

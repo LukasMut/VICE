@@ -89,7 +89,7 @@ class Trainer(nn.Module):
                     checkpoint = torch.load(PATH, map_location=self.device)
                     self.load_state_dict(checkpoint['model_state_dict'])
                     self.optim.load_state_dict(checkpoint['optim_state_dict'])
-                    self.start = checkpoint['epoch'] + 1
+                    self.start = checkpoint['epoch']
                     self.loss = checkpoint['loss']
                     self.train_accs = checkpoint['train_accs']
                     self.val_accs = checkpoint['val_accs']
@@ -347,40 +347,42 @@ class Trainer(nn.Module):
                 avg_val_loss, avg_val_acc = self.evaluate(val_batches)
                 self.val_losses.append(avg_val_loss)
                 self.val_accs.append(avg_val_acc)
-
-                # save model and optim parameters for inference or to resume training at a later point
-                # PyTorch convention is to save checkpoints as .tar files
-                checkpoint = {
-                            'epoch': epoch,
-                            'model_state_dict': copy.deepcopy(self.state_dict()),
-                            'optim_state_dict': copy.deepcopy(self.optim.state_dict()),
-                            'loss': self.loss,
-                            'train_losses': self.train_losses,
-                            'train_accs': self.train_accs,
-                            'val_losses': self.val_losses,
-                            'val_accs': self.val_accs,
-                            'loglikelihoods': self.loglikelihoods,
-                            'complexity_costs': self.complexity_losses,
-                            'latent_causes': self.latent_causes,
-                        }
-                torch.save(checkpoint, os.path.join(self.model_dir, f'model_epoch{epoch+1:04d}.tar'))
-
-                results = {'epoch': len(
-                    self.train_accs), 'train_acc': self.train_accs[-1], 'val_acc': self.val_accs[-1], 'val_loss': self.val_losses[-1]}
-                self.save_results(self.results_dir, epoch, results)
+                self.save_checkpoint(epoch) 
+                self.save_results(epoch)
             
             if epoch > self.burnin:
                 # evaluate model convergence
                 if self.convergence(self.latent_causes, self.ws):
+                    self.save_checkpoint(epoch)
+                    self.save_results(epoch)
                     print('\n...Stopping VICE optimzation.')
                     print(f'Latent dimensionality converged after {epoch+1:02d} epochs.\n')
                     break
         
         self.save_final_latents()
 
-    @staticmethod
-    def save_results(out_path: str, epoch: int, results: dict) -> None:
-        with open(os.path.join(out_path, f'results_{epoch+1:04d}.json'), 'w') as rf:
+
+    def save_checkpoint(self, epoch: int) -> None:
+        # PyTorch convention is to save checkpoints as .tar files
+        checkpoint = {
+                    'epoch': epoch + 1,
+                    'model_state_dict': copy.deepcopy(self.state_dict()),
+                    'optim_state_dict': copy.deepcopy(self.optim.state_dict()),
+                    'loss': self.loss,
+                    'train_losses': self.train_losses,
+                    'train_accs': self.train_accs,
+                    'val_losses': self.val_losses,
+                    'val_accs': self.val_accs,
+                    'loglikelihoods': self.loglikelihoods,
+                    'complexity_costs': self.complexity_losses,
+                    'latent_causes': self.latent_causes,
+                }
+        torch.save(checkpoint, os.path.join(self.model_dir, f'model_epoch{epoch+1:04d}.tar'))
+
+    
+    def save_results(self, epoch: int) -> None:
+        results = {'epoch': epoch + 1, 'train_acc': self.train_accs[-1], 'val_acc': self.val_accs[-1], 'val_loss': self.val_losses[-1]}
+        with open(os.path.join(self.results_dir, f'results_{epoch+1:04d}.json'), 'w') as rf:
             json.dump(results, rf)
 
     

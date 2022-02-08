@@ -1,26 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import json
+
 import os
 import re
 import torch
 
 from os.path import join as pjoin
-from os.path import exists as pexists
 
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
-import pandas as pd
 
 from scipy.stats import pearsonr, rankdata
+from typing import List
 
-def plot_nneg_dims_over_time(plots_dir:str, nneg_d_over_time:list) -> None:
-    """plot number of non-negative dimensions as a function of time (i.e., epochs)"""
+def plot_latent_causes(
+                        plots_dir: str,
+                        latent_causes: List[int],
+                        show_plot: bool=False,
+) -> None:
     fig = plt.figure(figsize=(10, 6), dpi=100)
     ax = plt.subplot(111)
-
+    
     #hide the right and top spines
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
@@ -29,19 +30,17 @@ def plot_nneg_dims_over_time(plots_dir:str, nneg_d_over_time:list) -> None:
     ax.yaxis.set_ticks_position('left')
     ax.xaxis.set_ticks_position('bottom')
 
-    epochs, nneg_dims = zip(*nneg_d_over_time)
-    ax.plot(epochs, nneg_dims, '-o')
-    ax.set_xticks(epochs)
-    ax.set_xticklabels(epochs)
-    ax.set_xlabel('Epochs')
-    ax.set_ylabel('Number of non-negative dimensions')
-
-    PATH = pjoin(plots_dir, 'nneg_dimensions')
+    ax.plot(np.arange(len(latent_causes)), latent_causes, alpha=0.8, linestyle='dashed')
+    ax.set_xlabel(r'Epochs')
+    ax.set_ylabel(r'Number of latent causes')
+    
+    PATH = os.path.join(plots_dir, 'latent_causes')
     if not os.path.exists(PATH):
         os.makedirs(PATH)
-
-    plt.savefig(pjoin(PATH, 'nneg_dimensions_over_time.png'))
-    plt.close()
+        
+    plt.savefig(os.path.join(PATH, 'latent_causes_over_time.png'))
+    if show_plot:
+        plt.show()
 
 def plot_single_performance(
                             plots_dir:str,
@@ -219,43 +218,6 @@ def plot_dim_correlations(
     plt.savefig(pjoin(PATH, f'dim_correlations_{epoch:03d}.png'))
     plt.close()
 
-def plot_dim_evolution(
-                        W_mu_sorted:torch.Tensor,
-                        W_l_sorted:torch.Tensor,
-                        plots_dir:str,
-                        epoch:int,
-                        ) -> None:
-    """barplot of |W_mu|_1 and mean W_l values"""
-    fig = plt.figure(figsize=(16, 8), dpi=200)
-    ax = plt.subplot(111)
-
-    #hide the right and top spines
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-
-    #only show ticks on the left (y-axis) and bottom (x-axis) spines
-    ax.yaxis.set_ticks_position('left')
-    ax.xaxis.set_ticks_position('bottom')
-
-    #bring modes (mu) and scales (lambdas) onto the same scale (0, 1]
-    W_mu_l1_norms = W_mu_sorted.norm(p=1, dim=0)
-    W_mu_l1_norms /= W_mu_l1_norms.max().item()
-
-    W_l_means = W_l_sorted.mean(dim=0)
-    W_l_means /= W_l_means.max().item()
-
-    ax.bar(np.arange(W_mu_sorted.shape[1]), W_mu_l1_norms, alpha=.5, label=r'$||W_{\mu}||_{1}$')
-    ax.bar(np.arange(W_l_sorted.shape[1]) + .25, W_l_means, alpha=.5, label=r'$\overline{W}_{\lambda}$')
-    ax.set_xlabel('Dimension', fontsize=13)
-    ax.set_title(f'Epoch: {epoch}', fontsize=13)
-    ax.legend(fancybox=True, shadow=True, loc='upper right')
-
-    PATH = pjoin(plots_dir, 'dim_evolutions')
-    if not os.path.exists(PATH):
-        os.makedirs(PATH)
-
-    plt.savefig(pjoin(PATH, f'dim_evolution_{epoch:03d}.png'))
-    plt.close()
 
 def plot_complexities_and_loglikelihoods(
                                          plots_dir:str,
@@ -293,49 +255,6 @@ def plot_complexities_and_loglikelihoods(
         plt.show()
     plt.close()
 
-def plot_aggregated_weights(
-                            W_aggregated:np.ndarray,
-                            plot_dir:str,
-                            rnd_seed:int,
-                            modality:str,
-                            version:str,
-                            data:str,
-                            dim:int,
-                            lmbda:float,
-                            reduction:str,
-                            ) -> None:
-    """elbow plot of KL divergences (VSPoSE) or l1-norms (SPoSE) aggregated over n_items"""
-    fig = plt.figure(figsize=(16, 8), dpi=200)
-    ax = plt.subplot(111)
-
-    #y-axis label is dependent on version of SPoSE
-    y_lab = 'KLD' if version == 'variational' else 'L1'
-
-    #hide the right and top spines
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-
-    #only show ticks on the left (y-axis) and bottom (x-axis) spines
-    ax.yaxis.set_ticks_position('left')
-    ax.xaxis.set_ticks_position('bottom')
-
-    ax.plot(W_aggregated)
-    ax.set_xticks(np.arange(0, len(W_aggregated)+1, 10))
-    ax.set_xlabel('Dimension', fontsize=10)
-    ax.set_ylabel(y_lab, fontsize=10)
-
-    PATH = pjoin(plot_dir, modality, version, data, f'{dim}d', f'{lmbda}', f'seed{rnd_seed:02d}')
-
-    if version == 'variational':
-        PATH = pjoin(PATH, 'klds')
-    else:
-        PATH = pjoin(PATH, 'l1_norms')
-
-    if not os.path.exists(PATH):
-        os.makedirs(PATH)
-
-    plt.savefig(pjoin(PATH, f'dim_elbowplot_{reduction}.png'))
-    plt.close()
 
 def plot_weight_violins(
                         W_sorted:np.ndarray,

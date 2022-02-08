@@ -25,7 +25,7 @@ def get_hypers():
     hypers['eta'] = 0.001
     hypers['batch_size'] = 128
     hypers['epochs'] = 20
-    hypers['burnin'] = 15
+    hypers['burnin'] = 20
     hypers['mc_samples'] = 10
     hypers['prior'] = 'gaussian' 
     hypers['spike'] = 0.1

@@ -44,7 +44,6 @@ class Trainer(nn.Module):
         model_dir: str,
         results_dir: str,
         device: torch.device,
-        temperature=None,
         verbose: bool = False,
     ):
         super(Trainer, self).__init__()
@@ -69,11 +68,6 @@ class Trainer(nn.Module):
         self.results_dir = results_dir
         self.device = device
         self.verbose = verbose
-
-        if temperature is None:
-            self.temperature = torch.tensor(1.)
-        else:
-            self.temperature = temperature
 
     def forward(self, *input: Any) -> None:
         raise NotImplementedError
@@ -161,13 +155,8 @@ class Trainer(nn.Module):
         neg_sim = torch.sum(anchor * negative, dim=1)
         if task == 'odd_one_out':
             neg_sim_2 = torch.sum(positive * negative, dim=1)
-            return pos_sim, neg_sim, neg_sim_2
-        else:
-            return pos_sim, neg_sim
-
-    @staticmethod
-    def softmax(sims: tuple, t: torch.Tensor) -> torch.Tensor:
-        return torch.exp(sims[0] / t) / torch.sum(torch.stack([torch.exp(sim / t) for sim in sims]), dim=0)
+            return (pos_sim, neg_sim, neg_sim_2)
+        return (pos_sim, neg_sim)
 
     @staticmethod
     def break_ties(probas: np.ndarray) -> np.ndarray:
@@ -179,8 +168,21 @@ class Trainer(nn.Module):
         acc = argmax.mean() if batching else argmax.tolist()
         return acc
 
-    def cross_entropy_loss(self, similarities: float) -> torch.Tensor:
-        return torch.mean(-torch.log(self.softmax(similarities, self.temperature)))
+    @staticmethod
+    def sumexp(sims: Tuple[torch.Tensor]) -> torch.Tensor:
+        return torch.sum(torch.exp(torch.stack(sims)), dim=0)
+
+    def softmax(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
+        return torch.exp(sims[0]) / self.sumexp(sims)
+    
+    def logsumexp(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
+        return torch.log(self.sumexp(sims))
+
+    def log_softmax(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
+        return sims[0] - self.logsumexp(sims)
+
+    def cross_entropy_loss(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
+        return torch.mean(-self.log_softmax(sims))
 
     def choice_accuracy(self, similarities: float) -> float:
         probas = F.softmax(torch.stack(similarities, dim=-1),
@@ -223,7 +225,7 @@ class Trainer(nn.Module):
                     torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1)
                 similarities = self.compute_similarities(
                     anchor, positive, negative, self.task)
-                soft_choices = self.softmax(similarities, self.temperature)
+                soft_choices = self.softmax(similarities)
                 probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
                 sampled_probas[k] += probas
                 sampled_choices[k] += soft_choices

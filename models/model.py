@@ -72,7 +72,6 @@ class VICE(Trainer):
         model_dir: str,
         results_dir: str,
         device: torch.device,
-        temperature=None,
         verbose: bool = False,
         init_weights: bool = True,
         bias: bool = False,
@@ -98,7 +97,6 @@ class VICE(Trainer):
             model_dir,
             results_dir,
             device,
-            temperature,
             verbose,
         )
         self.in_size = n_items

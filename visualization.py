@@ -62,7 +62,7 @@ def plot_single_performance(
 
     ax.plot(val_accs,'-+',  alpha=.5, label='Test')
     ax.plot(train_accs[steps-1::steps], '-+', alpha=.5, label='Train')
-    ax.annotate('Val acc: {:.3f}'.format(np.max(val_accs)), (len(val_accs) - len(val_accs) * 0.1, np.max(val_accs) / 2))
+    # ax.annotate('Val acc: {:.3f}'.format(np.max(val_accs)), (len(val_accs) - len(val_accs) * 0.1, np.max(val_accs) / 2))
     ax.set_xticks(ticks=range(len(val_accs)))
     ax.set_xticklabels(labels=list(range(steps, len(train_accs)+1, steps)))
     ax.set_xlabel(r'Epochs')

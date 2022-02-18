@@ -194,6 +194,8 @@ def run(
         plots_dir=plots_dir, val_accs=val_accs, train_accs=train_accs, steps=steps)
     visualization.plot_complexities_and_loglikelihoods(
         plots_dir=plots_dir, loglikelihoods=loglikelihoods, complexity_losses=complexity_losses)
+    visualization.plot_latent_causes(
+        plots_dir=plots_dir, latent_causes=latent_causes)
 
     # compress model params and store as binary files
     with open(os.path.join(results_dir, 'parameters.npz'), 'wb') as f:

@@ -1,7 +1,6 @@
 [![Unittests](https://github.com/LukasMut/VICE/actions/workflows/python-package.yml/badge.svg)](https://github.com/LukasMut/VICE/actions/workflows/python-package.yml)
-[![codecov](https://codecov.io/gh/LukasMut/VICE/branch/main/graph/badge.svg?token=gntaL1yrXI)](https://codecov.io/gh/LukasMut/VICE)
 ![Python version](https://img.shields.io/badge/python-3.7%20%7C%203.8-blue.svg)
-
+[![codecov](https://codecov.io/gh/LukasMut/VICE/branch/main/graph/badge.svg?token=gntaL1yrXI)](https://codecov.io/gh/LukasMut/VICE)
 
 
 # VICE: Variational Inference for Concept Embeddings

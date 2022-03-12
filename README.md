@@ -2,7 +2,6 @@
 ![Python version](https://img.shields.io/badge/python-3.7%20%7C%203.8%20%7C%203.9-blue.svg)
 [![codecov](https://codecov.io/gh/LukasMut/VICE/branch/main/graph/badge.svg?token=gntaL1yrXI)](https://codecov.io/gh/LukasMut/VICE)
 
-
 # VICE: Variational Inference for Concept Embeddings
 
 ### Environment setup and dependencies

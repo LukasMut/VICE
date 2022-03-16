@@ -10,7 +10,7 @@ dependencies:
  - pandas=1.0.*
  - scikit-learn=0.24.*
  - scikit-image=0.16.*
- - pytorch=1.9.*
+ - pytorch=1.10.*
  - tqdm=4.47.*
  - numba=0.53.*
  - matplotlib=3.2.*
@@ -21,5 +21,6 @@ dependencies:
  - h5py
  - pip
  - pip:
+   - pyflakes
    - codecov
    - pep8

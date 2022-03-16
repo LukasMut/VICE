@@ -48,7 +48,7 @@ def get_results(PATH: str) -> Dict[tuple, dict]:
     for root, _, files in os.walk(PATH):
         for f in files:
             if f.endswith('2000.json'):
-                hypers = tuple(map(float, root.split('/')[-3:]))
+                hypers = tuple(map(float, root.split('/')[-4:-1]))
                 with open(os.path.join(root, f), 'r') as r:
                     val_centropy = json.load(r)['val_loss']
                     if np.isnan(val_centropy):

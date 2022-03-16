@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from functools import partial
-from statsmodels.stats.multitest import multipletests
-from scipy.stats import norm
-from sklearn import mixture
-from typing import Tuple, List, Any, Iterator
+from typing import List
 from models.model import VICE
 from collections import defaultdict
-import torch.nn as nn
-import pandas as pd
+
 import numpy as np
 import argparse
 import os
@@ -18,8 +13,6 @@ import random
 
 import torch
 import utils
-import itertools
-import copy
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
 
@@ -43,8 +36,6 @@ def parseargs():
     aa('--mc_samples', type=int,
         choices=[5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
         help='number of samples to use for MC sampling at inference time')
-    aa('--n_components', type=int, nargs='+', default=None,
-        help='number of clusters/modes in Gaussian mixture model')
     aa('--results_dir', type=str,
         help='results directory (root directory for models)')
     aa('--triplets_dir_test', type=str,
@@ -53,12 +44,6 @@ def parseargs():
         help='directory from where to load triplets data')
     aa('--human_pmfs_dir', type=str, default=None,
         help='directory from where to load human choice probability distributions')
-    aa('--pruning', action='store_true',
-        help='whether model weights should be pruned prior to performing inference')
-    aa('--things', action='store_true',
-        help='whether pruning should be performed for models that were training on the THINGS objects')
-    aa('--index_path', type=str, default=None,
-        help='path/to/sortindex (sortindex is necessary to re-sort THINGS objects in the correct order')
     aa('--device', type=str, default='cpu',
         choices=['cpu', 'cuda'])
     aa('--rnd_seed', type=int, default=42,
@@ -108,84 +93,22 @@ def compute_divergences(human_pmfs: dict, model_pmfs: dict, metric: str) -> np.n
     return divergences
 
 
-def prune_weights(model: Any, indices: torch.Tensor) -> Any:
-    for m in model.parameters():
-        m.data = m.data[indices]
+def prune_weights(model: VICE, indices: np.ndarray) -> VICE:
+    for p in model.parameters():
+        p.data = p.data[torch.from_numpy(indices)]
     return model
 
 
-def fit_gmm(X: np.ndarray, n_components: List[int]) -> Tuple[int, Any]:
-    gmms, scores = [], []
-    cv_types = ['spherical', 'diag', 'full']
-    hyper_combs = list(itertools.product(cv_types, n_components))
-    for comb in hyper_combs:
-        gmm = mixture.GaussianMixture(
-            n_components=comb[1], covariance_type=comb[0])
-        gmm.fit(X)
-        gmms.append(gmm)
-        scores.append(gmm.bic(X))
-    clusters = gmms[np.argmin(scores)].predict(X)
-    n_clusters = hyper_combs[np.argmin(scores)][1]
-    return clusters, n_clusters
-
-
-def compute_pvals(W_loc: np.ndarray, W_scale: np.ndarray) -> np.ndarray:
-    def pval(W_loc, W_scale, j):
-        return norm.cdf(0., W_loc[:, j], W_scale[:, j])
-    return partial(pval, W_loc, W_scale)(np.arange(W_loc.shape[1])).T
-
-
-def fdr_correction(p_vals: np.ndarray, alpha: float = 0.01) -> np.ndarray:
-    return np.array(list(map(lambda p: multipletests(p, alpha=alpha, method='fdr_bh')[0], p_vals)))
-
-
-def get_importance(rejections: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    return np.array(list(map(sum, rejections)))[:, np.newaxis]
-
-
-def get_cluster_combinations(n_clusters: int, c_min: int = 1):
-    combinations = []
-    for k in range(c_min, n_clusters):
-        combinations.extend(list(itertools.combinations(range(n_clusters), k)))
-    return combinations
-
-
-def pruning_(
-    model: VICE,
-    pruning_batches: Iterator[torch.Tensor],
-    n_components: List[int],
-    device: torch.device,
-    things: bool = False,
-) -> Tuple[torch.Tensor, torch.Tensor, nn.Module, float]:
+def pruning(model: VICE, alpha: float = .05, k: int = 5) -> VICE:
     params = model.detached_params
-    W_loc = params['loc']
-    W_scale = params['scale']
-    if things:
-        W_loc = W_loc[sortindex]
-        W_scale = W_scale[sortindex]
-    importance = get_importance(fdr_correction(compute_pvals(W_loc, W_scale)))
-    clusters, n_clusters = fit_gmm(importance, n_components)
-    if n_clusters > 1:
-        cluster_combs = get_cluster_combinations(n_clusters)
-        val_losses = np.zeros(len(cluster_combs))
-        pruned_models = []
-        for i, comb in enumerate(cluster_combs):
-            print(f'Testing cluster subset: {i+1}\n')
-            if len(comb) > 1:
-                indices = np.hstack([np.where(clusters == k)[0] for k in comb])
-            else:
-                indices = np.where(clusters == comb[0])[0]
-            indices = torch.from_numpy(indices).type(
-                torch.LongTensor).to(device)
-            model_copy = copy.deepcopy(model)
-            model_pruned = prune_weights(model_copy, indices)
-            val_loss, _ = model_pruned.evaluate(pruning_batches)
-            val_losses[i] += val_loss
-            pruned_models.append(model_pruned)
-        best_model = pruned_models[np.argmin(val_losses)]
-    else:
-        best_model = model
-    return best_model
+    loc = params['loc']
+    scale = params['scale']
+    p_vals = utils.compute_pvals(loc, scale)
+    rejections = utils.fdr_corrections(p_vals, alpha)
+    importance = utils.get_importance(rejections).reshape(-1)
+    signal = np.where(importance > k)[0]
+    pruned_model = prune_weights(model, signal)
+    return pruned_model
 
 
 def get_models(
@@ -203,24 +126,24 @@ def get_models(
     for model_path in model_paths:
         seed = model_path.split('/')[-1]
         model = VICE(
-                    task=task,
-                    n_train=None,
-                    n_items=n_items,
-                    latent_dim=latent_dim,
-                    optim=None,
-                    eta=None,
-                    batch_size=batch_size,
-                    epochs=None,
-                    mc_samples=mc_samples,
-                    prior=prior,
-                    spike=None,
-                    slab=None,
-                    pi=None,
-                    steps=None,
-                    model_dir=None,
-                    results_dir=results_dir,
-                    device=device,
-                    init_weights=True)
+            task=task,
+            n_train=None,
+            n_items=n_items,
+            latent_dim=latent_dim,
+            optim=None,
+            eta=None,
+            batch_size=batch_size,
+            epochs=None,
+            mc_samples=mc_samples,
+            prior=prior,
+            spike=None,
+            slab=None,
+            pi=None,
+            steps=None,
+            model_dir=None,
+            results_dir=results_dir,
+            device=device,
+            init_weights=True)
         try:
             model = utils.load_model(
                 model=model, PATH=model_path, device=device)
@@ -238,39 +161,30 @@ def inference(
     batch_size: int,
     prior: str,
     mc_samples: int,
-    n_components: List[int],
     results_dir: str,
     triplets_dir_test: str,
     triplets_dir_val: str,
     human_pmfs_dir: str,
-    pruning: bool,
     device: torch.device,
-    things: bool = True,
 ) -> None:
 
     in_path = os.path.join(results_dir, f'{latent_dim}d')
     model_paths = get_model_paths(in_path)
     seeds, models = zip(*get_models(model_paths, task, prior, n_items,
-                        latent_dim, batch_size, mc_samples, results_dir, device))
+                                    latent_dim, batch_size, mc_samples, results_dir, device))
 
     test_triplets = utils.load_data(
         device=device, triplets_dir=triplets_dir_test, inference=True)
-    _, pruning_triplets = utils.load_data(
-        device=device, triplets_dir=triplets_dir_val, val_set='pruning_set', inference=False)
-    _, tuning_triplets = utils.load_data(
-        device=device, triplets_dir=triplets_dir_val, val_set='tuning_set', inference=False)
+    _, val_triplets = utils.load_data(
+        device=device, triplets_dir=triplets_dir_val, inference=False)
 
     test_batches = utils.load_batches(
         train_triplets=None, test_triplets=test_triplets, n_items=n_items, batch_size=batch_size, inference=True)
-    pruning_batches = utils.load_batches(
-        train_triplets=None, test_triplets=pruning_triplets, n_items=n_items, batch_size=batch_size, inference=True)
-    tuning_batches = utils.load_batches(
-        train_triplets=None, test_triplets=tuning_triplets, n_items=n_items, batch_size=batch_size, inference=True)
+    val_batches = utils.load_batches(
+        train_triplets=None, test_triplets=val_triplets, n_items=n_items, batch_size=batch_size, inference=True)
 
     print(
-        f'\nNumber of pruning batches in current process: {len(pruning_batches)}\n')
-    print(
-        f'Number of tuning batches in current process: {len(tuning_batches)}\n')
+        f'\nNumber of validation batches in current process: {len(val_batches)}\n')
     print(
         f'Number of test batches in current process: {len(test_batches)}\n')
 
@@ -281,11 +195,9 @@ def inference(
     model_pmfs_all = defaultdict(dict)
 
     for seed, model, model_path in zip(seeds, models, model_paths):
-        if pruning:
-            model = pruning_(
-                model=model, pruning_batches=pruning_batches, n_components=n_components,  device=device, things=things)
-        val_loss, _ = model.evaluate(tuning_batches)
-        test_acc, test_loss, probas, model_pmfs, triplet_choices = model.inference(
+        pruned_model = pruning(model)
+        val_loss, _ = pruned_model.evaluate(val_batches)
+        test_acc, test_loss, probas, model_pmfs, triplet_choices = pruned_model.inference(
             test_batches)
         val_losses[seed] = val_loss
         test_accs[seed] = test_acc
@@ -361,15 +273,6 @@ if __name__ == '__main__':
     args = parseargs()
     random.seed(args.rnd_seed)
     np.random.seed(args.rnd_seed)
-    if args.things:
-        assert isinstance(
-            args.index_path, str), '\nPath to sortindex is missing.\n'
-        try:
-            global sortindex
-            sortindex = pd.read_table(args.index_path, header=None)[0].values
-        except FileNotFoundError:
-            raise Exception(
-                '\nDownload sortindex file for THINGS objects and provide correct path.\n')
     device = torch.device(args.device)
     inference(
         task=args.task,
@@ -378,12 +281,9 @@ if __name__ == '__main__':
         batch_size=args.batch_size,
         prior=args.prior,
         mc_samples=args.mc_samples,
-        n_components=args.n_components,
         results_dir=args.results_dir,
         triplets_dir_test=args.triplets_dir_test,
         triplets_dir_val=args.triplets_dir_val,
         human_pmfs_dir=args.human_pmfs_dir,
-        pruning=args.pruning,
         device=device,
-        things=args.things,
     )

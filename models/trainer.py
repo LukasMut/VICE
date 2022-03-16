@@ -126,11 +126,11 @@ class Trainer(nn.Module):
 
     def initialize_optim_(self) -> None:
         if self.optim == 'adam':
-            self.optim = Adam(self.parameters(), eps=1e-08, 
-            lr=self.eta)
+            self.optim = Adam(self.parameters(), eps=1e-08,
+                              lr=self.eta)
         elif self.optim == 'adamw':
-            self.optim = AdamW(self.parameters(), 
-            eps=1e-08, lr=self.eta)
+            self.optim = AdamW(self.parameters(),
+                               eps=1e-08, lr=self.eta)
         else:
             self.optim = SGD(self.parameters(), lr=self.eta)
 
@@ -174,7 +174,7 @@ class Trainer(nn.Module):
 
     def softmax(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
         return torch.exp(sims[0]) / self.sumexp(sims)
-    
+
     def logsumexp(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
         return torch.log(self.sumexp(sims))
 
@@ -190,9 +190,9 @@ class Trainer(nn.Module):
         choice_acc = self.accuracy_(probas)
         return choice_acc
 
-    def pruning(self, alpha: float=.05,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        loc = self.detached_params['loc']                    
+    def pruning(self, alpha: float = .05,
+                ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        loc = self.detached_params['loc']
         scale = self.detached_params['scale']
         p_vals = utils.compute_pvals(loc, scale)
         rejections = utils.fdr_corrections(p_vals, alpha)
@@ -211,7 +211,7 @@ class Trainer(nn.Module):
         return False
 
     def mc_sampling(self, batch: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+                    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Perform Monte Carlo sampling."""
         n_choices = 3 if self.task == 'odd_one_out' else 2
         sampled_probas = torch.zeros(
@@ -266,7 +266,8 @@ class Trainer(nn.Module):
                 test_acc, test_loss, batch_probas, batch_choices = self.mc_sampling(
                     batch)
                 triplet_choices.extend(batch_choices)
-                probas[j * self.batch_size:(j + 1) * self.batch_size] += batch_probas
+                probas[j * self.batch_size:(j + 1)
+                       * self.batch_size] += batch_probas
                 batch_accs[j] += test_acc
                 batch_centropies += test_loss
                 human_choices = batch.nonzero(
@@ -349,46 +350,47 @@ class Trainer(nn.Module):
                 avg_val_loss, avg_val_acc = self.evaluate(val_batches)
                 self.val_losses.append(avg_val_loss)
                 self.val_accs.append(avg_val_acc)
-                self.save_checkpoint(epoch) 
+                self.save_checkpoint(epoch)
                 self.save_results(epoch)
-            
+
             if epoch > self.burnin:
                 # evaluate model convergence
                 if self.convergence(self.latent_causes, self.ws):
                     self.save_checkpoint(epoch)
                     self.save_results(epoch)
                     print('\n...Stopping VICE optimzation.')
-                    print(f'Latent dimensionality converged after {epoch+1:02d} epochs.\n')
+                    print(
+                        f'Latent dimensionality converged after {epoch+1:02d} epochs.\n')
                     break
-        
-        self.save_final_latents()
 
+        self.save_final_latents()
 
     def save_checkpoint(self, epoch: int) -> None:
         # PyTorch convention is to save checkpoints as .tar files
         checkpoint = {
-                    'epoch': epoch + 1,
-                    'model_state_dict': copy.deepcopy(self.state_dict()),
-                    'optim_state_dict': copy.deepcopy(self.optim.state_dict()),
-                    'loss': self.loss,
-                    'train_losses': self.train_losses,
-                    'train_accs': self.train_accs,
-                    'val_losses': self.val_losses,
-                    'val_accs': self.val_accs,
-                    'loglikelihoods': self.loglikelihoods,
-                    'complexity_costs': self.complexity_losses,
-                    'latent_causes': self.latent_causes,
-                }
-        torch.save(checkpoint, os.path.join(self.model_dir, f'model_epoch{epoch+1:04d}.tar'))
+            'epoch': epoch + 1,
+            'model_state_dict': copy.deepcopy(self.state_dict()),
+            'optim_state_dict': copy.deepcopy(self.optim.state_dict()),
+            'loss': self.loss,
+            'train_losses': self.train_losses,
+            'train_accs': self.train_accs,
+            'val_losses': self.val_losses,
+            'val_accs': self.val_accs,
+            'loglikelihoods': self.loglikelihoods,
+            'complexity_costs': self.complexity_losses,
+            'latent_causes': self.latent_causes,
+        }
+        torch.save(checkpoint, os.path.join(
+            self.model_dir, f'model_epoch{epoch+1:04d}.tar'))
 
-    
     def save_results(self, epoch: int) -> None:
-        results = {'epoch': epoch + 1, 'train_acc': self.train_accs[-1], 'val_acc': self.val_accs[-1], 'val_loss': self.val_losses[-1]}
+        results = {'epoch': epoch + 1,
+                   'train_acc': self.train_accs[-1], 'val_acc': self.val_accs[-1], 'val_loss': self.val_losses[-1]}
         with open(os.path.join(self.results_dir, f'results_{epoch+1:04d}.json'), 'w') as rf:
             json.dump(results, rf)
 
-    
     def save_final_latents(self):
         _, pruned_loc, pruned_scale = self.pruning()
         with open(os.path.join(self.results_dir, 'pruned_params.npz'), 'wb') as f:
-            np.savez_compressed(f, pruned_loc=pruned_loc, pruned_scale=pruned_scale)
+            np.savez_compressed(f, pruned_loc=pruned_loc,
+                                pruned_scale=pruned_scale)

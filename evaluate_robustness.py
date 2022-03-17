@@ -198,7 +198,7 @@ def pruning(model: VICE, alpha: float = .05, k: int = 5,
     scale = params['scale']
     p_vals = utils.compute_pvals(loc, scale)
     rejections = utils.fdr_corrections(p_vals, alpha)
-    importance = utils.get_importance(rejections).reshape(-1)
+    importance = utils.get_importance(rejections).ravel()
     signal = np.where(importance > k)[0]
     pruned_loc = loc[:, signal]
     pruned_scale = scale[:, signal]

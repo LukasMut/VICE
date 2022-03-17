@@ -196,7 +196,7 @@ class Trainer(nn.Module):
         scale = self.detached_params['scale']
         p_vals = utils.compute_pvals(loc, scale)
         rejections = utils.fdr_corrections(p_vals, alpha)
-        importance = utils.get_importance(rejections).reshape(-1)
+        importance = utils.get_importance(rejections).ravel()
         signal = np.where(importance > self.k)[0]
         pruned_loc = loc[:, signal]
         pruned_scale = scale[:, signal]

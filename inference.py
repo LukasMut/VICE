@@ -54,11 +54,12 @@ def parseargs():
 
 
 def get_model_paths(PATH: str) -> List[str]:
+    regex = r'(?=^model)(?=.*epoch)(?=.*tar$)'
     model_paths = []
     for root, _, files in os.walk(PATH):
-        for f in files:
-            if re.search(r'(?=^model)(?=.*epoch)(?=.*tar$)', f):
-                model_paths.append('/'.join(root.split('/')[:-1]))
+        files = sorted(list(filter(lambda f: re.search(regex, f), files)))
+        if files:
+            model_paths.append('/'.join(root.split('/')[:-1]))
     return model_paths
 
 

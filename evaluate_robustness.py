@@ -176,9 +176,10 @@ def compute_robustness(Ws_mu: list, Ws_sigma: list = None, thresh: float = .9):
 
 
 def get_model_paths(PATH: str) -> List[str]:
+    regex = r'(?=^model)(?=.*epoch)(?=.*tar$)'
     paths = []
     for root, _, files in os.walk(PATH, followlinks=True):
-        files = sorted(list(filter(lambda f: re.search(r'.tar$', f), files)))
+        files = sorted(list(filter(lambda f: re.compile(regex).search(f), files)))
         if files:
             paths.append('/'.join(root.split('/')[:-1]))
     return paths

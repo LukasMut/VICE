@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+from email.policy import default
 import os
 import pickle
 import random
@@ -27,7 +28,6 @@ os.environ['PYTHONIOENCODING'] = 'UTF-8'
 # number of cores used per Python process (set to 2 if HT is enabled, else keep 1)
 os.environ['OMP_NUM_THREADS'] = '1'
 
-
 def parseargs():
     parser = argparse.ArgumentParser()
 
@@ -42,7 +42,7 @@ def parseargs():
     aa('--n_items', type=int,
         help='number of unique items/stimuli/objects in dataset')
     aa('--latent_dim', type=int, default=100,
-        help='latent dimensionality of VICE representations')
+        help='initial latent dimensionality of VICE embedding(s)')
     aa('--thresh', type=float, default=0.8,
         choices=[0.75, 0.8, 0.85, 0.9, 0.95],
         help='reproducibility threshold (0.8 used in the ICLR paper)')
@@ -53,7 +53,7 @@ def parseargs():
         help='optimizer that was used to train VICE')
     aa('--prior', type=str, metavar='p', default='gaussian',
         choices=['gaussian', 'laplace'],
-        help='whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior')
+        help='whether to use a Gaussian or Laplacian mixture for the spike-and-slab prior')
     aa('--spike', type=float,
         help='sigma of spike distribution')
     aa('--slab', type=float,
@@ -61,16 +61,10 @@ def parseargs():
     aa('--pi', type=float,
         help='probability value with which to sample from the spike')
     aa('--triplets_dir', type=str,
-        help='directory from where to load triplets data')
-    aa('--n_components', type=int, nargs='+',
-        help='number of clusters/modes in the Gaussian Mixture Model (GMM) used for pruning')
-    aa('--mc_samples', type=int,
+        help='path/to/triplets/data')
+    aa('--mc_samples', type=int, default=5,
         choices=[5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
         help='number of weight samples used in Monte Carlo (MC) sampling')
-    aa('--things', action='store_true',
-        help='whether pruning should be performed for models that were training on the THINGS objects')
-    aa('--index_path', type=str, default=None,
-        help='path/to/sortindex (sortindex is necessary to re-sort THINGS objects in the correct order')
     aa('--device', type=str,
         choices=['cpu', 'cuda'])
     aa('--rnd_seed', type=int, default=42,
@@ -181,115 +175,34 @@ def compute_robustness(Ws_mu: list, Ws_sigma: list = None, thresh: float = .9):
     return scores
 
 
-def get_model_paths(PATH: str):
+def get_model_paths(PATH: str) -> List[str]:
     paths = []
     for root, _, files in os.walk(PATH, followlinks=True):
-        files = sorted(list(filter(lambda f: re.search(r'tar$', f), files)))
+        files = sorted(list(filter(lambda f: re.search(r'.tar$', f), files)))
         if files:
-            for f in files:
-                if f == files[-1]:
-                    paths.append('/'.join(root.split('/')[:-1]))
+            paths.append('/'.join(root.split('/')[:-1]))
     return paths
 
 
-def prune_weights(model: Any, indices: torch.Tensor) -> Any:
-    for m in model.parameters():
-        m.data = m.data[indices]
+def prune_weights(model: VICE, indices: np.ndarray) -> VICE:
+    for p in model.parameters():
+        p.data = p.data[torch.from_numpy(indices)]
     return model
 
 
-def fit_gmm(X: np.ndarray, n_components: List[int]) -> Tuple[int, Any]:
-    gmms, scores = [], []
-    cv_types = ['spherical', 'diag', 'full']
-    hyper_combs = list(itertools.product(cv_types, n_components))
-    for comb in hyper_combs:
-        gmm = mixture.GaussianMixture(
-            n_components=comb[1], covariance_type=comb[0])
-        gmm.fit(X)
-        gmms.append(gmm)
-        scores.append(gmm.bic(X))
-    clusters = gmms[np.argmin(scores)].predict(X)
-    n_clusters = hyper_combs[np.argmin(scores)][1]
-    return clusters, n_clusters
-
-
-def compute_pvals(W_loc: np.ndarray, W_scale: np.ndarray) -> np.ndarray:
-    def pval(W_loc, W_scale, j):
-        return norm.cdf(0., W_loc[:, j], W_scale[:, j])
-    return partial(pval, W_loc, W_scale)(np.arange(W_loc.shape[1])).T
-
-
-def fdr_correction(p_vals: np.ndarray, alpha: float = 0.01) -> np.ndarray:
-    return np.array(list(map(lambda p: multipletests(p, alpha=alpha, method='fdr_bh')[0], p_vals)))
-
-
-def get_importance(rejections: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    return np.array(list(map(sum, rejections)))[:, np.newaxis]
-
-
-def get_cluster_combinations(n_clusters: int, c_min: int = 1):
-    combinations = []
-    for k in range(c_min, n_clusters):
-        combinations.extend(list(itertools.combinations(range(n_clusters), k)))
-    return combinations
-
-
-def get_cluster_indices(clusters: np.ndarray, subset: Tuple[int]) -> np.ndarray:
-    return np.hstack([np.where(clusters == k)[0] for k in subset])
-
-
-def get_best_subset_and_noise(val_losses: np.ndarray, clusters: np.ndarray, cluster_combs: List[Tuple[int]], n_clusters: int,
-                              ) -> Tuple[np.ndarray, np.ndarray]:
-    best_subset = cluster_combs[np.argmin(val_losses)]
-    remaining_subset = tuple(i for i in range(
-        n_clusters) if i not in best_subset)
-    best = get_cluster_indices(clusters, best_subset)
-    noise = get_cluster_indices(clusters, remaining_subset)
-    return best, noise
-
-
-def pruning(
-    model: VICE,
-    pruning_batches: Iterator[torch.Tensor],
-    n_components: List[int],
-    device: torch.device,
-    things: bool = False,
-) -> Tuple[torch.Tensor, torch.Tensor, nn.Module, float]:
+def pruning(model: VICE, alpha: float = .05, k: int = 5,
+) -> Tuple[torch.Tensor, torch.Tensor, VICE]:
     params = model.detached_params
-    W_loc = params['loc']
-    W_scale = params['scale']
-    if things:
-        W_loc = W_loc[sortindex]
-        W_scale = W_scale[sortindex]
-    importance = get_importance(fdr_correction(compute_pvals(W_loc, W_scale)))
-    clusters, n_clusters = fit_gmm(importance, n_components)
-    if n_clusters > 1:
-        cluster_combs = get_cluster_combinations(n_clusters)
-        val_losses = np.zeros(len(cluster_combs))
-        pruned_models = []
-        for i, comb in enumerate(cluster_combs):
-            print(f'Testing cluster subset: {i+1}\n')
-            if len(comb) > 1:
-                indices = np.hstack([np.where(clusters == k)[0] for k in comb])
-            else:
-                indices = np.where(clusters == comb[0])[0]
-            indices = torch.from_numpy(indices).type(
-                torch.LongTensor).to(device)
-            model_copy = copy.deepcopy(model)
-            model_pruned = prune_weights(model_copy, indices)
-            val_loss, _ = model_pruned.evaluate(pruning_batches)
-            val_losses[i] += val_loss
-            pruned_models.append(model_pruned)
-        best_subset, _ = get_best_subset_and_noise(
-            val_losses, clusters, cluster_combs, n_clusters)
-        W_loc = W_loc[:, best_subset]
-        W_scale = W_scale[:, best_subset]
-        best_model = pruned_models[np.argmin(val_losses)]
-        pruning_loss = np.min(val_losses)
-    else:
-        best_model = model
-        pruning_loss, _ = model.evaluate(pruning_batches)
-    return W_loc.T, W_scale, best_model, pruning_loss
+    loc = params['loc']
+    scale = params['scale']
+    p_vals = utils.compute_pvals(loc, scale)
+    rejections = utils.fdr_corrections(p_vals, alpha)
+    importance = utils.get_importance(rejections).reshape(-1)
+    signal = np.where(importance > k)[0]
+    pruned_loc = loc[:, signal]
+    pruned_scale = scale[:, signal]
+    pruned_model = prune_weights(model, signal)
+    return pruned_loc, pruned_scale, pruned_model
 
 
 def evaluate_models(
@@ -307,27 +220,19 @@ def evaluate_models(
     device: torch.device,
     batch_size: int,
     triplets_dir: str,
-    n_components: int,
     mc_samples: int,
-    things: bool = False,
 ) -> None:
     in_path = os.path.join(results_dir, modality,
-                           f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi))
-    in_path = results_dir
+            f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi))
     model_paths = get_model_paths(in_path)
-    Ws_loc_best, Ws_scale_best = [], []
-    _, pruning_triplets = utils.load_data(
-        device=device, triplets_dir=triplets_dir, val_set='pruning_set', inference=False)
-    _, tuning_triplets = utils.load_data(
-        device=device, triplets_dir=triplets_dir, val_set='tuning_set', inference=False)
-    pruning_batches = utils.load_batches(
-        train_triplets=None, test_triplets=pruning_triplets, n_items=n_items, batch_size=batch_size, inference=True)
-    tuning_batches = utils.load_batches(
-        train_triplets=None, test_triplets=tuning_triplets, n_items=n_items, batch_size=batch_size, inference=True)
-    pruning_losses = np.zeros(len(model_paths))
-    tuning_losses = np.zeros(len(model_paths))
+    pruned_locs, pruned_scales = [], []
+    _, val_triplets = utils.load_data(
+        device=device, triplets_dir=triplets_dir, inference=False)
+    val_batches = utils.load_batches(
+        train_triplets=None, test_triplets=val_triplets, n_items=n_items, batch_size=batch_size, inference=True)
+    val_losses = np.zeros(len(model_paths))
     for i, model_path in enumerate(model_paths):
-        print(f'Currently pruning model: {i+1}\n')
+        print(f'Currently pruning and evaluating model: {i+1}\n')
         try:
             model = VICE(
                 task=task,
@@ -350,18 +255,16 @@ def evaluate_models(
                 init_weights=True)
             model = utils.load_model(
                 model=model, PATH=model_path, device=device)
-            W_loc_best, W_scale_best, pruned_model, pruning_loss = pruning(
-                model=model, pruning_batches=pruning_batches, n_components=n_components,  device=device, things=things)
-            tuning_loss, _ = pruned_model.evaluate(tuning_batches)
-            pruning_losses[i] += pruning_loss
-            tuning_losses[i] += tuning_loss
         except FileNotFoundError:
-            raise Exception(f'Could not find final weights for {model_path}\n')
-        Ws_loc_best.append(W_loc_best)
-        Ws_scale_best.append(W_scale_best)
+            raise Exception(f'Could not find params for {model_path}\n')
+        pruned_loc, pruned_scale, pruned_model = pruning(model)
+        val_loss, _ = pruned_model.evaluate(val_batches)
+        val_losses[i] += val_loss
+        pruned_locs.append(pruned_loc)
+        pruned_scales.append(pruned_scale)
 
     model_robustness_best_subset = compute_robustness(
-        Ws_mu=Ws_loc_best, Ws_sigma=Ws_scale_best, thresh=thresh)
+        Ws_mu=pruned_locs, Ws_sigma=pruned_scales, thresh=thresh)
     print(
         f"\nRobustness scores for latent dim = {latent_dim}: {model_robustness_best_subset}\n")
 
@@ -372,27 +275,13 @@ def evaluate_models(
     with open(pjoin(out_path, 'robustness.txt'), 'wb') as f:
         f.write(pickle.dumps(model_robustness_best_subset))
 
-    with open(os.path.join(in_path, 'tuning_cross_entropies.npy'), 'wb') as f:
-        np.save(f, tuning_losses)
-
-    with open(os.path.join(in_path, 'pruning_cross_entropies.npy'), 'wb') as f:
-        np.save(f, pruning_losses)
-
+    with open(os.path.join(in_path, 'val_entropies.npy'), 'wb') as f:
+        np.save(f, val_losses)
 
 if __name__ == '__main__':
     args = parseargs()
     random.seed(args.rnd_seed)
     np.random.seed(args.rnd_seed)
-    if args.things:
-        assert isinstance(
-            args.index_path, str), '\nPath to sortindex is missing.\n'
-        try:
-            global sortindex
-            sortindex = pd.read_table(args.index_path, header=None)[0].values
-        except FileNotFoundError:
-            raise Exception(
-                '\nDownload sortindex file for THINGS objects and provide correct path.\n')
-
     evaluate_models(
         results_dir=args.results_dir,
         modality=args.modality,
@@ -408,7 +297,5 @@ if __name__ == '__main__':
         device=args.device,
         batch_size=args.batch_size,
         triplets_dir=args.triplets_dir,
-        n_components=args.n_components,
         mc_samples=args.mc_samples,
-        things=args.things,
     )

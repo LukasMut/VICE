@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from email.policy import default
 from typing import List
 from models.model import VICE
 from collections import defaultdict
@@ -33,7 +34,7 @@ def parseargs():
     aa('--prior', type=str, metavar='p', default='gaussian',
         choices=['gaussian', 'laplace'],
         help='whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior')
-    aa('--mc_samples', type=int,
+    aa('--mc_samples', type=int, default=25,
         choices=[5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
         help='number of samples to use for MC sampling at inference time')
     aa('--results_dir', type=str,

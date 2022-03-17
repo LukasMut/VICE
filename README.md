@@ -109,21 +109,17 @@ Find best hyperparameter combination via `find_best_hypers.py`.
  
  --in_path (str) / # path/to/models/and/evaluation/results (should all have the same root directory)
  --percentages (List[int]) / # List of full dataset fractions used for VICE optimization
- --thresh (float) / # reproducibility threshold used for VICE evaluation (e.g., 0.8)
- --seeds (List[int]) / # List of random seeds used to initialize VICE
  ```
 
 #### Example call
 
 ```python
-$ python find_best_hypers.py --in_path path/to/models/and/evaluation/results --percentages 10 20 50 100 --thresh 0.8 --seeds 3 10 19 30 42
+$ python find_best_hypers.py --in_path path/to/models/and/evaluation/results --percentages 10 20 50 100
 ```
 
 ### NOTES:
 
-1. After calling `find_best_hypers.py`, you will find a `json` file named `validation_results.json` in `path/to/models/and/evaluation/results` with keys `tuning_cross_entropies`, `pruning_cross_entropies`, `robustness`, and `best_comb`, summarizing both the validation performance and the reliability scores of the best hyperparameter combination for VICE per data split and random seed.
-
-2. Additionally, for each data split, a `txt` file called `model_paths.txt` is saved to the data split subfolder in `path/to/models/and/evaluation/results` pointing towards the latest model checkpoint (i.e., last epoch) for the best hyperparameter combination per data split and random seed.
+After calling `find_best_hypers.py`, a `txt` file called `model_paths.txt` is saved to the data split subfolder in `path/to/models/and/evaluation/results` pointing towards the latest model checkpoint (i.e., last epoch) for the best hyperparameter combination per data split and random seed.
 
 ## Triplets
 

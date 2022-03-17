@@ -28,27 +28,27 @@ Explanation of arguments in `run.py`.
  run.py
   
  --task (str) / # odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task
- --modality (str) / # e.g., behavioral, text, visual
- --triplets_dir (str) / # path/to/triplets
+ --modality (str) / # e.g., behavioral, text, visual, fMRI
+ --triplets_dir (str) / # path/to/triplet/data
  --results_dir (str) / # optional specification of results directory (if not provided will resort to ./results/modality/latent_dim/optim/prior/seed/spike/slab/pi)
  --plots_dir (str) / # optional specification of directory for plots (if not provided will resort to ./plots/modality/latent_dim/optim/prior/seed/spike/slab/pi)
  --epochs (int) / # maximum number of epochs to run VICE optimization
- --burnin (int) / # minimum number of epochs to run VICE optimization
+ --burnin (int) / # minimum number of epochs to run VICE optimization (burnin period)
  --eta (float) / # learning rate
  --latent_dim (int) / # initial dimensionality of the model's latent space
  --batch_size (int) / # mini-batch size
  --optim (str) / # optimizer (e.g., 'adam', 'adamw', 'sgd')
  --prior (str) / # whether to use a mixture of Gaussians or Laplacians in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
- --mc_samples (int) / # number of weight matrices to be sampled at inference time (for computationaly efficiency, M is set to 1 during training)
+ --mc_samples (int) / # number of weight matrices used in Monte Carlo sampling (for computationaly efficiency, M is set to 1 during training)
  --spike (float) / # sigma of the spike distribution
  --slab (float) / # sigma of the slab distribution
  --pi (float) / # probability value that determines the relative weighting of the distributions; the closer this value is to 1, the higher the probability that weights are drawn from the spike distribution
- --k (int) / # minimum number of items that compose a latent dimension (according to importance scores)
- --ws (int) / # determines for how many epochs the number of latent causes (after pruning) is not allowed to vary
+ --k (int) / # minimum number of items whose weights are non-zero for a latent dimension (according to importance scores)
+ --ws (int) / # determines for how many epochs the number of latent causes (after pruning) is not allowed to vary (ws >> 100)
  --steps (int) / # perform validation, save model parameters and create model and optimizer checkpoints every <steps> epochs
  --device (str) / # cuda or cpu
  --rnd_seed (int) / # random seed
- --verbose (bool) / # show print statements about model performance during training (can be piped into log file)
+ --verbose (bool) / # show print statements about model performance and latent cause evolution during training (can be piped into log file)
  ```
 
 #### Example call
@@ -74,19 +74,16 @@ Explanation of arguments in `evaluate_robustness.py`.
  --task (str) / # odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task
  --modality (str) / # e.g., behavioral, fMRI, EEG, DNNs
  --n_items (int) / # number of unique items/stimuli/objects in the dataset
- --latent_dim (int) / # latent space dimensionality with which VICE was initialized
+ --latent_dim (int) / # latent space dimensionality with which VICE was initialized at run time
  --batch_size (int) / # mini-batch size used during VICE training
- --thresh (float) / # Pearson correlation threshold (e.g., 0.8)
+ --thresh (float) / # Pearson correlation value to threshold reproducibility of dimensions (e.g., 0.8)
  --optim (str) / # optimizer that was used during training (e.g., 'adam', 'adamw', 'sgd')
- --prior (str) / # whether a mixture of Gaussians or Laplacians was used in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
+ --prior (str) / # whether a Gaussian or Laplacian mixture was used in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
  --spike (float) / # sigma of spike distribution
  --slab (float) / # sigma of slab distribution
- --pi (float) / # probability value with which to sample from the spike
- --triplets_dir (str) / # path/to/triplets
- --n_components (List[int]) / # number of modes to use in the Gaussian Mixture Model (GMM)
- --mc_samples (int) / # number of weight matrices to be sampled at inference time
- --things (bool) / # whether pruning pipeline should be applied to models that were trained on objects from the THINGS database
- --index_path (str) / # if objects from THINGS database are used, path/to/sortindex must be provided
+ --pi (float) / # probability value that determines likelihood of samples from the spike
+ --triplets_dir (str) / # path/to/triplet/data
+ --mc_samples (int) / # number of weight matrices used in Monte Carlo sampling
  --device (str) / # cpu or cuda
  --rnd_seed (int) / # random seed
  ```
@@ -94,7 +91,7 @@ Explanation of arguments in `evaluate_robustness.py`.
 #### Example call
 
 ```python
-$ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --modality behavioral --n_items number/of/unique/stimuli (e.g., 1854) --latent_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.125 --slab 1.0 --pi 0.5 --triplets_dir path/to/triplets --n_components 2 3 4 5 6 --mc_samples 30 --things --index_path ./data/sortindex --device cpu --rnd_seed 42
+$ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --modality behavioral --n_items number/of/unique/stimuli (e.g., 1854) --latent_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.125 --slab 1.0 --pi 0.5 --triplets_dir path/to/triplets --mc_samples 10 --device cpu --rnd_seed 42
 ```
 
 ### NOTES:

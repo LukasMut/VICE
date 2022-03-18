@@ -239,14 +239,13 @@ class Trainer(nn.Module):
     def evaluate(self, val_batches: Iterator) -> Tuple[float, float]:
         """Evaluate model."""
         self.eval()
-        with torch.no_grad():
-            batch_losses_val = torch.zeros(len(val_batches))
-            batch_accs_val = torch.zeros(len(val_batches))
-            for j, batch in enumerate(val_batches):
-                batch = batch.to(self.device)
-                val_acc, val_loss, _, _ = self.mc_sampling(batch)
-                batch_losses_val[j] += val_loss.item()
-                batch_accs_val[j] += val_acc
+        batch_losses_val = torch.zeros(len(val_batches))
+        batch_accs_val = torch.zeros(len(val_batches))
+        for j, batch in enumerate(val_batches):
+            batch = batch.to(self.device)
+            val_acc, val_loss, _, _ = self.mc_sampling(batch)
+            batch_losses_val[j] += val_loss.item()
+            batch_accs_val[j] += val_acc
         avg_val_loss = torch.mean(batch_losses_val).item()
         avg_val_acc = torch.mean(batch_accs_val).item()
         return avg_val_loss, avg_val_acc
@@ -258,22 +257,21 @@ class Trainer(nn.Module):
         triplet_choices = []
         model_choices = defaultdict(list)
         self.eval()
-        with torch.no_grad():
-            batch_accs = torch.zeros(len(test_batches))
-            batch_centropies = torch.zeros(len(test_batches))
-            for j, batch in enumerate(test_batches):
-                batch = batch.to(self.device)
-                test_acc, test_loss, batch_probas, batch_choices = self.mc_sampling(
-                    batch)
-                triplet_choices.extend(batch_choices)
-                probas[j * self.batch_size:(j + 1)
-                       * self.batch_size] += batch_probas
-                batch_accs[j] += test_acc
-                batch_centropies += test_loss
-                human_choices = batch.nonzero(
-                    as_tuple=True)[-1].view(self.batch_size, -1).cpu().numpy()
-                model_choices = utils.collect_choices(
-                    batch_probas, human_choices, model_choices)
+        batch_accs = torch.zeros(len(test_batches))
+        batch_centropies = torch.zeros(len(test_batches))
+        for j, batch in enumerate(test_batches):
+            batch = batch.to(self.device)
+            test_acc, test_loss, batch_probas, batch_choices = self.mc_sampling(
+                batch)
+            triplet_choices.extend(batch_choices)
+            probas[j * self.batch_size:(j + 1)
+                    * self.batch_size] += batch_probas
+            batch_accs[j] += test_acc
+            batch_centropies += test_loss
+            human_choices = batch.nonzero(
+                as_tuple=True)[-1].view(self.batch_size, -1).cpu().numpy()
+            model_choices = utils.collect_choices(
+                batch_probas, human_choices, model_choices)
         probas = probas.cpu().numpy()
         probas = probas[np.where(probas.sum(axis=1) != 0.)]
         model_pmfs = utils.compute_pmfs(model_choices, behavior=False)

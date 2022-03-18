@@ -16,7 +16,7 @@ import torch
 import utils
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
-
+os.environ['OMP_NUM_THREADS'] = '1'
 
 def parseargs():
     parser = argparse.ArgumentParser()

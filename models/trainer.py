@@ -204,6 +204,7 @@ class Trainer(nn.Module):
 
     @staticmethod
     def convergence(latent_causes: List[int], ws: int) -> bool:
+        """Evaluate convergence of latent causes."""
         causes_over_time = set(latent_causes[-ws:])
         divergence = len(causes_over_time)
         if (divergence == 1 and causes_over_time.pop() != 0):
@@ -237,7 +238,7 @@ class Trainer(nn.Module):
         return val_acc, val_loss, probas, hard_choices
 
     def evaluate(self, val_batches: Iterator) -> Tuple[float, float]:
-        """Evaluate model."""
+        """Evaluate model on validation set."""
         self.eval()
         batch_losses_val = torch.zeros(len(val_batches))
         batch_accs_val = torch.zeros(len(val_batches))
@@ -252,7 +253,7 @@ class Trainer(nn.Module):
 
     def inference(self, test_batches: Iterator,
                   ) -> Tuple[float, float, np.ndarray, Dict[tuple, list]]:
-        """Perform inference."""
+        """Perform inference on a held-out test set."""
         probas = torch.zeros(int(len(test_batches) * self.batch_size), 3)
         triplet_choices = []
         model_choices = defaultdict(list)
@@ -281,7 +282,7 @@ class Trainer(nn.Module):
 
     def stepping(self, train_batches: Iterator,
                  ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Step over the full train set."""
+        """Step over the full training data in mini-batches of size B."""
         batch_llikelihoods = torch.zeros(len(train_batches))
         batch_closses = torch.zeros(len(train_batches))
         batch_losses = torch.zeros(len(train_batches))

@@ -109,6 +109,7 @@ class VICE(Trainer):
 
     @staticmethod
     def reparameterize(loc: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+        """Apply reparameterization trick."""
         eps = scale.data.new(scale.size()).normal_()
         W_sampled = eps.mul(scale).add(loc)
         return W_sampled
@@ -128,6 +129,7 @@ class VICE(Trainer):
 
     @property
     def detached_params(self) -> Dict[str, np.ndarray]:
+        """Detach params from computational graph."""
         W_loc = self.mu.mu.weight.data.T.detach()
         W_scale = self.sigma.logsigma.weight.data.T.exp().detach()
         W_loc = F.relu(W_loc)

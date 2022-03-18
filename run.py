@@ -67,7 +67,7 @@ def parseargs():
     aa('--device', type=str, default='cpu',
         help='whether training should be performed on CPU or GPU (i.e., CUDA).')
     aa('--num_threads', type=int, default=4,
-        help='number of threads used for intraop parallelism on CPU; use only on CPU device')
+        help='number of threads used for intraop parallelism on CPU; use only if device is CPU')
     aa('--rnd_seed', type=int, default=42,
         help='random seed for reproducibility of results')
     aa('--verbose', action='store_true',

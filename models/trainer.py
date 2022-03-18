@@ -279,9 +279,9 @@ class Trainer(nn.Module):
                     as_tuple=True)[-1].view(batch_probas.shape[0], -1).cpu().numpy()
             model_choices = utils.collect_choices(
                 batch_probas, human_choices, model_choices)
+
         probas = probas.cpu().numpy()
-        probas = probas[np.where(probas.sum(axis=1) != 0.)]
-        
+        probas = probas[np.where(probas.sum(axis=1) != 0.)]        
         model_pmfs = utils.compute_pmfs(model_choices, behavior=False)
         test_acc = batch_accs.mean().item()
         test_loss = batch_centropies.mean().item()

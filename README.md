@@ -49,7 +49,7 @@ Explanation of arguments in `run.py`.
  --device (str) / # cuda or cpu
  --num_threads (int) / # number of threads used for intraop parallelism on CPU; use only if device is CPU
  --rnd_seed (int) / # random seed
- --verbose (bool) / # show print statements about model performance and latent cause evolution during training (can be piped into log file)
+ --verbose (bool) / # show print statements about model performance and evolution of latent causes during training (can be piped into log file)
  ```
 
 #### Example call

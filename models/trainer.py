@@ -273,11 +273,10 @@ class Trainer(nn.Module):
                 human_choices = batch.nonzero(
                 as_tuple=True)[-1].view(self.batch_size, -1).cpu().numpy()
             except RuntimeError:
-                B = batch.shape[0]
                 probas[j * self.batch_size:(j
-                    * self.batch_size) + B] += batch_probas
+                    * self.batch_size) + batch_probas.shape[0]] += batch_probas
                 human_choices = batch.nonzero(
-                    as_tuple=True)[-1].view(B, -1).cpu().numpy()
+                    as_tuple=True)[-1].view(batch_probas.shape[0], -1).cpu().numpy()
             model_choices = utils.collect_choices(
                 batch_probas, human_choices, model_choices)
         probas = probas.cpu().numpy()

@@ -47,6 +47,7 @@ Explanation of arguments in `run.py`.
  --ws (int) / # determines for how many epochs the number of latent causes (after pruning) is not allowed to vary (ws >> 100)
  --steps (int) / # perform validation, save model parameters and create model and optimizer checkpoints every <steps> epochs
  --device (str) / # cuda or cpu
+ --num_threads (int) / # number of threads used for intraop parallelism on CPU; use only if device is CPU
  --rnd_seed (int) / # random seed
  --verbose (bool) / # show print statements about model performance and latent cause evolution during training (can be piped into log file)
  ```

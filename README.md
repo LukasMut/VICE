@@ -55,7 +55,7 @@ Explanation of arguments in `run.py`.
 #### Example call
 
 ```python
-$ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 1000 --burnin 500 --eta 0.001 --latent_dim 100 --batch_size 128 --k 10 --ws 100 --optim adam --prior gaussian --mc_samples 10 --spike 0.1 --slab 1.0 --pi 0.5 --steps 50 --device cuda --rnd_seed 42 --verbose
+$ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 1000 --burnin 500 --eta 0.001 --latent_dim 100 --batch_size 128 --k k --ws 100 --optim adam --prior gaussian --mc_samples 10 --spike 0.1 --slab 1.0 --pi 0.5 --steps 50 --device cuda --rnd_seed 42 --verbose
 ```
 
 ### NOTES:

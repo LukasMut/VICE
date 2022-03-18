@@ -265,16 +265,19 @@ class Trainer(nn.Module):
             test_acc, test_loss, batch_probas, batch_choices = self.mc_sampling(
                 batch)
             triplet_choices.extend(batch_choices)
+            batch_accs[j] += test_acc
+            batch_centropies[j] += test_loss
             try:
                 probas[j * self.batch_size:(j + 1)
                     * self.batch_size] += batch_probas
-            except RuntimeError:
-                probas[j * self.batch_size:(j
-                    * self.batch_size) + batch_probas.shape[0]] += batch_probas
-            batch_accs[j] += test_acc
-            batch_centropies[j] += test_loss
-            human_choices = batch.nonzero(
+                human_choices = batch.nonzero(
                 as_tuple=True)[-1].view(self.batch_size, -1).cpu().numpy()
+            except RuntimeError:
+                B = batch.shape[0]
+                probas[j * self.batch_size:(j
+                    * self.batch_size) + B] += batch_probas
+                human_choices = batch.nonzero(
+                    as_tuple=True)[-1].view(B, -1).cpu().numpy()
             model_choices = utils.collect_choices(
                 batch_probas, human_choices, model_choices)
         probas = probas.cpu().numpy()

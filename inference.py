@@ -39,10 +39,8 @@ def parseargs():
         help='number of samples to use for MC sampling at inference time')
     aa('--results_dir', type=str,
         help='results directory (root directory for models)')
-    aa('--triplets_dir_test', type=str,
-        help='directory from where to load triplets data')
-    aa('--triplets_dir_val', type=str,
-        help='directory from where to load triplets data')
+    aa('--triplets_dir', type=str,
+        help='directory from where to load validation and held-out test set')
     aa('--device', type=str, default='cpu',
         choices=['cpu', 'cuda'])
     aa('--rnd_seed', type=int, default=42,
@@ -166,8 +164,7 @@ def inference(
     prior: str,
     mc_samples: int,
     results_dir: str,
-    triplets_dir_test: str,
-    triplets_dir_val: str,
+    triplets_dir: str,
     device: torch.device,
 ) -> None:
 
@@ -177,9 +174,9 @@ def inference(
                                     latent_dim, batch_size, mc_samples, results_dir, device))
 
     test_triplets = utils.load_data(
-        device=device, triplets_dir=triplets_dir_test, inference=True)
+        device=device, triplets_dir=triplets_dir, inference=True)
     _, val_triplets = utils.load_data(
-        device=device, triplets_dir=triplets_dir_val, inference=False)
+        device=device, triplets_dir=triplets_dir, inference=False)
 
     test_batches = utils.load_batches(
         train_triplets=None, test_triplets=test_triplets, n_items=n_items, batch_size=batch_size, inference=True)
@@ -244,7 +241,7 @@ def inference(
     utils.pickle_file(test_accs, out_path, 'test_accuracies')
     utils.pickle_file(test_losses, out_path, 'test_losses')
 
-    human_pmfs = utils.unpickle_file(triplets_dir_test, 'human_choice_pmfs')
+    human_pmfs = utils.unpickle_file(triplets_dir, 'human_choice_pmfs')
 
     klds = compute_divergences(human_pmfs, median_model_pmfs, metric='kld')
     cross_entropies = compute_divergences(
@@ -285,7 +282,6 @@ if __name__ == '__main__':
         prior=args.prior,
         mc_samples=args.mc_samples,
         results_dir=args.results_dir,
-        triplets_dir_test=args.triplets_dir_test,
-        triplets_dir_val=args.triplets_dir_val,
+        triplets_dir=args.triplets_dir,
         device=device,
     )

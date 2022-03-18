@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from collections import defaultdict
 import os
 import random
 import re
@@ -18,8 +17,6 @@ from typing import Tuple
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 # number of threads/CPU cores to be used per Python process (set to 2 if HT is enabled on CPU)
-# os.environ['OMP_NUM_THREADS'] = '1'
-
 
 def parseargs():
     parser = argparse.ArgumentParser()
@@ -69,6 +66,8 @@ def parseargs():
         help='perform validation and save model parameters every <steps> epochs')
     aa('--device', type=str, default='cpu',
         help='whether training should be performed on CPU or GPU (i.e., CUDA).')
+    aa('--num_threads', type=int, default=4,
+        help='number of threads used for intraop parallelism on CPU; use only on CPU device')
     aa('--rnd_seed', type=int, default=42,
         help='random seed for reproducibility of results')
     aa('--verbose', action='store_true',
@@ -225,6 +224,8 @@ if __name__ == "__main__":
         print(f'\nPyTorch CUDA version: {torch.version.cuda}')
         print(f'Process is running on *cuda:{current_device}*\n')
     else:
+        os.environ['OMP_NUM_THREADS'] = str(args.num_threads)
+        torch.set_num_threads(args.num_threads)
         device = torch.device(args.device)
 
     run(

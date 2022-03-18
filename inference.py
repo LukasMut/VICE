@@ -43,8 +43,6 @@ def parseargs():
         help='directory from where to load triplets data')
     aa('--triplets_dir_val', type=str,
         help='directory from where to load triplets data')
-    aa('--human_pmfs_dir', type=str, default=None,
-        help='directory from where to load human choice probability distributions')
     aa('--device', type=str, default='cpu',
         choices=['cpu', 'cuda'])
     aa('--rnd_seed', type=int, default=42,
@@ -123,6 +121,7 @@ def get_models(
     mc_samples: int,
     results_dir: str,
     device: torch.device,
+    k: int = 5,
 ) -> List[VICE]:
     models = []
     for model_path in model_paths:
@@ -135,6 +134,9 @@ def get_models(
             optim=None,
             eta=None,
             batch_size=batch_size,
+            burnin=None,
+            ws=None,
+            k=k,
             epochs=None,
             mc_samples=mc_samples,
             prior=prior,
@@ -166,7 +168,6 @@ def inference(
     results_dir: str,
     triplets_dir_test: str,
     triplets_dir_val: str,
-    human_pmfs_dir: str,
     device: torch.device,
 ) -> None:
 
@@ -243,7 +244,7 @@ def inference(
     utils.pickle_file(test_accs, out_path, 'test_accuracies')
     utils.pickle_file(test_losses, out_path, 'test_losses')
 
-    human_pmfs = utils.unpickle_file(human_pmfs_dir, 'human_choice_pmfs')
+    human_pmfs = utils.unpickle_file(triplets_dir_test, 'human_choice_pmfs')
 
     klds = compute_divergences(human_pmfs, median_model_pmfs, metric='kld')
     cross_entropies = compute_divergences(
@@ -286,6 +287,5 @@ if __name__ == '__main__':
         results_dir=args.results_dir,
         triplets_dir_test=args.triplets_dir_test,
         triplets_dir_val=args.triplets_dir_val,
-        human_pmfs_dir=args.human_pmfs_dir,
         device=device,
     )

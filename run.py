@@ -43,15 +43,15 @@ def parseargs():
     aa('--eta', type=float, default=0.001,
         help='learning rate to be used in optimizer')
     aa('--latent_dim', metavar='D', type=int, default=100,
-        help='dimensionality of the embedding matrix')
+        help='initial dimensionality of the latent space')
     aa('--batch_size', metavar='B', type=int, default=128,
-        help='number of triplets subsampled during each iteration (i.e., mini-batch size)')
+        help='number of triplets sampled during each step (i.e., mini-batch size)')
     aa('--optim', type=str, default='adam',
         choices=['adam', 'adamw', 'sgd'],
         help='optimizer to train VICE')
     aa('--prior', type=str, metavar='p', default='gaussian',
         choices=['gaussian', 'laplace'],
-        help='whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior')
+        help='whether to use a Gaussian or Laplacian mixture for the spike-and-slab prior')
     aa('--mc_samples', type=int, default=10,
         help='number of weight samples to use for MC sampling')
     aa('--spike', type=float,
@@ -62,7 +62,7 @@ def parseargs():
         help='scalar value that determines the relative weight of the spike and slab distributions respectively')
     aa('--k', type=int, default=5,
         choices=[5, 10],
-        help='minimum number of items that compose a latent dimension (according to importance scores)')
+        help='minimum number of items that have non-zero weight for a latent dimension (according to importance scores)')
     aa('--ws', type=int, default=500,
         help='determines for how many epochs the number of latent causes (after pruning) is not allowed to vary')
     aa('--steps', type=int, default=50,

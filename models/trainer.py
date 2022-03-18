@@ -265,7 +265,7 @@ class Trainer(nn.Module):
                 batch)
             triplet_choices.extend(batch_choices)
             probas[j * self.batch_size:(j + 1)
-                    * self.batch_size] += batch_probas
+                   * self.batch_size] += batch_probas
             batch_accs[j] += test_acc
             batch_centropies += test_loss
             human_choices = batch.nonzero(

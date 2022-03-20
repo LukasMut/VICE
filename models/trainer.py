@@ -267,16 +267,17 @@ class Trainer(nn.Module):
             triplet_choices.extend(batch_choices)
             batch_accs[j] += test_acc
             batch_centropies[j] += test_loss
-            try:
+            if batch_probas.shape[0] < self.batch_size:
+                B = batch_probas.shape[0]
+                probas[j * self.batch_size:(j
+                    * self.batch_size) + B] += batch_probas
+                human_choices = batch.nonzero(
+                    as_tuple=True)[-1].view(B, -1).cpu().numpy()
+            else:
                 probas[j * self.batch_size:(j + 1)
                     * self.batch_size] += batch_probas
                 human_choices = batch.nonzero(
                 as_tuple=True)[-1].view(self.batch_size, -1).cpu().numpy()
-            except RuntimeError:
-                probas[j * self.batch_size:(j
-                    * self.batch_size) + batch_probas.shape[0]] += batch_probas
-                human_choices = batch.nonzero(
-                    as_tuple=True)[-1].view(batch_probas.shape[0], -1).cpu().numpy()
             model_choices = utils.collect_choices(
                 batch_probas, human_choices, model_choices)
 

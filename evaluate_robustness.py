@@ -203,7 +203,7 @@ def pruning(model: VICE, alpha: float = .05, k: int = 5,
     pruned_loc = loc[:, signal]
     pruned_scale = scale[:, signal]
     pruned_model = prune_weights(model, signal)
-    return pruned_loc, pruned_scale, pruned_model
+    return pruned_loc.T, pruned_scale, pruned_model
 
 
 def evaluate_models(
@@ -222,6 +222,7 @@ def evaluate_models(
     batch_size: int,
     triplets_dir: str,
     mc_samples: int,
+    k: int = 5,
 ) -> None:
     in_path = os.path.join(results_dir, modality,
             f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi))
@@ -237,7 +238,10 @@ def evaluate_models(
         try:
             model = VICE(
                 task=task,
+                k=k,
                 n_train=None,
+                burnin=None,
+                ws=None,
                 n_items=n_items,
                 latent_dim=latent_dim,
                 optim=None,
@@ -267,7 +271,7 @@ def evaluate_models(
     model_robustness_best_subset = compute_robustness(
         Ws_mu=pruned_locs, Ws_sigma=pruned_scales, thresh=thresh)
     print(
-        f"\nRobustness scores for latent dim = {latent_dim}: {model_robustness_best_subset}\n")
+        f"\nRobustness scores: {model_robustness_best_subset}\n")
 
     out_path = pjoin(in_path, 'robustness_scores', str(thresh))
     if not os.path.exists(out_path):

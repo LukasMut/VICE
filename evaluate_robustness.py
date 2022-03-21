@@ -44,7 +44,7 @@ def parseargs():
     aa('--latent_dim', type=int, default=100,
         help='initial latent dimensionality of VICE embedding(s)')
     aa('--thresh', type=float, default=0.8,
-        choices=[0.75, 0.8, 0.85, 0.9, 0.95],
+        choices=[0.7, 0.75, 0.8, 0.85, 0.9, 0.95],
         help='reproducibility threshold (0.8 used in the ICLR paper)')
     aa('--batch_size', metavar='B', type=int, default=128,
         help='number of triplets in each mini-batch')

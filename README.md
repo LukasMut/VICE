@@ -19,6 +19,10 @@ Alternatively, dependencies can be installed via `pip`
 $ pip install -r requirements.txt
 ```
 
+### VICE DEMO
+
+We've provided a `DEMO` Jupyter Notebook to guide a user through each step of the `VICE` optimization. We've created the `DEMO` file to facilitate the process of using `VICE`. In the `DEMO.ipynb` one can easily inspect whether `VICE` overfits the trainig data and behaves well with respect to the evolution of latent dimensions over training time.
+
 ### VICE optimization
 
 Explanation of arguments in `run.py`.

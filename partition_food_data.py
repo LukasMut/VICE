@@ -70,7 +70,6 @@ if __name__ == '__main__':
     in_path = sys.argv[1]
     out_path = sys.argv[2]
     rnd_seed = int(sys.argv[3])
-
     # seed rng
     np.random.seed(rnd_seed)
     random.seed(rnd_seed)

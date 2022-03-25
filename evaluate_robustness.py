@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from email.policy import default
 import os
 import pickle
 import random

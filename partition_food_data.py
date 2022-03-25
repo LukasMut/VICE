@@ -52,6 +52,7 @@ def partition_triplets(triplets, repeats, unique_triplets):
                 partition_k.extend(repeats[t_sorted])
             idx = unique_triplets.index(t_sorted)
             unique_triplets.pop(idx)
+    # shuffle order of partitions
     partition_i = np.random.permutation(partition_i)
     partition_j = np.random.permutation(partition_j)
     partition_k = np.random.permutation(partition_k)

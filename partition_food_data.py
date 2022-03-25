@@ -39,7 +39,7 @@ def partition_triplets(triplets, repeats, unique_triplets):
     partition_j = [] # train split
     partition_k = [] # val split
     outcomes = [0, 1, 2]
-    probabilities = [0.5, 0.45, 0.05]
+    probabilities = [0.5, 0.45, 0.05] # associated probas
     for t in triplets:
         t_sorted = reorder_triplet(t)
         if t_sorted in unique_triplets:

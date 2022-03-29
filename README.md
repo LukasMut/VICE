@@ -115,7 +115,7 @@ $ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir
 
 ```bash
 root
-├── results
+├── results / plots
 ├── ├── modality
 ├── ├── ├── init_dim
 ├── ├── ├── ├── optimizer
@@ -132,6 +132,8 @@ root
 ```
 
 4. If VICE was trained on triplets from the [THINGS](https://osf.io/jum2f/) database, make sure that you've saved a file called `sortindex` somewhere on disk (can be found in `data`). This is necessary to sort the `THINGS` objects in their correct order.
+
+5. The script plots train and test performances against as well as negative log-likelihoods and KL-divergences alongside each other. All plots can be found in `./plots/` after convergence.
 
 ### VICE evaluation
 

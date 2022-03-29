@@ -24,7 +24,7 @@ $ pip install -r requirements.txt
 Folder structure
 
 ```bash
-├── 
+root
 ├── envs
 ├── └── environment.yml
 ├── models

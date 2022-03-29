@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from email.policy import default
 from typing import List
 from model.vice import VICE
 from collections import defaultdict
@@ -17,6 +16,7 @@ import utils
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
 os.environ['OMP_NUM_THREADS'] = '1'
+
 
 def parseargs():
     parser = argparse.ArgumentParser()

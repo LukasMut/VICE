@@ -4,14 +4,12 @@
 
 import argparse
 import os
-import pickle
-import re
 import shutil
 import json
 import numpy as np
 
 from collections import defaultdict
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 os.environ['PYTHONIOENCODING']='UTF-8'
 os.environ['OMP_NUM_THREADS']='1' #number of cores used per Python process (set to 2 if HT is enabled, else keep 1)
@@ -58,7 +56,7 @@ def get_results(PATH: str) -> Dict[tuple, dict]:
                 trees[hypers].append(root)
     avg_centropies = aggregate_centropies(results)
     if sum(np.isinf(list(avg_centropies.values()))) == len(results):
-        raise Exception(f'\nFound NaN values in cross-entropy error for every model. Change hyperparameter grid.\n')
+        raise Exception('\nFound NaN values in cross-entropy error for every model. Change hyperparameter grid.\n')
     best_comb = get_best_comb(avg_centropies)
     roots = trees[best_comb]
     del trees[best_comb]
@@ -87,7 +85,7 @@ if __name__ == '__main__':
     trees = get_split_results(args.in_path, args.percentages)
     
     for p, roots in trees.items():
-        with open(os.path.join(args.in_path, f'{p:02d}', f'model_paths.txt'), 'w') as f:
+        with open(os.path.join(args.in_path, f'{p:02d}', 'model_paths.txt'), 'w') as f:
             count = 0
             for root in roots:
                 model_files = '/'.join((root, 'models'))

@@ -9,21 +9,16 @@ import re
 import torch
 import utils
 import itertools
-import copy
 
 import numpy as np
-import pandas as pd
-import torch.nn as nn
 
-from functools import partial
 from model.vice import VICE
-from typing import Tuple, List, Any, Iterator
-from scipy.stats import norm
-from statsmodels.stats.multitest import multipletests
+from typing import Tuple, List
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
 # number of cores used per Python process (set to 2 if HT is enabled, else keep 1)
 os.environ['OMP_NUM_THREADS'] = '1'
+
 
 def parseargs():
     parser = argparse.ArgumentParser()
@@ -176,7 +171,8 @@ def get_model_paths(PATH: str) -> List[str]:
     regex = r'(?=^model)(?=.*epoch)(?=.*tar$)'
     paths = []
     for root, _, files in os.walk(PATH, followlinks=True):
-        files = sorted(list(filter(lambda f: re.compile(regex).search(f), files)))
+        files = sorted(
+            list(filter(lambda f: re.compile(regex).search(f), files)))
         if files:
             paths.append('/'.join(root.split('/')[:-1]))
     return paths
@@ -189,7 +185,7 @@ def prune_weights(model: VICE, indices: np.ndarray) -> VICE:
 
 
 def pruning(model: VICE, alpha: float = .05, k: int = 5,
-) -> Tuple[torch.Tensor, torch.Tensor, VICE]:
+            ) -> Tuple[torch.Tensor, torch.Tensor, VICE]:
     params = model.detached_params
     loc = params['loc']
     scale = params['scale']
@@ -222,7 +218,7 @@ def evaluate_models(
     k: int = 5,
 ) -> None:
     in_path = os.path.join(results_dir, modality,
-            f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi))
+                           f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi))
     model_paths = get_model_paths(in_path)
     pruned_locs, pruned_scales = [], []
     _, val_triplets = utils.load_data(
@@ -279,6 +275,7 @@ def evaluate_models(
 
     with open(os.path.join(in_path, 'val_entropies.npy'), 'wb') as f:
         np.save(f, val_losses)
+
 
 if __name__ == '__main__':
     args = parseargs()

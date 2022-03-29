@@ -28,14 +28,6 @@ def unpickle_file(in_path: str, file_name: str) -> dict:
     return pickle.loads(open(os.path.join(in_path, ''.join((file_name, '.txt'))), 'rb').read())
 
 
-def remove_nans(E: np.ndarray) -> np.ndarray:
-    E_cp = E[:, :]
-    # return indices for rows that contain NaN values
-    nan_indices = np.isnan(E_cp).any(axis=1)
-    E_cp = E_cp[~nan_indices]
-    return E_cp
-
-
 def filter_triplets(rnd_samples: np.ndarray, n_samples: float) -> np.ndarray:
     """filter for unique triplets (i, j, k have to be different indices)"""
     rnd_samples = np.asarray(list(filter(lambda triplet: len(
@@ -140,28 +132,6 @@ def mse(avg_p: np.ndarray, confidences: np.ndarray) -> float:
     return np.mean((avg_p - confidences)**2)
 
 
-def bootstrap_calibrations(PATH: str, alpha: float, n_bootstraps: int = 1000) -> np.ndarray:
-    mses = np.zeros(n_bootstraps)
-    for i in range(n_bootstraps):
-        probas = seed_sampling(PATH)
-        probas_draw = instance_sampling(probas)
-        confidences, avg_p = compute_pm(probas_draw, alpha)
-        mses[i] += mse(avg_p, confidences)
-    return mses
-
-
-def get_model_confidence_(PATH: str) -> Tuple[np.ndarray, np.ndarray]:
-    seeds = get_seeds(PATH)
-    confidence_scores = np.zeros((len(seeds), 11))
-    avg_probas = np.zeros((len(seeds), 11))
-    for i, seed in enumerate(seeds):
-        with open(os.path.join(PATH, seed, 'test_probas.npy'), 'rb') as f:
-            confidence, avg_p = compute_pm(np.load(f))
-            confidence_scores[i] += confidence
-            avg_probas[i] += avg_p
-    return confidence_scores, avg_probas
-
-
 def mat2py(triplet: tuple) -> tuple:
     return tuple(np.asarray(triplet) - 1)
 
@@ -202,15 +172,15 @@ def get_choice_distributions(test_set: pd.DataFrame) -> dict:
     return choice_pmfs
 
 
-
-def collect_choices(probas:np.ndarray, human_choices:np.ndarray, model_choices:dict) -> dict:
+def collect_choices(probas: np.ndarray, human_choices: np.ndarray, model_choices: dict) -> dict:
     """collect model choices at inference time"""
     probas = probas.flip(dims=[1])
     for pmf, choices in zip(probas, human_choices):
         sorted_choices = tuple(np.sort(choices))
-        model_choices[sorted_choices].append(pmf[np.argsort(choices)].numpy().tolist())
+        model_choices[sorted_choices].append(
+            pmf[np.argsort(choices)].numpy().tolist())
     return model_choices
-    
+
 
 def load_model(
     model,
@@ -234,10 +204,10 @@ def pearsonr(u: np.ndarray, v: np.ndarray, a_min: float = -1., a_max: float = 1.
     rho = (num / denom).clip(min=a_min, max=a_max)
     return rho
 
+
 def robustness(corrs: np.ndarray, thresh: float) -> float:
     return len(corrs[corrs > thresh]) / len(corrs)
 
-#### pruning
 
 def compute_pvals(W_loc: np.ndarray, W_scale: np.ndarray) -> np.ndarray:
     def pval(W_loc, W_scale, j):
@@ -245,7 +215,7 @@ def compute_pvals(W_loc: np.ndarray, W_scale: np.ndarray) -> np.ndarray:
     return partial(pval, W_loc, W_scale)(np.arange(W_loc.shape[1])).T
 
 
-def fdr_corrections(p_vals: np.ndarray, alpha: float=.05) -> np.ndarray:
+def fdr_corrections(p_vals: np.ndarray, alpha: float = .05) -> np.ndarray:
     return np.array(list(map(lambda p: multipletests(p, alpha=alpha, method='fdr_bh')[0], p_vals)))
 
 

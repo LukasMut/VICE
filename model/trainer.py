@@ -270,19 +270,19 @@ class Trainer(nn.Module):
             if batch_probas.shape[0] < self.batch_size:
                 B = batch_probas.shape[0]
                 probas[j * self.batch_size:(j
-                    * self.batch_size) + B] += batch_probas
+                                            * self.batch_size) + B] += batch_probas
                 human_choices = batch.nonzero(
                     as_tuple=True)[-1].view(B, -1).cpu().numpy()
             else:
                 probas[j * self.batch_size:(j + 1)
-                    * self.batch_size] += batch_probas
+                       * self.batch_size] += batch_probas
                 human_choices = batch.nonzero(
-                as_tuple=True)[-1].view(self.batch_size, -1).cpu().numpy()
+                    as_tuple=True)[-1].view(self.batch_size, -1).cpu().numpy()
             model_choices = utils.collect_choices(
                 batch_probas, human_choices, model_choices)
 
         probas = probas.cpu().numpy()
-        probas = probas[np.where(probas.sum(axis=1) != 0.)]        
+        probas = probas[np.where(probas.sum(axis=1) != 0.)]
         model_pmfs = utils.compute_pmfs(model_choices, behavior=False)
         test_acc = batch_accs.mean().item()
         test_loss = batch_centropies.mean().item()
@@ -398,8 +398,10 @@ class Trainer(nn.Module):
 
     def save_final_latents(self):
         _, pruned_loc, pruned_scale = self.pruning()
-        pruned_loc = pruned_loc[:, np.argsort(-np.linalg.norm(pruned_loc, axis=0, ord=1))]
-        pruned_scale = pruned_scale[:, np.argsort(-np.linalg.norm(pruned_loc, axis=0, ord=1))]
+        pruned_loc = pruned_loc[:,
+                                np.argsort(-np.linalg.norm(pruned_loc, axis=0, ord=1))]
+        pruned_scale = pruned_scale[:,
+                                    np.argsort(-np.linalg.norm(pruned_loc, axis=0, ord=1))]
         with open(os.path.join(self.results_dir, 'pruned_params.npz'), 'wb') as f:
             np.savez_compressed(f, pruned_loc=pruned_loc,
                                 pruned_scale=pruned_scale)

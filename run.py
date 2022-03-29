@@ -17,6 +17,7 @@ from typing import Tuple
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
+
 def parseargs():
     parser = argparse.ArgumentParser()
 
@@ -90,11 +91,11 @@ def create_dirs(
     """Create directories for results, plots, and model parameters."""
     print('\n...Creating directories.\n')
     results_dir = os.path.join(results_dir, modality,
-                                   f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi), f'seed{rnd_seed:02d}')
+                               f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi), f'seed{rnd_seed:02d}')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir, exist_ok=True)
     plots_dir = os.path.join(plots_dir, modality,
-                                 f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi), f'seed{rnd_seed:02d}')
+                             f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi), f'seed{rnd_seed:02d}')
     if not os.path.exists(plots_dir):
         os.makedirs(plots_dir, exist_ok=True)
     model_dir = os.path.join(results_dir, 'model')
@@ -174,7 +175,7 @@ def run(
         device=device,
         verbose=verbose,
         init_weights=True,
-        )
+    )
     # move model to current device
     vice.to(device)
     # start training

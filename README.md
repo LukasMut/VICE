@@ -42,10 +42,11 @@ File structure
 │                                   └── pruned_params.npz
 │                                   │
 │                                   └── f'results_{epoch+1:04d}.json' for (epoch + 1) % steps
-│                                        
-├── models
-├── envs
+│
 ├── tests
+├── envs
+├── models
+├── DEMO.ipynb
 ├── README.md
 └── .gitignore
 ```

@@ -106,19 +106,21 @@ $ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir
 
 1. Note that triplet data is expected to be in the format `N x 3`, where N = number of trials (e.g., 100k) and 3 refers to the three objects per triplet, where `col_0` = anchor_1, `col_1` = anchor_2, `col_2` = odd one out. Triplet data must be split into train and test splits, and named `train_90.txt` or `train_90.npy` and `test_10.txt` or `test_10.npy` respectively.
 
+2. Every `--steps` epochs (i.e., `if (epoch + 1) % steps == 0`) both a `model_epoch.tar` and a `results_epoch.json` file are saved to disk. After convergence of VICE, a `pruned_params.npz` with keys `pruned_loc` and `pruned_scale` is additionally saved to disk. Latent dimensions are sorted according to their overall importance. See output folder structure below for where to find these files.
+
 2. Output folder structure:
 
 ```bash
 root
 ├── results
-├── ├── modality (food)
-├── ├── ├── init_dim (100d)
-├── ├── ├── ├── optimizer (adam)
-├── ├── ├── ├── ├── prior (gaussian)
-├── ├── ├── ├── ├── ├── spike (0.25)
-├── ├── ├── ├── ├── ├── ├── slab (1.0)
-├── ├── ├── ├── ├── ├── ├── ├── pi (0.6)
-├── ├── ├── ├── ├── ├── ├── ├── ├── seed (seed00)
+├── ├── modality
+├── ├── ├── init_dim
+├── ├── ├── ├── optimizer
+├── ├── ├── ├── ├── prior
+├── ├── ├── ├── ├── ├── spike
+├── ├── ├── ├── ├── ├── ├── slab
+├── ├── ├── ├── ├── ├── ├── ├── pi
+├── ├── ├── ├── ├── ├── ├── ├── ├── seed
 ├── ├── ├── ├── ├── ├── ├── ├── ├── ├── model
 ├── ├── ├── ├── ├── ├── ├── ├── ├── ├── └── f'model_epoch{epoch+1:04d}.tar' if (epoch + 1) % steps == 0
 ├── ├── ├── ├── ├── ├── ├── ├── ├── ├── parameters.npz

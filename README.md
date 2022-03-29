@@ -21,37 +21,42 @@ $ pip install -r requirements.txt
 
 ## VICE step-by-step
 
-Folder and output structure
+Folder structure
 
 ```bash
-├── results
-├── ├── modality (e.g., food)
-├──     ├── init_dim (e.g., 100d)
-├──         ├── optimizer (e.g., adam)
-├──             ├── prior (e.g., gaussian)
-├──                 ├── spike (e.g., 0.1)
-├──                     ├── slab (e.g., 1.0)
-├──                         ├── pi (e.g., 0.5)
-├──                             ├── seed
-├──                                 ├── model
-├──                                 │   │
-├──                                 │   └── f'model_epoch{epoch+1:04d}.tar' if (epoch + 1) % steps == 0
-├──                                 │
-├──                                 └── parameters.npz
-├──                                 │
-├──                                 └── pruned_params.npz
-├──                                 │
-├──                                 └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
 ├── 
-├── tests
 ├── envs
-├── ├── environment.yml
+├── └── environment.yml
 ├── models
 ├── ├── model.py
-├── ├── trainer.py
+├── └── trainer.py
+├── tests
+├── ├── model
+├── ├── ├── __init__.py
+├── ├── └── test_model.py
+├── ├── tripletizer
+├── ├── ├── __init__.py
+├── ├── └── test_tripletize.py
+├── ├── __init__.py
+├── ├── helper.py
+├── ├── test_dataloader.py
+├── └── test_utils.py
+├── .gitignore
 ├── DEMO.ipynb
+├── LICENSE
 ├── README.md
-└── .gitignore
+├── create_things_splits.py
+├── dataloader.py
+├── evaluate_robustness.py
+├── find_best_hypers.py
+├── inference.py
+├── partition_food_data.py
+├── requirements.txt
+├── run.py
+├── sampling.py
+├── tripletize.py
+├── utils.py
+└── visualization.py
 ```
 
 ### VICE DEMO
@@ -94,13 +99,35 @@ Explanation of arguments in `run.py`.
 #### Example call
 
 ```python
-$ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 1000 --burnin 500 --eta 0.001 --latent_dim 100 --batch_size 128 --k 5 --ws 100 --optim adam --prior gaussian --mc_samples 10 --spike 0.1 --slab 1.0 --pi 0.5 --steps 50 --device cuda --rnd_seed 42 --verbose
+$ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 1000 --burnin 500 --eta 0.001 --latent_dim 100 --batch_size 128 --k 5 --ws 100 --optim adam --prior gaussian --mc_samples 10 --spike 0.25 --slab 1.0 --pi 0.6 --steps 50 --device cuda --rnd_seed 42 --verbose
 ```
 
 ### NOTES:
 
 1. Note that triplet data is expected to be in the format `N x 3`, where N = number of trials (e.g., 100k) and 3 refers to the three objects per triplet, where `col_0` = anchor_1, `col_1` = anchor_2, `col_2` = odd one out. Triplet data must be split into train and test splits, and named `train_90.txt` or `train_90.npy` and `test_10.txt` or `test_10.npy` respectively.
 
+2. Output folder structure:
+
+```bash
+├── results
+├── ├── modality (food)
+├──     ├── init_dim (100d)
+├──         ├── optimizer (adam)
+├──             ├── prior (gaussian)
+├──                 ├── spike (0.25)
+├──                     ├── slab (1.0)
+├──                         ├── pi (0.6)
+├──                             ├── seed (seed00)
+├──                                 ├── model
+├──                                 │   │
+├──                                 │   └── f'model_epoch{epoch+1:04d}.tar' if (epoch + 1) % steps == 0
+├──                                 │
+├──                                 └── parameters.npz
+├──                                 │
+├──                                 └── pruned_params.npz
+├──                                 │
+├──                                 └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
+```
 
 ### VICE evaluation
 

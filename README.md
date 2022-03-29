@@ -21,7 +21,7 @@ $ pip install -r requirements.txt
 
 ## VICE step-by-step
 
-File structure
+Folder and output structure
 
 ```bash
 ├── results

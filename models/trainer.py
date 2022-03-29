@@ -398,6 +398,8 @@ class Trainer(nn.Module):
 
     def save_final_latents(self):
         _, pruned_loc, pruned_scale = self.pruning()
+        pruned_loc = pruned_loc[:, np.argsort(-np.linalg.norm(pruned_loc, axis=0, ord=1))]
+        pruned_scale = pruned_scale[:, np.argsort(-np.linalg.norm(pruned_loc, axis=0, ord=1))]
         with open(os.path.join(self.results_dir, 'pruned_params.npz'), 'wb') as f:
             np.savez_compressed(f, pruned_loc=pruned_loc,
                                 pruned_scale=pruned_scale)

@@ -164,7 +164,7 @@ Explanation of arguments in `evaluate_robustness.py`.
 #### Example call
 
 ```python
-$ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --modality behavioral --n_items number/of/unique/stimuli (e.g., 1854) --latent_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.125 --slab 1.0 --pi 0.5 --triplets_dir path/to/triplets --mc_samples 10 --device cpu --rnd_seed 42
+$ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --modality behavioral --n_items number/of/unique/objects (e.g., 1854) --latent_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.25 --slab 1.0 --pi 0.6 --triplets_dir path/to/triplets --mc_samples 10 --device cpu --rnd_seed 42
 ```
 
 ### VICE hyperparam. combination

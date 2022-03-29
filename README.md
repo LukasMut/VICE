@@ -21,13 +21,12 @@ $ pip install -r requirements.txt
 
 ## VICE step-by-step
 
-results_dir = os.path.join(results_dir, modality,
-                                   f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi), f'seed{rnd_seed:02d}')
+File structure
 
 ```bash
 ├── results
 │   ├── modality
-│   │   ├── latent_dim
+│       ├── latent_dim
 │           ├── optimizer
 │               ├── prior
 │                   ├── spike

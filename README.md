@@ -109,6 +109,7 @@ $ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir
 2. Output folder structure:
 
 ```bash
+root
 ├── results
 ├── ├── modality (food)
 ├──     ├── init_dim (100d)
@@ -126,7 +127,7 @@ $ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir
 ├──                                 │
 ├──                                 └── pruned_params.npz
 ├──                                 │
-├──                                 └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
+└──                                 └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
 ```
 
 ### VICE evaluation

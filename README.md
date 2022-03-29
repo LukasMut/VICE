@@ -115,7 +115,7 @@ $ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir
 
 ```bash
 root
-├── results / plots
+├── results
 ├── ├── modality
 ├── ├── ├── init_dim
 ├── ├── ├── ├── optimizer

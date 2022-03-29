@@ -25,24 +25,24 @@ File structure
 
 ```bash
 ├── results
-│   ├── modality
-│       ├── latent_dim
-│           ├── optimizer
-│               ├── prior
-│                   ├── spike
-│                       ├── slab
-│                           ├── pi
-│                               ├── seed
-│                                   ├── model
-│                                   │   │
-│                                   │   └── f'model_epoch{epoch+1:04d}.tar' for (epoch + 1) % steps
-│                                   │
-│                                   └── parameters.npz
-│                                   │
-│                                   └── pruned_params.npz
-│                                   │
-│                                   └── f'results_{epoch+1:04d}.json' for (epoch + 1) % steps
-│
+├── ├── modality (e.g., food)
+├──     ├── init_dim (e.g., 100d)
+├──         ├── optimizer (e.g., adam)
+├──             ├── prior (e.g., gaussian)
+├──                 ├── spike (e.g., 0.1)
+├──                     ├── slab (e.g., 1.0)
+├──                         ├── pi (e.g., 0.5)
+├──                             ├── seed
+├──                                 ├── model
+├──                                 │   │
+├──                                 │   └── f'model_epoch{epoch+1:04d}.tar' for (epoch + 1) % steps
+├──                                 │
+├──                                 └── parameters.npz
+├──                                 │
+├──                                 └── pruned_params.npz
+├──                                 │
+├──                                 └── f'results_{epoch+1:04d}.json' for (epoch + 1) % steps
+├── 
 ├── tests
 ├── envs
 ├── models

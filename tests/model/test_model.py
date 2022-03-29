@@ -5,7 +5,6 @@ import re
 import os
 import json
 import shutil
-from sqlite3 import paramstyle
 import torch
 import unittest
 import utils
@@ -15,8 +14,8 @@ import tests.helper as helper
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models.model import VICE
-from models.trainer import Trainer
+from model.vice import VICE
+from model.trainer import Trainer
 from typing import Any
 
 batch_size = 128

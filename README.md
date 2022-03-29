@@ -64,7 +64,7 @@ root
 
 ### VICE DEMO
 
-We've provided a `DEMO` Jupyter Notebook to guide a user through each step of the `VICE` optimization. The `DEMO` file should facilitate the process of using `VICE`. In the `DEMO.ipynb` one can easily inspect whether `VICE` overfits the trainig data and behaves well with respect to the evolution of latent dimensions over training time. Embeddings can be extracted directly in the `JN`.
+We've provided a `DEMO` Jupyter Notebook to guide users through each step of the `VICE` optimization. The `DEMO` file is meant to facilitate the process of using `VICE`. In the `DEMO.ipynb` one can easily inspect whether `VICE` overfits the trainig data and behaves well with respect to the evolution of latent dimensions over training time. Embeddings can be extracted directly in the `JN`.
 
 ### VICE optimization
 

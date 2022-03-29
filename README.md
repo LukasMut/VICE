@@ -28,8 +28,8 @@ root
 ├── └── things_concepts.tsv
 ├── envs
 ├── └── environment.yml
-├── models
-├── ├── model.py
+├── model
+├── ├── vice.py
 ├── └── trainer.py
 ├── tests
 ├── ├── model

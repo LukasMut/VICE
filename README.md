@@ -19,7 +19,7 @@ Alternatively, dependencies can be installed via `pip`
 $ pip install -r requirements.txt
 ```
 
-## VICE folder structure
+## VICE folder and file structure
 
 ```bash
 root

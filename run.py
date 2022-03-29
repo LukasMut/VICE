@@ -51,11 +51,11 @@ def parseargs():
         help='whether to use a Gaussian or Laplacian mixture for the spike-and-slab prior')
     aa('--mc_samples', type=int, default=10,
         help='number of weight samples to use for MC sampling')
-    aa('--spike', type=float,
+    aa('--spike', type=float, default=0.25,
         help='sigma for spike distribution')
-    aa('--slab', type=float,
-        help='sigma for slab distribution')
-    aa('--pi', type=float,
+    aa('--slab', type=float, default=1.0,
+        help='sigma for slab distribution (should be smaller than spike)')
+    aa('--pi', type=float, default=0.6,
         help='scalar value that determines the relative weight of the spike and slab distributions respectively')
     aa('--k', type=int, default=5,
         choices=[5, 10],

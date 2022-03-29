@@ -112,22 +112,18 @@ $ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir
 root
 ├── results
 ├── ├── modality (food)
-├──     ├── init_dim (100d)
-├──         ├── optimizer (adam)
-├──             ├── prior (gaussian)
-├──                 ├── spike (0.25)
-├──                     ├── slab (1.0)
-├──                         ├── pi (0.6)
-├──                             ├── seed (seed00)
-├──                                 ├── model
-├──                                 │   │
-├──                                 │   └── f'model_epoch{epoch+1:04d}.tar' if (epoch + 1) % steps == 0
-├──                                 │
-├──                                 └── parameters.npz
-├──                                 │
-├──                                 └── pruned_params.npz
-├──                                 │
-└──                                 └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
+├── ├── ├── init_dim (100d)
+├── ├── ├── ├── optimizer (adam)
+├── ├── ├── ├── ├── prior (gaussian)
+├── ├── ├── ├── ├── ├── spike (0.25)
+├── ├── ├── ├── ├── ├── ├── slab (1.0)
+├── ├── ├── ├── ├── ├── ├── ├── pi (0.6)
+├── ├── ├── ├── ├── ├── ├── ├── ├── seed (seed00)
+├── ├── ├── ├── ├── ├── ├── ├── ├── ├── model
+├── ├── ├── ├── ├── ├── ├── ├── ├── ├── └── f'model_epoch{epoch+1:04d}.tar' if (epoch + 1) % steps == 0
+├── ├── ├── ├── ├── ├── ├── ├── ├── ├── parameters.npz
+├── ├── ├── ├── ├── ├── ├── ├── ├── ├── pruned_params.npz
+└── └── └── └── └── └── └── └── └── └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0                                 
 ```
 
 ### VICE evaluation

@@ -35,17 +35,20 @@ Folder and output structure
 ├──                             ├── seed
 ├──                                 ├── model
 ├──                                 │   │
-├──                                 │   └── f'model_epoch{epoch+1:04d}.tar' for (epoch + 1) % steps
+├──                                 │   └── f'model_epoch{epoch+1:04d}.tar' if (epoch + 1) % steps == 0
 ├──                                 │
 ├──                                 └── parameters.npz
 ├──                                 │
 ├──                                 └── pruned_params.npz
 ├──                                 │
-├──                                 └── f'results_{epoch+1:04d}.json' for (epoch + 1) % steps
+├──                                 └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
 ├── 
 ├── tests
 ├── envs
+├── ├── environment.yml
 ├── models
+├── ├── model.py
+├── ├── trainer.py
 ├── DEMO.ipynb
 ├── README.md
 └── .gitignore

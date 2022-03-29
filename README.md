@@ -23,6 +23,9 @@ $ pip install -r requirements.txt
 
 ```bash
 root
+├── data
+├── ├── sortindex
+├── └── things_concepts.csv
 ├── envs
 ├── └── environment.yml
 ├── models
@@ -108,7 +111,7 @@ $ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir
 
 2. Every `--steps` epochs (i.e., `if (epoch + 1) % steps == 0`) a `model_epoch.tar` (including model and optimizer `state_dicts`) and a `results_epoch.json` (including train and validation cross-entropy errors) file are saved to disk. In addition, after convergence of VICE, a `pruned_params.npz` (compressed binary file) with keys `pruned_loc` and `pruned_scale`, including pruned VICE parameters, is saved to disk. Latent dimensions of the pruned parameter matrices are sorted according to their overall importance. See output folder structure below for where to find these files.
 
-2. Output folder / file structure:
+3. Output folder / file structure:
 
 ```bash
 root
@@ -127,6 +130,8 @@ root
 ├── ├── ├── ├── ├── ├── ├── ├── ├── ├── pruned_params.npz
 └── └── └── └── └── └── └── └── └── └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
 ```
+
+4. If VICE was trained on triplets from the [THINGS](https://osf.io/jum2f/) database, make sure that you've saved a file called `sortindex` somewhere on disk (can be found in `data`). This is necessary to sort the `THINGS` objects in their correct order.
 
 ### VICE evaluation
 
@@ -159,11 +164,6 @@ Explanation of arguments in `evaluate_robustness.py`.
 ```python
 $ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --modality behavioral --n_items number/of/unique/stimuli (e.g., 1854) --latent_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.125 --slab 1.0 --pi 0.5 --triplets_dir path/to/triplets --mc_samples 10 --device cpu --rnd_seed 42
 ```
-
-### NOTES:
-
-1. If the pruning pipeline should be applied to models that were trained on triplets created from the [THINGS](https://osf.io/jum2f/) objects, make sure that you've saved a file called `sortindex` somewhere on disk. This is necessary to sort the THINGS objects in their correct order. 
-
 
 ### VICE combination
 

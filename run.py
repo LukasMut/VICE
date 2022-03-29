@@ -11,7 +11,7 @@ import visualization
 
 import numpy as np
 
-from models.model import VICE
+from model.vice import VICE
 from typing import Tuple
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'

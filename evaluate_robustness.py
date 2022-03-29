@@ -16,10 +16,8 @@ import pandas as pd
 import torch.nn as nn
 
 from functools import partial
-from models.model import VICE
-from os.path import join as pjoin
+from model.vice import VICE
 from typing import Tuple, List, Any, Iterator
-from sklearn import mixture
 from scipy.stats import norm
 from statsmodels.stats.multitest import multipletests
 
@@ -272,11 +270,11 @@ def evaluate_models(
     print(
         f"\nRobustness scores: {model_robustness_best_subset}\n")
 
-    out_path = pjoin(in_path, 'robustness_scores', str(thresh))
+    out_path = os.path.join(in_path, 'robustness_scores', str(thresh))
     if not os.path.exists(out_path):
         os.makedirs(out_path)
 
-    with open(pjoin(out_path, 'robustness.txt'), 'wb') as f:
+    with open(os.path.join(out_path, 'robustness.txt'), 'wb') as f:
         f.write(pickle.dumps(model_robustness_best_subset))
 
     with open(os.path.join(in_path, 'val_entropies.npy'), 'wb') as f:

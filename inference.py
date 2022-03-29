@@ -3,7 +3,7 @@
 
 from email.policy import default
 from typing import List
-from models.model import VICE
+from model.vice import VICE
 from collections import defaultdict
 
 import numpy as np

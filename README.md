@@ -54,7 +54,6 @@ root
 ├── partition_food_data.py
 ├── requirements.txt
 ├── run.py
-├── sampling.py
 ├── tripletize.py
 ├── utils.py
 └── visualization.py

@@ -25,7 +25,7 @@ $ pip install -r requirements.txt
 root
 ├── data
 ├── ├── sortindex
-├── └── things_concepts.csv
+├── └── things_concepts.tsv
 ├── envs
 ├── └── environment.yml
 ├── models

@@ -19,9 +19,7 @@ Alternatively, dependencies can be installed via `pip`
 $ pip install -r requirements.txt
 ```
 
-## VICE step-by-step
-
-Folder structure
+## VICE directory structure
 
 ```bash
 root
@@ -58,6 +56,8 @@ root
 ├── utils.py
 └── visualization.py
 ```
+
+## VICE step-by-step
 
 ### VICE DEMO
 

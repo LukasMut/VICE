@@ -115,20 +115,20 @@ $ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir
 
 ```bash
 root
-├── results
-├── ├── modality
-├── ├── ├── init_dim
-├── ├── ├── ├── optimizer
-├── ├── ├── ├── ├── prior
-├── ├── ├── ├── ├── ├── spike
-├── ├── ├── ├── ├── ├── ├── slab
-├── ├── ├── ├── ├── ├── ├── ├── pi
-├── ├── ├── ├── ├── ├── ├── ├── ├── seed
-├── ├── ├── ├── ├── ├── ├── ├── ├── ├── model
-├── ├── ├── ├── ├── ├── ├── ├── ├── ├── └── f'model_epoch{epoch+1:04d}.tar' if (epoch + 1) % steps == 0
-├── ├── ├── ├── ├── ├── ├── ├── ├── ├── parameters.npz
-├── ├── ├── ├── ├── ├── ├── ├── ├── ├── pruned_params.npz
-└── └── └── └── └── └── └── └── └── └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
+└── results
+    └── modality
+        └── init_dim
+            └── optimizer
+                └── prior
+                    └── spike
+                        └── slab
+                            └── pi
+                                └── seed
+                                    ├── model
+                                    ├── └── f'model_epoch{epoch+1:04d}.tar' if (epoch + 1) % steps == 0
+                                    ├── parameters.npz
+                                    ├── pruned_params.npz
+                                    └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
 ```
 
 4. If VICE was trained on triplets from the [THINGS](https://osf.io/jum2f/) database, make sure that you've saved a file called `sortindex` somewhere on disk (can be found in `data`). This is necessary to sort the `THINGS` objects in their correct order.

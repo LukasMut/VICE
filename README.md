@@ -32,10 +32,10 @@ root
 ├── ├── vice.py
 ├── └── trainer.py
 ├── tests
-├── ├── model
+├── ├── model_tests
 ├── ├── ├── __init__.py
 ├── ├── └── test_model.py
-├── ├── tripletizer
+├── ├── tripletizer_tests
 ├── ├── ├── __init__.py
 ├── ├── └── test_tripletize.py
 ├── ├── __init__.py

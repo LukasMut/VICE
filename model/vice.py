@@ -8,7 +8,7 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models.trainer import Trainer
+from model.trainer import Trainer
 from typing import Dict, Tuple
 
 

@@ -125,8 +125,8 @@ root
                                 └── seed
                                     ├── model
                                     ├── └── f'model_epoch{epoch+1:04d}.tar' if (epoch + 1) % steps == 0
-                                    ├── parameters.npz
-                                    ├── pruned_params.npz
+                                    ├── 'parameters.npz'
+                                    ├── 'pruned_params.npz'
                                     └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
 ```
 

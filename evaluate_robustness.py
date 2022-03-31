@@ -29,8 +29,6 @@ def parseargs():
         help='results directory (root directory for models)')
     aa('--task', type=str, default='odd_one_out',
         choices=['odd_one_out', 'similarity_task'])
-    aa('--modality', type=str,
-        help='current modality (e.g., behavioral, fMRI, text, DNNs)')
     aa('--n_items', type=int,
         help='number of unique items/stimuli/objects in dataset')
     aa('--latent_dim', type=int, default=100,
@@ -55,7 +53,7 @@ def parseargs():
     aa('--triplets_dir', type=str,
         help='path/to/triplets/data')
     aa('--mc_samples', type=int, default=5,
-        choices=[5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
+        choices=[1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
         help='number of weight samples used in Monte Carlo (MC) sampling')
     aa('--device', type=str,
         choices=['cpu', 'cuda'])
@@ -201,7 +199,6 @@ def pruning(model: VICE, alpha: float = .05, k: int = 5,
 
 def evaluate_models(
     results_dir: str,
-    modality: str,
     task: str,
     n_items: int,
     latent_dim: int,
@@ -217,7 +214,7 @@ def evaluate_models(
     mc_samples: int,
     k: int = 5,
 ) -> None:
-    in_path = os.path.join(results_dir, modality,
+    in_path = os.path.join(results_dir,
                            f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi))
     model_paths = get_model_paths(in_path)
     pruned_locs, pruned_scales = [], []
@@ -283,7 +280,6 @@ if __name__ == '__main__':
     np.random.seed(args.rnd_seed)
     evaluate_models(
         results_dir=args.results_dir,
-        modality=args.modality,
         task=args.task,
         n_items=args.n_items,
         latent_dim=args.latent_dim,

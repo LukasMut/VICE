@@ -133,7 +133,6 @@ Explanation of arguments in `evaluate_robustness.py`.
  
  --results_dir (str) / # path/to/models
  --task (str) / # odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task
- --modality (str) / # e.g., behavioral, fMRI, EEG, DNNs
  --n_items (int) / # number of unique items/stimuli/objects in the dataset
  --latent_dim (int) / # latent space dimensionality with which VICE was initialized at run time
  --batch_size (int) / # mini-batch size used during VICE training
@@ -144,7 +143,7 @@ Explanation of arguments in `evaluate_robustness.py`.
  --slab (float) / # sigma of slab distribution
  --pi (float) / # probability value that determines likelihood of samples from the spike
  --triplets_dir (str) / # path/to/triplet/data
- --mc_samples (int) / # number of weight matrices used in Monte Carlo sampling
+ --mc_samples (int) / # number of weight matrices used in Monte Carlo sampling for evaluating models on validation set
  --device (str) / # cpu or cuda
  --rnd_seed (int) / # random seed
  ```
@@ -152,7 +151,7 @@ Explanation of arguments in `evaluate_robustness.py`.
 #### Example call
 
 ```python
-$ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --modality behavioral --n_items number/of/unique/objects (e.g., 1854) --latent_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.25 --slab 1.0 --pi 0.6 --triplets_dir path/to/triplets --mc_samples 10 --device cpu --rnd_seed 42
+$ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --n_items number/of/unique/objects (e.g., 1854) --latent_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.25 --slab 1.0 --pi 0.6 --triplets_dir path/to/triplets --mc_samples 5 --device cpu --rnd_seed 42
 ```
 
 ### VICE hyperparam. combination

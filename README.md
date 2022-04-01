@@ -31,17 +31,6 @@ root
 ├── model
 ├── ├── vice.py
 ├── └── trainer.py
-├── tests
-├── ├── model_tests
-├── ├── ├── __init__.py
-├── ├── └── test_model.py
-├── ├── tripletizer_tests
-├── ├── ├── __init__.py
-├── ├── └── test_tripletize.py
-├── ├── __init__.py
-├── ├── helper.py
-├── ├── test_dataloader.py
-├── └── test_utils.py
 ├── .gitignore
 ├── DEMO.ipynb
 ├── create_things_splits.py
@@ -178,7 +167,7 @@ After calling `find_best_hypers.py`, a `txt` file called `model_paths.txt` is sa
 
 ## Triplets
 
-You can optimize `VICE` for any data. We provide a file called `tripletize.py` that converts latent representations from any domain (e.g., fMRI, EEG, DNNs) corresponding to some set of stimuli (e.g., images) into an `N x 3` matrix of triplets. We do this by exploiting the similarity structure of the representations.
+`VICE` can be used for any data. We provide a file called `tripletize.py` that converts (latent) representations from any data type (e.g., fMRI, EEG, DNNs) corresponding to some set of stimuli (e.g., images, words) into an `N x 3` matrix of `N` triplets. We do this by exploiting the similarity structure of the representations.
 
 ```python
  

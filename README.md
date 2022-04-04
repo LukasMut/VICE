@@ -92,7 +92,7 @@ Explanation of arguments in `run.py`.
 $ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 2000 --burnin 500 --eta 0.001 --latent_dim 100 --batch_size 128 --k 5 --ws 200 --optim adam --prior gaussian --mc_samples 10 --spike 0.25 --slab 1.0 --pi 0.6 --steps 50 --device cpu --num_threads 8 --rnd_seed 42 --verbose
 ```
 
-### IMPORTANT NOTES:
+### NOTES:
 
 1. Note that triplet data is expected to be in the format `N x 3`, where `N` = number of triplets (e.g., 100k) and 3 refers to the three items per triplet, where `col_0` = anchor_1, `col_1` = anchor_2, `col_2` = odd one out. Triplet data must be split into `train` and `test` splits, and named `train_90.txt` or `train_90.npy` and `test_10.txt` or `test_10.npy` respectively.
 

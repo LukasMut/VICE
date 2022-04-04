@@ -171,7 +171,7 @@ $ python find_best_hypers.py --in_path path/to/models/and/evaluation/results --p
 
 After calling `find_best_hypers.py`, a `txt` file called `model_paths.txt` is saved to the data split subfolder in `path/to/models/and/evaluation/results` pointing towards the latest model checkpoint (i.e., last epoch) for the best hyperparameter combination per data split and random seed.
 
-## Triplets
+## Triplets for any data
 
 `VICE` can be used for any data. We provide a file called `tripletize.py` that converts (latent) representations from any domain (e.g., audio, fMRI, EEG, Deep Neural Networks) corresponding to some set of stimuli (e.g., images, words) into an `N x 3` matrix of `N` triplets. We do this by exploiting the similarity structure of the representations.
 

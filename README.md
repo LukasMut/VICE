@@ -167,7 +167,7 @@ After calling `find_best_hypers.py`, a `txt` file called `model_paths.txt` is sa
 
 ## Triplets
 
-`VICE` can be used for any data type. We provide a file called `tripletize.py` that converts (latent) representations from any domain (e.g., audio, fMRI, EEG, Deep Neural Networks) corresponding to some set of stimuli (e.g., images, words) into an `N x 3` matrix of `N` triplets. We do this by exploiting the similarity structure of the representations.
+`VICE` can be used for any data. We provide a file called `tripletize.py` that converts (latent) representations from any domain (e.g., audio, fMRI, EEG, Deep Neural Networks) corresponding to some set of stimuli (e.g., images, words) into an `N x 3` matrix of `N` triplets. We do this by exploiting the similarity structure of the representations.
 
 ```python
  
@@ -176,7 +176,7 @@ After calling `find_best_hypers.py`, a `txt` file called `model_paths.txt` is sa
  --in_path (str) / # path/to/latent/representations
  --out_path (int) / # path/to/triplets
  --n_samples (int) / # number of triplet combinations to be sampled
- --rnd_seed (int) / # random seed to reproduce triplet sampling
+ --rnd_seed (int) / # random seed to ensure reproducibility of triplet sampling
  ```
 
 #### Example call

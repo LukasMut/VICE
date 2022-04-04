@@ -94,7 +94,7 @@ $ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir
 
 ### NOTES:
 
-1. Note that triplet data is expected to be in the format `N x 3`, where N = number of trials (e.g., 100k) and 3 refers to the three objects per triplet, where `col_0` = anchor_1, `col_1` = anchor_2, `col_2` = odd one out. Triplet data must be split into train and test splits, and named `train_90.txt` or `train_90.npy` and `test_10.txt` or `test_10.npy` respectively.
+1. Note that triplet data is expected to be in the format `N x 3`, where `N` = number of triplets (e.g., 100k) and 3 refers to the three items per triplet, where `col_0` = anchor_1, `col_1` = anchor_2, `col_2` = odd one out. Triplet data must be split into `train` and `test` splits, and named `train_90.txt` or `train_90.npy` and `test_10.txt` or `test_10.npy` respectively.
 
 2. Every `--steps` epochs (i.e., `if (epoch + 1) % steps == 0`) a `model_epoch.tar` (including model and optimizer `state_dicts`) and a `results_epoch.json` (including train and validation cross-entropy errors) file are saved to disk. In addition, after convergence of VICE, a `pruned_params.npz` (compressed binary file) with keys `pruned_loc` and `pruned_scale`, including pruned VICE parameters, is saved to disk. Latent dimensions of the pruned parameter matrices are sorted according to their overall importance. See output folder structure below for where to find these files.</br>
 
@@ -171,7 +171,7 @@ $ python find_best_hypers.py --in_path path/to/models/and/evaluation/results --p
 
 After calling `find_best_hypers.py`, a `txt` file called `model_paths.txt` is saved to the data split subfolder in `path/to/models/and/evaluation/results` pointing towards the latest model checkpoint (i.e., last epoch) for the best hyperparameter combination per data split and random seed.
 
-## Triplets for any data
+## Tripletize any data
 
 `VICE` can be used for any data. We provide a file called `tripletize.py` that converts (latent) representations from any domain (e.g., audio, fMRI, EEG, Deep Neural Networks) corresponding to some set of stimuli (e.g., images, words) into an `N x 3` matrix of `N` triplets. We do this by exploiting the similarity structure of the representations.
 
@@ -190,4 +190,3 @@ After calling `find_best_hypers.py`, a `txt` file called `model_paths.txt` is sa
 ```python
 $ python tripletize.py --in_path path/to/latent/representations --out_path path/to/triplets --n_samples 100000 --rnd_seed 42
 ```
-

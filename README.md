@@ -6,7 +6,7 @@
 
 ### Environment setup and dependencies
 
-We recommend to create a virtual conda environment (e.g., `vice`) including all dependencies before running any code.
+We recommend to create a virtual conda environment (e.g., `vice`) including all dependencies before using `VICE`.
 
 ```bash
 $ conda env create --prefix /path/to/conda/envs/vice --file envs/environment.yml

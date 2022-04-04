@@ -175,7 +175,7 @@ After calling `find_best_hypers.py`, a `txt` file called `model_paths.txt` is sa
 
 ### Tripletizing representations
 
-`VICE` can be used for any data. We provide a file called `tripletize.py` that converts (latent) representations from any domain (e.g., audio, fMRI, EEG, Deep Neural Networks) corresponding to some set of stimuli (e.g., images, words) into an `N x 3` matrix of `N` triplets. We do this by exploiting the similarity structure of the representations.
+`VICE` can be used for any data. We provide a file called `tripletize.py` that converts (latent) representations from any domain (e.g., audio, fMRI, EEG, Deep Neural Networks) corresponding to some set of stimuli (e.g., images, words) into an `N x 3` matrix of `N` triplets (see triplet format above). We do this by exploiting the similarity structure of the representations.
 
 ```python
  

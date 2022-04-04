@@ -115,69 +115,46 @@ def plot_complexities_and_loglikelihoods(
     plt.close()
 
 
-def plot_imgs_along_dimensions(
-                                W_sorted:np.ndarray,
-                                sorted_dims:np.ndarray,
-                                images:np.ndarray,
-                                top_j:int,
-                                top_k:int,
-                                plots_dir:str,
-                                part=None,
-                                show_plot:bool=False,
+def plot_topk_objects_per_dimension(
+                                    plots_dir: str,
+                                    images: np.ndarray,
+                                    w_j: np.ndarray,
+                                    latent_dim: int,
+                                    top_k: int=6,
+                                    show_plot: bool=True,
 ) -> None:
-    """for each latent dimension sort coefficients in descending order, and plot top k objects"""
-    #initialise figure
-    n_rows = int(top_j/2) if top_j > 40 else top_j
-    fig, axes = plt.subplots(n_rows, top_k, figsize=(50, 90), dpi=80)
-    for j, w_j in enumerate(W_sorted):
-        w_j_sorted = np.argsort(w_j) #ascending
-        top_k_indices = w_j_sorted[::-1][:top_k] #descending
-        top_k_images = images[top_k_indices]
-        top_k_weights = w_j[top_k_indices]
+    topk_objects = np.argsort(-w_j)[:top_k]
+    topk_images = images[topk_objects]
 
-        for k, (img, w) in enumerate(zip(top_k_images, top_k_weights)):
-            axes[j, k].imshow(img)
-            axes[j, k].set_xlabel(f'Weight: {w:.2f}')
-            axes[j, k].set_xticks([])
-            axes[j, k].set_yticks([])
+    def concat_imgs(images:np.ndarray, top_k:int) -> np.ndarray:
+        img_combination = np.concatenate([
+            np.concatenate([img for img in images[:int(top_k/2)]], axis = 1),
+            np.concatenate([img for img in images[int(top_k/2):]], axis = 1)], axis = 0)
+        return img_combination
 
-        if part == 2:
-            axes[j, 0].set_ylabel(f'{j+1+n_rows:02d}', fontsize=30, rotation=0, labelpad=30)
-        else:
-            axes[j, 0].set_ylabel(f'{j+1:02d}', fontsize=30, rotation=0, labelpad=30)
+    img_name = f'vice_laten_dim_{latent_dim:02d}.png'
+    border_col = 'black'
+    img_comb = concat_imgs(images=topk_images, top_k=top_k)
 
-    PATH = pjoin(plots_dir, 'dim_visualizations')
+    #set variables and initialise figure object
+    fig = plt.figure(figsize=(14, 4), dpi=150)
+    ax = plt.subplot(111)
+    
+    for spine in ax.spines:
+        ax.spines[spine].set_color(border_col)
+        ax.spines[spine].set_linewidth(2.25)
+    
+    ax.imshow(img_comb)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_ylabel(f'Dimension {latent_dim+1:02d}', labelpad=15, fontsize=15)
+
+    PATH = os.path.join(plots_dir, 'interpretability')
     if not os.path.exists(PATH):
         print('\n...Creating directories.\n')
         os.makedirs(PATH)
 
-    if isinstance(part, int):
-        plt.savefig(pjoin(PATH, f'top_{top_k:02d}_objects_for_top_{top_j:02d}_dimensions_part_{part:01d}.jpg'))
-    else:
-        plt.savefig(pjoin(PATH, f'top_{top_k:02d}_objects_for_top_{top_j:02d}_dimensions.jpg'))
+    plt.savefig(os.path.join(PATH, img_name), bbox_inches='tight')
     if show_plot:
         plt.show()
     plt.close()
-
-def plot_rsm(rsm:np.ndarray, plots_dir:str) -> None:
-    PATH = pjoin(plots_dir, 'rsa')
-    if not os.path.exists(PATH):
-        print('\n...Creating directories.\n')
-        os.makedirs(PATH)
-
-    plt.figure(figsize=(10, 6), dpi=100)
-    #plt.imshow(rsm, cmap=plt.cm.inferno)
-    plt.imshow(rankdata(rsm).reshape(rsm.shape))
-    plt.xticks([])
-    plt.yticks([])
-    plt.savefig(pjoin(PATH, 'rsm.jpg'))
-    plt.close()
-
-
-def get_img_pairs(tril_inds:tuple, most_dissim:np.ndarray, ref_images:np.ndarray) -> np.ndarray:
-    tril_inds_i = tril_inds[0][most_dissim]
-    tril_inds_j = tril_inds[1][most_dissim]
-    ref_images_i = ref_images[tril_inds_i]
-    ref_images_j = ref_images[tril_inds_j]
-    img_pairs = np.concatenate((np.concatenate(ref_images_i, axis=1), np.concatenate(ref_images_j, axis=1)), axis=0)
-    return img_pairs

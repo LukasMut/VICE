@@ -98,7 +98,7 @@ $ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir
 
 2. Every `--steps` epochs (i.e., `if (epoch + 1) % steps == 0`) a `model_epoch.tar` (including model and optimizer `state_dicts`) and a `results_epoch.json` (including train and validation cross-entropy errors) file are saved to disk. In addition, after convergence of VICE, a `pruned_params.npz` (compressed binary file) with keys `pruned_loc` and `pruned_scale`, including pruned VICE parameters, is saved to disk. Latent dimensions of the pruned parameter matrices are sorted according to their overall importance. See output folder structure below for where to find these files.
 
-3. Output folder / file structure:
+3. Output folder / file structure for `results`:
 
 ```bash
 root/results/modality/init_dim/optimizer/prior/spike/slab/pi/seed
@@ -109,9 +109,14 @@ root/results/modality/init_dim/optimizer/prior/spike/slab/pi/seed
 └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
 ```
 
-4. If VICE was trained on triplets from the [THINGS](https://osf.io/jum2f/) database, make sure that you've saved a file called `sortindex` somewhere on disk (can be found in `data`). This is necessary to sort the `THINGS` objects in their correct order.
+4. The script plots train and validation performances (to examine overfitting) against as well as negative log-likelihoods and KL-divergences (to evaluate contribution of the loss terms) alongside each other. Evolution of (identified) latent dimensions over time is also plotted after convergence. All plots can be found in the below folder after the optimization has finished.
 
-5. The script plots train and validation performances against (to examine overfitting) as well as negative log-likelihoods and KL-divergences alongside each other. Evolution of (selected) latent dimensions over time is also plotted after convergence. All plots can be found in `./plots/` after the optimization has finished (see `DEMO.ipynb` for more information).
+```bash
+root/plots/modality/init_dim/optimizer/prior/spike/slab/pi/seed
+├── 'single_model_performance_over_time.png'
+├── 'llikelihood_and_complexity_over_time.png'
+└── 'latent_causes_over_time.png'
+```
 
 ### VICE evaluation
 

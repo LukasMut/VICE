@@ -25,7 +25,7 @@ $ pip install -r requirements.txt
 ```bash
 root
 ├── data
-├── ├── sortindex
+├── ├── item_names.tsv
 ├── └── things_concepts.tsv
 ├── envs
 ├── └── environment.yml

@@ -55,7 +55,7 @@ We've provided a `DEMO` Jupyter Notebook (`JN`) to guide users through each step
 
 ### VICE optimization
 
-Explanation of arguments in `run.py`.
+Explanation of arguments in `run.py`
 
 ```python
  
@@ -120,7 +120,7 @@ root/plots/modality/init_dim/optimizer/prior/spike/slab/pi/seed
 
 ### VICE evaluation
 
-Explanation of arguments in `evaluate_robustness.py`.
+Explanation of arguments in `evaluate_robustness.py`
 
 ```python
  

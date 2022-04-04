@@ -16,6 +16,7 @@ $ conda activate vice
 Alternatively, dependencies can be installed via `pip`
 
 ```bash
+$ pip install --upgrade pip
 $ pip install -r requirements.txt
 ```
 

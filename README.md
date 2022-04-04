@@ -151,7 +151,7 @@ $ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out 
 
 ### VICE hyperparam. combination
 
-Find best hyperparameter combination via `find_best_hypers.py`.
+Find the best hyperparameter combination via `find_best_hypers.py`
 
 ```python
  

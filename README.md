@@ -169,7 +169,7 @@ $ python find_best_hypers.py --in_path path/to/models/and/evaluation/results --p
 
 ### NOTES:
 
-After calling `find_best_hypers.py`, a `txt` file called `model_paths.txt` is saved to the data split subfolder in `path/to/models/and/evaluation/results` pointing towards the latest model checkpoint (i.e., last epoch) for the best hyperparameter combination per data split and random seed.
+After calling `find_best_hypers.py`, a `txt` file called `model_paths.txt` is saved to the data split subfolder in `path/to/models/and/evaluation/results` pointing towards the latest model snapshot (i.e., last epoch) for the best hyperparameter combination per data split and random seed.
 
 ## Tripletize any data
 

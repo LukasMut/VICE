@@ -12,7 +12,7 @@ import itertools
 
 from typing import Tuple
 
-os.environ['PYTHONIOENCODING'] = 'UTF-8'
+os.environ["PYTHONIOENCODING"] = "UTF-8"
 
 
 def parseargs():
@@ -20,20 +20,16 @@ def parseargs():
 
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
-    aa('--in_path', type=str,
-        help='path/to/design/matrix')
-    aa('--out_path', type=str,
-        help='path/to/triplets')
-    aa('--n_samples', type=float,
-        help='number of triplet samples')
-    aa('--rnd_seed', type=int, default=42,
-        help='random seed')
+
+    aa("--in_path", type=str, help="path/to/design/matrix")
+    aa("--out_path", type=str, help="path/to/triplets")
+    aa("--n_samples", type=float, help="number of triplet samples")
+    aa("--rnd_seed", type=int, default=42, help="random seed")
     args = parser.parse_args()
     return args
 
 
 class Tripletizer(object):
-
     def __init__(
         self,
         in_path: str,
@@ -41,7 +37,7 @@ class Tripletizer(object):
         n_samples: float,
         rnd_seed: int,
         k: int = 3,
-        train_frac: float = .8,
+        train_frac: float = 0.8,
     ):
         self.in_path = in_path
         self.out_path = out_path
@@ -49,36 +45,40 @@ class Tripletizer(object):
         self.k = k
         self.train_frac = train_frac
 
-        if not re.search(r'(mat|txt|csv|npy|hdf5)$', in_path):
+        if not re.search(r"(mat|txt|csv|npy|hdf5)$", in_path):
             raise Exception(
-                '\nCannot tripletize input data other than .mat, .txt, .csv, .npy, or .hdf5 formats\n')
+                "\nCannot tripletize input data other than .mat, .txt, .csv, .npy, or .hdf5 formats\n"
+            )
 
         if not os.path.exists(self.out_path):
-            print(f'\n....Creating output directory: {self.out_path}\n')
+            print(f"\n....Creating output directory: {self.out_path}\n")
             os.makedirs(self.out_path)
 
         np.random.seed(rnd_seed)
         random.seed(rnd_seed)
 
     def load_domain(self, in_path: str) -> np.ndarray:
-        try:
-            if re.search(r'mat$', in_path):
-                X = np.vstack([v for v in scipy.io.loadmat(in_path).values(
-                ) if isinstance(v, np.ndarray) and v.dtype == np.float])
-            elif re.search(r'txt$', in_path):
-                X = np.loadtxt(in_path)
-            elif re.search(r'csv$', in_path):
-                X = np.loadtxt(in_path, delimiter=',')
-            elif re.search(r'npy$', in_path):
-                X = np.load(in_path)
-            elif re.search(r'hdf5$', in_path):
-                with h5py.File(in_path, 'r') as f:
-                    X = list(f.values())[0][:]
-            X = self.remove_nans_(X)
-            return X
-        except:
-            raise Exception(
-                '\nInput data does not seem to be in the correct format\n')
+        if re.search(r"mat$", in_path):
+            X = np.vstack(
+                [
+                    v
+                    for v in scipy.io.loadmat(in_path).values()
+                    if isinstance(v, np.ndarray) and v.dtype == np.float
+                ]
+            )
+        elif re.search(r"txt$", in_path):
+            X = np.loadtxt(in_path)
+        elif re.search(r"csv$", in_path):
+            X = np.loadtxt(in_path, delimiter=",")
+        elif re.search(r"npy$", in_path):
+            X = np.load(in_path)
+        elif re.search(r"hdf5$", in_path):
+            with h5py.File(in_path, "r") as f:
+                X = list(f.values())[0][:]
+        else:
+            raise Exception("\nInput data does not seem to be in the right format\n")
+        X = self.remove_nans_(X)
+        return X
 
     @staticmethod
     def remove_nans_(X: np.ndarray) -> np.ndarray:
@@ -115,19 +115,21 @@ class Tripletizer(object):
             triplets[i] = choice
         return triplets
 
-    def create_train_test_split(self, triplets: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def create_train_test_split(
+        self, triplets: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Split triplet data into train and test splits."""
         N = triplets.shape[0]
         rnd_perm = np.random.permutation(N)
-        train_split = triplets[rnd_perm[:int(len(rnd_perm) * self.train_frac)]]
+        train_split = triplets[rnd_perm[: int(len(rnd_perm) * self.train_frac)]]
         test_split = triplets[rnd_perm[int(len(rnd_perm) * self.train_frac):]]
         return train_split, test_split
 
     def save_triplets(self, triplets: np.ndarray) -> None:
         train_split, test_split = self.create_train_test_split(triplets)
-        with open(os.path.join(self.out_path, 'train_90.npy'), 'wb') as train_file:
+        with open(os.path.join(self.out_path, "train_90.npy"), "wb") as train_file:
             np.save(train_file, train_split)
-        with open(os.path.join(self.out_path, 'test_10.npy'), 'wb') as test_file:
+        with open(os.path.join(self.out_path, "test_10.npy"), "wb") as test_file:
             np.save(test_file, test_split)
 
 

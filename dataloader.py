@@ -8,7 +8,6 @@ from typing import Iterator
 
 
 class DataLoader(object):
-
     def __init__(
         self,
         dataset: torch.Tensor,
@@ -18,7 +17,7 @@ class DataLoader(object):
     ):
         self.dataset = dataset
         # initialize an identity matrix of size n_items x n_items for one-hot-encoding of triplets
-        self.I = torch.eye(n_items)
+        self.identity = torch.eye(n_items)
         self.batch_size = batch_size
         self.train = train
         self.n_batches = int(math.ceil(len(self.dataset) / self.batch_size))
@@ -34,9 +33,10 @@ class DataLoader(object):
             triplets = triplets[torch.randperm(triplets.shape[0])]
         for i in range(self.n_batches):
             batch = self.encode_as_onehot(
-                triplets[i * self.batch_size: (i + 1) * self.batch_size])
+                triplets[i * self.batch_size: (i + 1) * self.batch_size]
+            )
             yield batch
 
     def encode_as_onehot(self, triplets: torch.Tensor) -> torch.Tensor:
         """encode item triplets as one-hot-vectors"""
-        return self.I[triplets.flatten(), :]
+        return self.identity[triplets.flatten(), :]

@@ -188,10 +188,10 @@ def inference(
     print(
         f'Number of test batches in current process: {len(test_batches)}\n')
 
-    val_losses = dict()
-    test_accs = dict()
-    test_losses = dict()
-    model_choices = dict()
+    val_losses = {}
+    test_accs = {}
+    test_losses = {}
+    model_choices = {}
     model_pmfs_all = defaultdict(dict)
 
     for seed, model, model_path in zip(seeds, models, model_paths):

@@ -12,17 +12,15 @@ from model.trainer import Trainer
 from typing import Dict, Tuple
 
 
-os.environ['PYTHONIOENCODING'] = 'UTF-8'
+os.environ["PYTHONIOENCODING"] = "UTF-8"
 
 
 class Sigma(nn.Module):
-
     def __init__(self, in_size: int, out_size: int, bias: bool):
         super(Sigma, self).__init__()
         self.in_size = in_size
         self.out_size = out_size
-        self.logsigma = nn.Linear(
-            self.in_size, self.out_size, bias=bias)
+        self.logsigma = nn.Linear(self.in_size, self.out_size, bias=bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         _ = self.logsigma(x)
@@ -31,16 +29,13 @@ class Sigma(nn.Module):
 
 
 class Mu(nn.Module):
-
     def __init__(self, in_size: int, out_size: int, bias: bool):
         super(Mu, self).__init__()
         self.in_size = in_size
         self.out_size = out_size
-        self.mu = nn.Linear(
-            self.in_size, self.out_size, bias=bias)
+        self.mu = nn.Linear(self.in_size, self.out_size, bias=bias)
         # initialize means
-        nn.init.kaiming_normal_(
-            self.mu.weight, mode='fan_out', nonlinearity='relu')
+        nn.init.kaiming_normal_(self.mu.weight, mode="fan_out", nonlinearity="relu")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         _ = self.mu(x)
@@ -49,7 +44,6 @@ class Mu(nn.Module):
 
 
 class VICE(Trainer):
-
     def __init__(
         self,
         task: str,
@@ -77,27 +71,27 @@ class VICE(Trainer):
         bias: bool = False,
     ):
         super().__init__(
-            task,
-            n_train,
-            n_items,
-            latent_dim,
-            optim,
-            eta,
-            batch_size,
-            epochs,
-            burnin,
-            mc_samples,
-            prior,
-            spike,
-            slab,
-            pi,
-            k,
-            ws,
-            steps,
-            model_dir,
-            results_dir,
-            device,
-            verbose,
+            task=task,
+            n_train=n_train,
+            n_items=n_items,
+            latent_dim=latent_dim,
+            optim=optim,
+            eta=eta,
+            batch_size=batch_size,
+            epochs=epochs,
+            burnin=burnin,
+            mc_samples=mc_samples,
+            prior=prior,
+            spike=spike,
+            slab=slab,
+            pi=pi,
+            k=k,
+            ws=ws,
+            steps=steps,
+            model_dir=model_dir,
+            results_dir=results_dir,
+            device=device,
+            verbose=verbose,
         )
         self.in_size = n_items
         self.out_size = latent_dim
@@ -114,8 +108,9 @@ class VICE(Trainer):
         W_sampled = eps.mul(scale).add(loc)
         return W_sampled
 
-    def forward(self, x: torch.Tensor
-                ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self, x: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         W_mu = self.mu(x)
         W_sigma = self.sigma(x)
         W_sampled = self.reparameterize(W_mu, W_sigma)
@@ -133,5 +128,5 @@ class VICE(Trainer):
         W_loc = self.mu.mu.weight.data.T.detach()
         W_scale = self.sigma.logsigma.weight.data.T.exp().detach()
         W_loc = F.relu(W_loc)
-        params = {'loc': W_loc.cpu().numpy(), 'scale': W_scale.cpu().numpy()}
+        params = {"loc": W_loc.cpu().numpy(), "scale": W_scale.cpu().numpy()}
         return params

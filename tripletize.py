@@ -23,7 +23,7 @@ def parseargs():
 
     aa("--in_path", type=str, help="path/to/design/matrix")
     aa("--out_path", type=str, help="path/to/triplets")
-    aa("--n_samples", type=float, help="number of triplet samples")
+    aa("--n_samples", type=int, help="number of triplet samples")
     aa("--rnd_seed", type=int, default=42, help="random seed")
     args = parser.parse_args()
     return args
@@ -34,7 +34,7 @@ class Tripletizer(object):
         self,
         in_path: str,
         out_path: str,
-        n_samples: float,
+        n_samples: int,
         rnd_seed: int,
         k: int = 3,
         train_frac: float = 0.8,

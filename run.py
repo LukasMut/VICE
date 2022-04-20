@@ -55,7 +55,7 @@ def parseargs():
         help='sigma for spike distribution')
     aa('--slab', type=float, default=1.0,
         help='sigma for slab distribution (should be smaller than spike)')
-    aa('--pi', type=float, default=0.6,
+    aa('--pi', type=float, default=0.5,
         help='scalar value that determines the relative weight of the spike and slab distributions respectively')
     aa('--k', type=int, default=5,
         choices=[5, 10],

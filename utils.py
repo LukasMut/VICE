@@ -29,7 +29,7 @@ def unpickle_file(in_path: str, file_name: str) -> dict:
 
 
 def filter_triplets(rnd_samples: np.ndarray, n_samples: float) -> np.ndarray:
-    """filter for unique triplets (i, j, k have to be different indices)"""
+    """Filter for unique triplets (i.e., {i, j, k} needs to be a set)"""
     rnd_samples = np.asarray(list(filter(lambda triplet: len(
         np.unique(triplet)) == len(triplet), rnd_samples)))
     # remove all duplicates from our sample
@@ -44,7 +44,7 @@ def load_ref_images(img_folder: str, item_names: np.ndarray) -> np.ndarray:
 
 
 def load_data(device: torch.device, triplets_dir: str, val_set: str = 'test_10', inference: bool = False) -> Tuple[torch.Tensor]:
-    """load train and test triplet datasets into memory"""
+    """Load train and test triplet datasets from disk."""
     if inference:
         with open(pjoin(triplets_dir, 'test_triplets.npy'), 'rb') as test_triplets:
             test_triplets = torch.from_numpy(np.load(test_triplets)).to(
@@ -114,7 +114,7 @@ def get_global_averages(avg_probas: dict) -> np.ndarray:
 
 
 def compute_pm(probas: np.ndarray) -> Tuple[np.ndarray, dict]:
-    """compute probability mass for every choice"""
+    """Compute the probability mass for every choice."""
     avg_probas = defaultdict(list)
     count_vector = np.zeros((2, 11))
     for pmf in probas:
@@ -157,7 +157,7 @@ def compute_pmfs(choices: dict, behavior: bool) -> Dict[Tuple[int, int, int], np
 
 
 def get_choice_distributions(test_set: pd.DataFrame) -> dict:
-    """function to compute human choice distributions and corresponding pmfs"""
+    """Compute human choice distributions and the corresponding PMFs."""
     triplets = test_set[['trip.1', 'trip.2', 'trip.3']]
     test_set['triplets'] = list(map(tuple, triplets.to_numpy()))
     unique_triplets = test_set.triplets.unique()
@@ -173,7 +173,7 @@ def get_choice_distributions(test_set: pd.DataFrame) -> dict:
 
 
 def collect_choices(probas: np.ndarray, human_choices: np.ndarray, model_choices: dict) -> dict:
-    """collect model choices at inference time"""
+    """Collect model choices at inference time."""
     probas = probas.flip(dims=[1])
     for pmf, choices in zip(probas, human_choices):
         sorted_choices = tuple(np.sort(choices))
@@ -197,6 +197,7 @@ def load_model(
 
 
 def pearsonr(u: np.ndarray, v: np.ndarray, a_min: float = -1., a_max: float = 1.) -> np.ndarray:
+    """Compute the Pearson correlation coefficient."""
     u_c = u - np.mean(u)
     v_c = v - np.mean(v)
     num = u_c @ v_c
@@ -210,14 +211,18 @@ def robustness(corrs: np.ndarray, thresh: float) -> float:
 
 
 def compute_pvals(W_loc: np.ndarray, W_scale: np.ndarray) -> np.ndarray:
+    # Compute the probability for an embedding value x_{ij} <= 0,
+    # given mu and sigma of the variational posterior q_{\theta}
     def pval(W_loc, W_scale, j):
         return norm.cdf(0., W_loc[:, j], W_scale[:, j])
     return partial(pval, W_loc, W_scale)(np.arange(W_loc.shape[1])).T
 
 
 def fdr_corrections(p_vals: np.ndarray, alpha: float = .05) -> np.ndarray:
+    # For each dimension, statistically test how many objects have non-zero weight
     return np.array(list(map(lambda p: multipletests(p, alpha=alpha, method='fdr_bh')[0], p_vals)))
 
 
 def get_importance(rejections: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    # Yield the the number of rejections given by the False Discovery Rates
     return np.array(list(map(sum, rejections)))[:, np.newaxis]

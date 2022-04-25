@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 from scipy.stats import rankdata
 from typing import List
 
-def plot_latent_causes(
+def plot_latent_dimensions(
                         plots_dir: str,
-                        latent_causes: List[int],
+                        latent_dimensions: List[int],
                         show_plot: bool=False,
 ) -> None:
     fig = plt.figure(figsize=(10, 6), dpi=100)
@@ -29,11 +29,11 @@ def plot_latent_causes(
     ax.yaxis.set_ticks_position('left')
     ax.xaxis.set_ticks_position('bottom')
 
-    ax.plot(np.arange(len(latent_causes)), latent_causes, alpha=0.8, linestyle='dashed')
+    ax.plot(np.arange(len(latent_dimensions)), latent_dimensions, alpha=0.8, linestyle='dashed')
     ax.set_xlabel(r'Epochs')
     ax.set_ylabel(r'Number of latent causes')
     
-    PATH = os.path.join(plots_dir, 'latent_causes')
+    PATH = os.path.join(plots_dir, 'latent_dimensions')
     if not os.path.exists(PATH):
         os.makedirs(PATH)
         

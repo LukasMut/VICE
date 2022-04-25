@@ -31,7 +31,7 @@ def plot_latent_dimensions(
 
     ax.plot(np.arange(len(latent_dimensions)), latent_dimensions, alpha=0.8, linestyle='dashed')
     ax.set_xlabel(r'Epochs')
-    ax.set_ylabel(r'Number of latent causes')
+    ax.set_ylabel(r'Latent dimensionality')
     
     PATH = os.path.join(plots_dir, 'latent_dimensions')
     if not os.path.exists(PATH):

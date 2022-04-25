@@ -185,7 +185,7 @@ def run(
     val_accs = vice.val_accs
     loglikelihoods = vice.loglikelihoods
     complexity_losses = vice.complexity_losses
-    latent_causes = vice.latent_causes
+    latent_dimensions = vice.latent_dimensions
     # get model parameters
     params = vice.detached_params
 
@@ -193,8 +193,8 @@ def run(
         plots_dir=plots_dir, val_accs=val_accs, train_accs=train_accs, steps=steps)
     visualization.plot_complexities_and_loglikelihoods(
         plots_dir=plots_dir, loglikelihoods=loglikelihoods, complexity_losses=complexity_losses)
-    visualization.plot_latent_causes(
-        plots_dir=plots_dir, latent_causes=latent_causes)
+    visualization.plot_latent_dimensions(
+        plots_dir=plots_dir, latent_dimensions=latent_dimensions)
 
     # compress model params and store as binary files
     with open(os.path.join(results_dir, 'parameters.npz'), 'wb') as f:

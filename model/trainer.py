@@ -233,9 +233,9 @@ class Trainer(nn.Module):
     @staticmethod
     def convergence(latent_dimensions: List[int], ws: int) -> bool:
         """Evaluate convergence of latent dimensions."""
-        causes_over_time = set(latent_dimensions[-ws:])
-        divergence = len(causes_over_time)
-        if divergence == 1 and causes_over_time.pop() != 0:
+        dimensions_over_time = set(latent_dimensions[-ws:])
+        divergence = len(dimensions_over_time)
+        if divergence == 1 and dimensions_over_time.pop() != 0:
             return True
         return False
 
@@ -395,7 +395,7 @@ class Trainer(nn.Module):
                     "\n======================================================================================"
                 )
                 print(
-                    f"====== Epoch: {epoch+1:02d}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Latent causes: {n_latents:02d} ======"
+                    f"====== Epoch: {epoch+1:02d}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Latent dimensionality: {n_latents:02d} ======"
                 )
                 print(
                     "======================================================================================\n"

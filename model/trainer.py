@@ -91,7 +91,7 @@ class Trainer(nn.Module):
                     self.val_losses = checkpoint["val_losses"]
                     self.loglikelihoods = checkpoint["loglikelihoods"]
                     self.complexity_losses = checkpoint["complexity_costs"]
-                    self.latent_causes = checkpoint["latent_causes"]
+                    self.latent_dimensions = checkpoint["latent_dimensions"]
                     print(
                         f"...Loaded model and optimizer params from previous run. Resuming training at epoch {self.start}.\n"
                     )
@@ -104,20 +104,20 @@ class Trainer(nn.Module):
                     self.train_accs, self.val_accs = [], []
                     self.train_losses, self.val_losses = [], []
                     self.loglikelihoods, self.complexity_losses = [], []
-                    self.latent_causes = []
+                    self.latent_dimensions = []
             else:
                 self.start = 0
                 self.train_accs, self.val_accs = [], []
                 self.train_losses, self.val_losses = [], []
                 self.loglikelihoods, self.complexity_losses = [], []
-                self.latent_causes = []
+                self.latent_dimensions = []
         else:
             os.makedirs(self.model_dir)
             self.start = 0
             self.train_accs, self.val_accs = [], []
             self.train_losses, self.val_losses = [], []
             self.loglikelihoods, self.complexity_losses = [], []
-            self.latent_causes = []
+            self.latent_dimensions = []
 
     def initialize_priors_(self) -> None:
         self.loc = torch.zeros(self.n_items, self.latent_dim).to(self.device)
@@ -140,6 +140,7 @@ class Trainer(nn.Module):
     def norm_pdf(
         W_sample: torch.Tensor, W_loc: torch.Tensor, W_scale: torch.Tensor
     ) -> torch.Tensor:
+        """Probability density function for a normal distribution."""
         return (
             torch.exp(-((W_sample - W_loc) ** 2) / (2 * W_scale.pow(2)))
             / W_scale
@@ -150,6 +151,7 @@ class Trainer(nn.Module):
     def laplace_pdf(
         W_sample: torch.Tensor, W_loc: torch.Tensor, W_scale: torch.Tensor
     ) -> torch.Tensor:
+        """Probability density function for a laplace distribution."""
         return torch.exp(-(W_sample - W_loc).abs() / W_scale) / W_scale.mul(2.0)
 
     def spike_and_slab(self, W_sample: torch.Tensor) -> torch.Tensor:
@@ -165,6 +167,7 @@ class Trainer(nn.Module):
         negative: torch.Tensor,
         task: str,
     ) -> tuple:
+        """Apply the similarity function to each pair in the triplet."""
         pos_sim = torch.sum(anchor * positive, dim=1)
         neg_sim = torch.sum(anchor * negative, dim=1)
         if task == "odd_one_out":
@@ -214,6 +217,9 @@ class Trainer(nn.Module):
         self,
         alpha: float = 0.05,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        # Prune the variational parameters theta
+        # by examining the number of *important* dimensions
+        # as defined by our pruning procedure in §3.3.4
         loc = self.detached_params["loc"]
         scale = self.detached_params["scale"]
         p_vals = utils.compute_pvals(loc, scale)
@@ -225,9 +231,9 @@ class Trainer(nn.Module):
         return signal, pruned_loc, pruned_scale
 
     @staticmethod
-    def convergence(latent_causes: List[int], ws: int) -> bool:
-        """Evaluate convergence of latent causes."""
-        causes_over_time = set(latent_causes[-ws:])
+    def convergence(latent_dimensions: List[int], ws: int) -> bool:
+        """Evaluate convergence of latent dimensions."""
+        causes_over_time = set(latent_dimensions[-ws:])
         divergence = len(causes_over_time)
         if divergence == 1 and causes_over_time.pop() != 0:
             return True
@@ -237,7 +243,7 @@ class Trainer(nn.Module):
         self,
         batch: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Perform Monte Carlo sampling."""
+        """Perform Monte Carlo sampling over the variational posterior."""
         n_choices = 3 if self.task == "odd_one_out" else 2
         sampled_probas = torch.zeros(
             self.mc_samples, batch.shape[0] // n_choices, n_choices
@@ -266,7 +272,7 @@ class Trainer(nn.Module):
         return val_acc, val_loss, probas, hard_choices
 
     def evaluate(self, val_batches: Iterator) -> Tuple[float, float]:
-        """Evaluate model on validation set."""
+        """Evaluate model on the validation set."""
         self.eval()
         batch_losses_val = torch.zeros(len(val_batches))
         batch_accs_val = torch.zeros(len(val_batches))
@@ -382,7 +388,7 @@ class Trainer(nn.Module):
 
             signal, _, _ = self.pruning()
             n_latents = signal.shape[0]
-            self.latent_causes.append(n_latents)
+            self.latent_dimensions.append(n_latents)
 
             if self.verbose:
                 print(
@@ -404,7 +410,7 @@ class Trainer(nn.Module):
 
             if epoch > self.burnin:
                 # evaluate model convergence
-                if self.convergence(self.latent_causes, self.ws):
+                if self.convergence(self.latent_dimensions, self.ws):
                     self.save_checkpoint(epoch)
                     self.save_results(epoch)
                     print("\n...Stopping VICE optimzation.")
@@ -428,7 +434,7 @@ class Trainer(nn.Module):
             "val_accs": self.val_accs,
             "loglikelihoods": self.loglikelihoods,
             "complexity_costs": self.complexity_losses,
-            "latent_causes": self.latent_causes,
+            "latent_dimensions": self.latent_dimensions,
         }
         torch.save(
             checkpoint, os.path.join(self.model_dir, f"model_epoch{epoch+1:04d}.tar")

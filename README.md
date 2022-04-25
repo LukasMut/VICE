@@ -75,12 +75,12 @@ Explanation of arguments in `run.py`
  --slab (float) / # sigma of the slab distribution
  --pi (float) / # probability value that determines the relative weighting of the distributions; the closer this value is to 1, the higher the probability that weights are drawn from the spike distribution
  --k (int) / # minimum number of items whose weights are non-zero for a latent dimension (according to importance scores)
- --ws (int) / # determines for how many epochs the number of latent causes (after pruning) is not allowed to vary (ws >> 100)
+ --ws (int) / # determines for how many epochs the number of latent dimensions (after pruning) is not allowed to vary (ws >> 100)
  --steps (int) / # perform validation, save model parameters and create model and optimizer checkpoints every <steps> epochs
  --device (str) / # cuda or cpu
  --num_threads (int) / # number of threads used for intraop parallelism on CPU; use only if device is CPU
  --rnd_seed (int) / # random seed
- --verbose (bool) / # show print statements about model performance and evolution of latent causes during training (can be piped into log file)
+ --verbose (bool) / # show print statements about model performance and evolution of latent dimensions during training (can be piped into log file)
  ```
 
 #### Example call
@@ -110,7 +110,7 @@ root/results/modality/init_dim/optimizer/prior/spike/slab/pi/seed
 root/plots/modality/init_dim/optimizer/prior/spike/slab/pi/seed
 ├── 'single_model_performance_over_time.png'
 ├── 'llikelihood_and_complexity_over_time.png'
-└── 'latent_causes_over_time.png'
+└── 'latent_dimensions_over_time.png'
 ```
 
 ### VICE evaluation

@@ -37,7 +37,7 @@ def plot_latent_dimensions(
     if not os.path.exists(PATH):
         os.makedirs(PATH)
         
-    plt.savefig(os.path.join(PATH, 'latent_causes_over_time.png'))
+    plt.savefig(os.path.join(PATH, 'latent_dimensions_over_time.png'))
     if show_plot:
         plt.show()
 

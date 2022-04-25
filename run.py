@@ -61,7 +61,7 @@ def parseargs():
         choices=[5, 10],
         help='minimum number of items that have non-zero weight for a latent dimension (according to importance scores)')
     aa('--ws', type=int, default=500,
-        help='determines for how many epochs the number of latent causes (after pruning) is not allowed to vary')
+        help='determines for how many epochs the number of latent dimensions (after pruning) is not allowed to vary')
     aa('--steps', type=int, default=50,
         help='perform validation and save model parameters every <steps> epochs')
     aa('--device', type=str, default='cpu',

@@ -38,7 +38,7 @@ root
 ├── inference.py
 ├── partition_food_data.py
 ├── requirements.txt
-├── run.py
+├── train.py
 ├── tripletize.py
 ├── utils.py
 └── visualization.py
@@ -52,11 +52,11 @@ We provide a `DEMO` Jupyter Notebook (`JN`) to guide users through each step of 
 
 ### VICE optimization
 
-Explanation of arguments in `run.py`
+Explanation of arguments in `train.py`
 
 ```python
  
- run.py
+ train.py
   
  --task (str) / # odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task
  --modality (str) / # e.g., behavioral, text, visual, fMRI
@@ -86,7 +86,7 @@ Explanation of arguments in `run.py`
 #### Example call
 
 ```python
-$ python run.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 2000 --burnin 500 --eta 0.001 --latent_dim 100 --batch_size 128 --k 5 --ws 200 --optim adam --prior gaussian --mc_samples 10 --spike 0.25 --slab 1.0 --pi 0.6 --steps 50 --device cpu --num_threads 8 --rnd_seed 42 --verbose
+$ python train.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 2000 --burnin 500 --eta 0.001 --latent_dim 100 --batch_size 128 --k 5 --ws 200 --optim adam --prior gaussian --mc_samples 10 --spike 0.25 --slab 1.0 --pi 0.6 --steps 50 --device cpu --num_threads 8 --rnd_seed 42 --verbose
 ```
 
 ### NOTES:
@@ -104,7 +104,7 @@ root/results/modality/init_dim/optimizer/prior/spike/slab/pi/seed
 └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
 ```
 
-3. `run.py` plots train and validation performances (to examine overfitting) against as well as negative log-likelihoods and KL-divergences (to evaluate contribution of the different loss terms) alongside each other. Evolution of (identified) latent dimensions over time is additionally plotted after convergence. See folder structure below for where to find plots after the optimization has finished.
+3. `train.py` plots train and validation performances (to examine overfitting) against as well as negative log-likelihoods and KL-divergences (to evaluate contribution of the different loss terms) alongside each other. Evolution of (identified) latent dimensions over time is additionally plotted after convergence. See folder structure below for where to find plots after the optimization has finished.
 
 ```bash
 root/plots/modality/init_dim/optimizer/prior/spike/slab/pi/seed

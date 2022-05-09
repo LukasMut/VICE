@@ -20,51 +20,68 @@ from typing import Tuple, Dict
 
 
 def pickle_file(file: dict, out_path: str, file_name: str) -> None:
-    with open(os.path.join(out_path, ''.join((file_name, '.txt'))), 'wb') as f:
+    with open(os.path.join(out_path, "".join((file_name, ".txt"))), "wb") as f:
         f.write(pickle.dumps(file))
 
 
 def unpickle_file(in_path: str, file_name: str) -> dict:
-    return pickle.loads(open(os.path.join(in_path, ''.join((file_name, '.txt'))), 'rb').read())
-
-
-def filter_triplets(rnd_samples: np.ndarray, n_samples: float) -> np.ndarray:
-    """Filter for unique triplets (i.e., {i, j, k} needs to be a set)"""
-    rnd_samples = np.asarray(list(filter(lambda triplet: len(
-        np.unique(triplet)) == len(triplet), rnd_samples)))
-    # remove all duplicates from our sample
-    rnd_samples = np.unique(rnd_samples, axis=0)[:int(n_samples)]
-    return rnd_samples
+    return pickle.loads(
+        open(os.path.join(in_path, "".join((file_name, ".txt"))), "rb").read()
+    )
 
 
 def load_ref_images(img_folder: str, item_names: np.ndarray) -> np.ndarray:
-    ref_images = np.array([resize(io.imread(os.path.join(img_folder, name + '.jpg')),
-                          (400, 400), anti_aliasing=True) for name in item_names])
+    ref_images = np.array(
+        [
+            resize(
+                io.imread(os.path.join(img_folder, name + ".jpg")),
+                (400, 400),
+                anti_aliasing=True,
+            )
+            for name in item_names
+        ]
+    )
     return ref_images
 
 
-def load_data(device: torch.device, triplets_dir: str, val_set: str = 'test_10', inference: bool = False) -> Tuple[torch.Tensor]:
+def load_data(
+    device: torch.device,
+    triplets_dir: str,
+    val_set: str = "test_10",
+    inference: bool = False,
+) -> Tuple[torch.Tensor]:
     """Load train and test triplet datasets from disk."""
     if inference:
-        with open(pjoin(triplets_dir, 'test_triplets.npy'), 'rb') as test_triplets:
-            test_triplets = torch.from_numpy(np.load(test_triplets)).to(
-                device).type(torch.LongTensor)
+        with open(pjoin(triplets_dir, "test_triplets.npy"), "rb") as test_triplets:
+            test_triplets = (
+                torch.from_numpy(np.load(test_triplets))
+                .to(device)
+                .type(torch.LongTensor)
+            )
             return test_triplets
     try:
-        with open(pjoin(triplets_dir, 'train_90.npy'), 'rb') as train_file:
-            train_triplets = torch.from_numpy(
-                np.load(train_file)).to(device).type(torch.LongTensor)
+        with open(pjoin(triplets_dir, "train_90.npy"), "rb") as train_file:
+            train_triplets = (
+                torch.from_numpy(np.load(train_file)).to(device).type(torch.LongTensor)
+            )
 
-        with open(pjoin(triplets_dir, f'{val_set}.npy'), 'rb') as test_file:
-            test_triplets = torch.from_numpy(np.load(test_file)).to(
-                device).type(torch.LongTensor)
+        with open(pjoin(triplets_dir, f"{val_set}.npy"), "rb") as test_file:
+            test_triplets = (
+                torch.from_numpy(np.load(test_file)).to(device).type(torch.LongTensor)
+            )
     except FileNotFoundError:
-        print('\n...Could not find any .npy files for current modality.')
-        print('...Now searching for .txt files.\n')
-        train_triplets = torch.from_numpy(np.loadtxt(
-            pjoin(triplets_dir, 'train_90.txt'))).to(device).type(torch.LongTensor)
-        test_triplets = torch.from_numpy(np.loadtxt(
-            pjoin(triplets_dir, f'{val_set}.txt'))).to(device).type(torch.LongTensor)
+        print("\n...Could not find any .npy files for current modality.")
+        print("...Now searching for .txt files.\n")
+        train_triplets = (
+            torch.from_numpy(np.loadtxt(pjoin(triplets_dir, "train_90.txt")))
+            .to(device)
+            .type(torch.LongTensor)
+        )
+        test_triplets = (
+            torch.from_numpy(np.loadtxt(pjoin(triplets_dir, f"{val_set}.txt")))
+            .to(device)
+            .type(torch.LongTensor)
+        )
     return train_triplets, test_triplets
 
 
@@ -86,14 +103,17 @@ def load_batches(
     if inference:
         assert train_triplets is None
         test_batches = DataLoader(
-            dataset=test_triplets, n_items=n_items, batch_size=batch_size, train=False)
+            dataset=test_triplets, n_items=n_items, batch_size=batch_size, train=False
+        )
         return test_batches
     else:
         # create two iterators of train and validation mini-batches respectively
         train_batches = DataLoader(
-            dataset=train_triplets, n_items=n_items, batch_size=batch_size, train=True)
+            dataset=train_triplets, n_items=n_items, batch_size=batch_size, train=True
+        )
         val_batches = DataLoader(
-            dataset=test_triplets, n_items=n_items, batch_size=batch_size, train=False)
+            dataset=test_triplets, n_items=n_items, batch_size=batch_size, train=False
+        )
     return train_batches, val_batches
 
 
@@ -101,9 +121,11 @@ def load_batches(
 ######### helper functions for evaluation ######
 ################################################
 
+
 def instance_sampling(probas: np.ndarray) -> np.ndarray:
     rnd_sample = np.random.choice(
-        np.arange(len(probas)), size=len(probas), replace=True)
+        np.arange(len(probas)), size=len(probas), replace=True
+    )
     probas_draw = probas[rnd_sample]
     return probas_draw
 
@@ -129,7 +151,7 @@ def compute_pm(probas: np.ndarray) -> Tuple[np.ndarray, dict]:
 
 
 def mse(avg_p: np.ndarray, confidences: np.ndarray) -> float:
-    return np.mean((avg_p - confidences)**2)
+    return np.mean((avg_p - confidences) ** 2)
 
 
 def mat2py(triplet: tuple) -> tuple:
@@ -148,7 +170,9 @@ def histogram(choices: list) -> dict:
     return hist
 
 
-def compute_pmfs(choices: dict, behavior: bool) -> Dict[Tuple[int, int, int], np.ndarray]:
+def compute_pmfs(
+    choices: dict, behavior: bool
+) -> Dict[Tuple[int, int, int], np.ndarray]:
     if behavior:
         pmfs = {mat2py(t): pmf(histogram(c)) for t, c in choices.items()}
     else:
@@ -158,27 +182,29 @@ def compute_pmfs(choices: dict, behavior: bool) -> Dict[Tuple[int, int, int], np
 
 def get_choice_distributions(test_set: pd.DataFrame) -> dict:
     """Compute human choice distributions and the corresponding PMFs."""
-    triplets = test_set[['trip.1', 'trip.2', 'trip.3']]
-    test_set['triplets'] = list(map(tuple, triplets.to_numpy()))
+    triplets = test_set[["trip.1", "trip.2", "trip.3"]]
+    test_set["triplets"] = list(map(tuple, triplets.to_numpy()))
     unique_triplets = test_set.triplets.unique()
     choice_distribution = defaultdict(list)
     for triplet in unique_triplets:
-        choices = list(test_set[test_set['triplets'] == triplet].choice.values)
+        choices = list(test_set[test_set["triplets"] == triplet].choice.values)
         sorted_choices = [
-            np.where(np.argsort(triplet) + 1 == c)[0][0] + 1 for c in choices]
+            np.where(np.argsort(triplet) + 1 == c)[0][0] + 1 for c in choices
+        ]
         sorted_triplet = tuple(sorted(triplet))
         choice_distribution[sorted_triplet].extend(sorted_choices)
     choice_pmfs = compute_pmfs(choice_distribution, behavior=True)
     return choice_pmfs
 
 
-def collect_choices(probas: np.ndarray, human_choices: np.ndarray, model_choices: dict) -> dict:
+def collect_choices(
+    probas: np.ndarray, human_choices: np.ndarray, model_choices: dict
+) -> dict:
     """Collect model choices at inference time."""
     probas = probas.flip(dims=[1])
     for pmf, choices in zip(probas, human_choices):
         sorted_choices = tuple(np.sort(choices))
-        model_choices[sorted_choices].append(
-            pmf[np.argsort(choices)].numpy().tolist())
+        model_choices[sorted_choices].append(pmf[np.argsort(choices)].numpy().tolist())
     return model_choices
 
 
@@ -186,17 +212,19 @@ def load_model(
     model,
     PATH: str,
     device: torch.device,
-    subfolder: str = 'model',
+    subfolder: str = "model",
 ):
     model_path = pjoin(PATH, subfolder)
     models = sorted(os.listdir(model_path))
     PATH = pjoin(model_path, models[-1])
     checkpoint = torch.load(PATH, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint["model_state_dict"])
     return model
 
 
-def pearsonr(u: np.ndarray, v: np.ndarray, a_min: float = -1., a_max: float = 1.) -> np.ndarray:
+def pearsonr(
+    u: np.ndarray, v: np.ndarray, a_min: float = -1.0, a_max: float = 1.0
+) -> np.ndarray:
     """Compute the Pearson correlation coefficient."""
     u_c = u - np.mean(u)
     v_c = v - np.mean(v)
@@ -214,13 +242,16 @@ def compute_pvals(W_loc: np.ndarray, W_scale: np.ndarray) -> np.ndarray:
     # Compute the probability for an embedding value x_{ij} <= 0,
     # given mu and sigma of the variational posterior q_{\theta}
     def pval(W_loc, W_scale, j):
-        return norm.cdf(0., W_loc[:, j], W_scale[:, j])
+        return norm.cdf(0.0, W_loc[:, j], W_scale[:, j])
+
     return partial(pval, W_loc, W_scale)(np.arange(W_loc.shape[1])).T
 
 
-def fdr_corrections(p_vals: np.ndarray, alpha: float = .05) -> np.ndarray:
+def fdr_corrections(p_vals: np.ndarray, alpha: float = 0.05) -> np.ndarray:
     # For each dimension, statistically test how many objects have non-zero weight
-    return np.array(list(map(lambda p: multipletests(p, alpha=alpha, method='fdr_bh')[0], p_vals)))
+    return np.array(
+        list(map(lambda p: multipletests(p, alpha=alpha, method="fdr_bh")[0], p_vals))
+    )
 
 
 def get_importance(rejections: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:

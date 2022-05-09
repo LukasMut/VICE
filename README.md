@@ -115,7 +115,7 @@ root/results/modality/init_dim/optimizer/prior/spike/slab/pi/seed
 └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
 ```
 
-3. `train.py` (which is called by `main.py`) plots train and validation performances (to examine overfitting) against as well as negative log-likelihoods and KL-divergences (to evaluate contribution of the different loss terms) alongside each other. Evolution of (identified) latent dimensions over time is additionally plotted after convergence. See folder structure below for where to find plots after the optimization has finished.
+3. `train.py` (which is invoked by `main.py`) plots train and validation performances (to examine overfitting) against as well as negative log-likelihoods and KL-divergences (to evaluate contribution of the different loss terms) alongside each other. Evolution of (identified) latent dimensions over time is additionally plotted after convergence. See folder structure below for where to find plots after the optimization has finished.
 
 ```bash
 root/plots/modality/init_dim/optimizer/prior/spike/slab/pi/seed

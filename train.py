@@ -8,10 +8,10 @@ import re
 import torch
 import utils
 import visualization
+import model
 
 import numpy as np
 
-from model.vice import VICE
 from typing import Tuple
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
@@ -152,7 +152,8 @@ def run(
         rnd_seed=rnd_seed,
     )
     # initialize VICE model
-    vice = VICE(
+    vice = getattr(model, 'VICE')
+    vice = vice(
         task=task,
         n_train=N,
         n_items=n_items,

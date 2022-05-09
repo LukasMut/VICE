@@ -48,7 +48,7 @@ class VICE(Trainer):
         self,
         task: str,
         n_train: int,
-        n_items: int,
+        n_objects: int,
         latent_dim: int,
         optim: str,
         eta: str,
@@ -73,7 +73,7 @@ class VICE(Trainer):
         super().__init__(
             task=task,
             n_train=n_train,
-            n_items=n_items,
+            n_objects=n_objects,
             latent_dim=latent_dim,
             optim=optim,
             eta=eta,
@@ -93,7 +93,7 @@ class VICE(Trainer):
             device=device,
             verbose=verbose,
         )
-        self.in_size = n_items
+        self.in_size = n_objects
         self.out_size = latent_dim
         self.mu = Mu(self.in_size, self.out_size, bias)
         self.sigma = Sigma(self.in_size, self.out_size, bias)

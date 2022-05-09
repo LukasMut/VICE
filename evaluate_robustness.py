@@ -29,8 +29,8 @@ def parseargs():
         help='results directory (root directory for models)')
     aa('--task', type=str, default='odd_one_out',
         choices=['odd_one_out', 'similarity_task'])
-    aa('--n_items', type=int,
-        help='number of unique items/stimuli/objects in dataset')
+    aa('--n_objects', type=int,
+        help='number of unique objects/items/stimuli in dataset')
     aa('--latent_dim', type=int, default=100,
         help='initial latent dimensionality of VICE embedding(s)')
     aa('--thresh', type=float, default=0.8,
@@ -200,7 +200,7 @@ def pruning(model: model.VICE, alpha: float = .05, k: int = 5,
 def evaluate_models(
     results_dir: str,
     task: str,
-    n_items: int,
+    n_objects: int,
     latent_dim: int,
     optim: str,
     prior: str,
@@ -221,7 +221,7 @@ def evaluate_models(
     _, val_triplets = utils.load_data(
         device=device, triplets_dir=triplets_dir, inference=False)
     val_batches = utils.load_batches(
-        train_triplets=None, test_triplets=val_triplets, n_items=n_items, batch_size=batch_size, inference=True)
+        train_triplets=None, test_triplets=val_triplets, n_objects=n_objects, batch_size=batch_size, inference=True)
     val_losses = np.zeros(len(model_paths))
     for i, model_path in enumerate(model_paths):
         print(f'Currently pruning and evaluating model: {i+1}\n')
@@ -232,7 +232,7 @@ def evaluate_models(
                 n_train=None,
                 burnin=None,
                 ws=None,
-                n_items=n_items,
+                n_objects=n_objects,
                 latent_dim=latent_dim,
                 optim=None,
                 eta=None,
@@ -281,7 +281,7 @@ if __name__ == '__main__':
     evaluate_models(
         results_dir=args.results_dir,
         task=args.task,
-        n_items=args.n_items,
+        n_objects=args.n_objects,
         latent_dim=args.latent_dim,
         optim=args.optim,
         prior=args.prior,

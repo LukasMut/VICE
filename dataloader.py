@@ -11,13 +11,13 @@ class DataLoader(object):
     def __init__(
         self,
         dataset: torch.Tensor,
-        n_items: int,
+        n_objects: int,
         batch_size: int,
         train: bool = True,
     ):
         self.dataset = dataset
-        # initialize an identity matrix of size n_items x n_items for one-hot-encoding of triplets
-        self.identity = torch.eye(n_items)
+        # initialize an identity matrix of size m x m for one-hot-encoding of triplets
+        self.identity = torch.eye(n_objects)
         self.batch_size = batch_size
         self.train = train
         self.n_batches = int(math.ceil(len(self.dataset) / self.batch_size))

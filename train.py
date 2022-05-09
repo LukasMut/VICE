@@ -89,11 +89,11 @@ def run(
         device=device, triplets_dir=triplets_dir
     )
     N = train_triplets.shape[0]
-    n_items = utils.get_nitems(train_triplets)
+    n_objects = utils.get_nobjects(train_triplets)
     train_batches, val_batches = utils.load_batches(
         train_triplets=train_triplets,
         test_triplets=test_triplets,
-        n_items=n_items,
+        n_objects=n_objects,
         batch_size=batch_size,
     )
     print(f"\nNumber of train batches: {len(train_batches)}\n")
@@ -113,7 +113,7 @@ def run(
     vice = getattr(model, "VICE")(
         task=task,
         n_train=N,
-        n_items=n_items,
+        n_objects=n_objects,
         latent_dim=latent_dim,
         optim=optim,
         eta=eta,

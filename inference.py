@@ -24,7 +24,7 @@ def parseargs():
         parser.add_argument(*args, **kwargs)
     aa('--task', type=str, default='odd_one_out',
         choices=['odd_one_out', 'similarity_task'])
-    aa('--n_items', type=int, default=1854,
+    aa('--n_objects', type=int, default=1854,
         help='number of unique items/objects in dataset')
     aa('--latent_dim', type=int, default=100,
         help='initial dimensionality of VICE latent space')
@@ -112,7 +112,7 @@ def get_models(
     vice_paths: List[str],
     task: str,
     prior: str,
-    n_items: int,
+    n_objects: int,
     latent_dim: int,
     batch_size: int,
     mc_samples: int,
@@ -126,7 +126,7 @@ def get_models(
         vice = getattr(model, 'VICE')(
             task=task,
             n_train=None,
-            n_items=n_items,
+            n_objects=n_objects,
             latent_dim=latent_dim,
             optim=None,
             eta=None,
@@ -157,7 +157,7 @@ def get_models(
 
 def inference(
     task: str,
-    n_items: int,
+    n_objects: int,
     latent_dim: int,
     batch_size: int,
     prior: str,
@@ -169,7 +169,7 @@ def inference(
 
     in_path = os.path.join(results_dir, f'{latent_dim}d')
     vice_paths = get_model_paths(in_path)
-    seeds, vice_models = zip(*get_models(vice_paths, task, prior, n_items,
+    seeds, vice_models = zip(*get_models(vice_paths, task, prior, n_objects,
                                 latent_dim, batch_size, mc_samples, results_dir, device))
 
     test_triplets = utils.load_data(
@@ -178,9 +178,9 @@ def inference(
         device=device, triplets_dir=triplets_dir, inference=False)
 
     test_batches = utils.load_batches(
-        train_triplets=None, test_triplets=test_triplets, n_items=n_items, batch_size=batch_size, inference=True)
+        train_triplets=None, test_triplets=test_triplets, n_objects=n_objects, batch_size=batch_size, inference=True)
     val_batches = utils.load_batches(
-        train_triplets=None, test_triplets=val_triplets, n_items=n_items, batch_size=batch_size, inference=True)
+        train_triplets=None, test_triplets=val_triplets, n_objects=n_objects, batch_size=batch_size, inference=True)
 
     print(
         f'\nNumber of validation batches in current process: {len(val_batches)}\n')
@@ -275,7 +275,7 @@ if __name__ == '__main__':
     device = torch.device(args.device)
     inference(
         task=args.task,
-        n_items=args.n_items,
+        n_objects=args.n_objects,
         latent_dim=args.latent_dim,
         batch_size=args.batch_size,
         prior=args.prior,

@@ -24,7 +24,7 @@ class Trainer(nn.Module):
         self,
         task: str,
         n_train: int,
-        n_items: int,
+        n_objects: int,
         latent_dim: int,
         optim: Any,
         eta: str,
@@ -47,7 +47,7 @@ class Trainer(nn.Module):
         super(Trainer, self).__init__()
         self.task = task
         self.n_train = n_train  # number of trials/triplets in dataset
-        self.n_items = n_items  # number of unique items/objects
+        self.n_objects = n_objects  # number of unique items/objects
         self.latent_dim = latent_dim
         self.optim = optim
         self.eta = eta  # learning rate
@@ -119,12 +119,12 @@ class Trainer(nn.Module):
             self.latent_dimensions = []
 
     def initialize_priors_(self) -> None:
-        self.loc = torch.zeros(self.n_items, self.latent_dim).to(self.device)
+        self.loc = torch.zeros(self.n_objects, self.latent_dim).to(self.device)
         self.scale_spike = (
-            torch.ones(self.n_items, self.latent_dim).mul(self.spike).to(self.device)
+            torch.ones(self.n_objects, self.latent_dim).mul(self.spike).to(self.device)
         )
         self.scale_slab = (
-            torch.ones(self.n_items, self.latent_dim).mul(self.slab).to(self.device)
+            torch.ones(self.n_objects, self.latent_dim).mul(self.slab).to(self.device)
         )
 
     def initialize_optim_(self) -> None:

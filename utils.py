@@ -85,34 +85,34 @@ def load_data(
     return train_triplets, test_triplets
 
 
-def get_nitems(train_triplets: torch.Tensor) -> int:
+def get_nobjects(train_triplets: torch.Tensor) -> int:
     # number of unique items in the data matrix
-    n_items = torch.max(train_triplets).item()
+    n_objects = torch.max(train_triplets).item()
     if torch.min(train_triplets).item() == 0:
-        n_items += 1
-    return n_items
+        n_objects += 1
+    return n_objects
 
 
 def load_batches(
     train_triplets: torch.Tensor,
     test_triplets: torch.Tensor,
-    n_items: int,
+    n_objects: int,
     batch_size: int,
     inference: bool = False,
 ):
     if inference:
         assert train_triplets is None
         test_batches = DataLoader(
-            dataset=test_triplets, n_items=n_items, batch_size=batch_size, train=False
+            dataset=test_triplets, n_objects=n_objects, batch_size=batch_size, train=False
         )
         return test_batches
     else:
         # create two iterators of train and validation mini-batches respectively
         train_batches = DataLoader(
-            dataset=train_triplets, n_items=n_items, batch_size=batch_size, train=True
+            dataset=train_triplets, n_objects=n_objects, batch_size=batch_size, train=True
         )
         val_batches = DataLoader(
-            dataset=test_triplets, n_items=n_items, batch_size=batch_size, train=False
+            dataset=test_triplets, n_objects=n_objects, batch_size=batch_size, train=False
         )
     return train_batches, val_batches
 

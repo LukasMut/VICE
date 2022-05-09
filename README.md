@@ -75,7 +75,7 @@ Explanation of arguments in `main.py`
  --spike (float) / # sigma of the spike distribution
  --slab (float) / # sigma of the slab distribution
  --pi (float) / # probability value that determines the relative weighting of the distributions; the closer this value is to 1, the higher the probability that weights are drawn from the spike distribution
- --k (int) / # minimum number of items whose weights are non-zero for a latent dimension (according to importance scores)
+ --k (int) / # minimum number of objects whose weights are non-zero for a latent dimension (according to importance scores)
  --ws (int) / # determines for how many epochs the number of latent dimensions (after pruning) is not allowed to vary (ws >> 100)
  --steps (int) / # perform validation, save model parameters and create model and optimizer checkpoints every <steps> epochs
  --device (str) / # cuda or cpu
@@ -92,7 +92,7 @@ $ python main.py --task odd_one_out --triplets_dir path/to/triplets --results_di
 
 ### NOTES:
 
-1. Note that triplet data is expected to be in the format `N x 3`, where `N` = number of triplets (e.g., 100k) and 3 refers to the three items per triplet, where `col_0` = anchor_1, `col_1` = anchor_2, `col_2` = odd one out. Triplet data must be split into `train` and `test` splits, and named `train_90.txt` or `train_90.npy` and `test_10.txt` or `test_10.npy` respectively.
+1. Note that triplet data is expected to be in the format `N x 3`, where `N` = number of triplets (e.g., 100k) and 3 refers to the three objects per triplet, where `col_0` = anchor_1, `col_1` = anchor_2, `col_2` = odd one out. Triplet data must be split into `train` and `test` splits, and named `train_90.txt` or `train_90.npy` and `test_10.txt` or `test_10.npy` respectively.
 
 2. Every `--steps` epochs (i.e., `if (epoch + 1) % steps == 0`) a `model_epoch.tar` (including model and optimizer `state_dicts`) and a `results_epoch.json` (including train and validation cross-entropy errors) file are saved to disk. In addition, after convergence of VICE, a `pruned_params.npz` (compressed binary file) with keys `pruned_loc` and `pruned_scale`, including pruned VICE parameters, is saved to disk. Latent dimensions of the pruned parameter matrices are sorted according to their overall importance. See output folder structure below for where to find these files.</br>
 
@@ -124,7 +124,7 @@ Explanation of arguments in `evaluate_robustness.py`
  
  --results_dir (str) / # path/to/models
  --task (str) / # odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task
- --n_items (int) / # number of unique items/stimuli/objects in the dataset
+ --n_objects (int) / # number of unique objects/items/stimuli in the dataset
  --latent_dim (int) / # latent space dimensionality with which VICE was initialized at run time
  --batch_size (int) / # mini-batch size used during VICE training
  --thresh (float) / # Pearson correlation value to threshold reproducibility of dimensions (e.g., 0.8)
@@ -142,7 +142,7 @@ Explanation of arguments in `evaluate_robustness.py`
 #### Example call
 
 ```python
-$ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --n_items number/of/unique/objects (e.g., 1854) --latent_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.25 --slab 1.0 --pi 0.6 --triplets_dir path/to/triplets --mc_samples 5 --device cpu --rnd_seed 42
+$ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --n_objects number/of/unique/objects (e.g., 1854) --latent_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.25 --slab 1.0 --pi 0.6 --triplets_dir path/to/triplets --mc_samples 5 --device cpu --rnd_seed 42
 ```
 
 ### VICE hyperparam. combination

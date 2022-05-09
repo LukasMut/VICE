@@ -9,10 +9,10 @@ import re
 import torch
 import utils
 import itertools
+import model
 
 import numpy as np
 
-from model.vice import VICE
 from typing import Tuple, List
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
@@ -176,14 +176,14 @@ def get_model_paths(PATH: str) -> List[str]:
     return paths
 
 
-def prune_weights(model: VICE, indices: np.ndarray) -> VICE:
+def prune_weights(model: model.VICE, indices: np.ndarray) -> model.VICE:
     for p in model.parameters():
         p.data = p.data[torch.from_numpy(indices)]
     return model
 
 
-def pruning(model: VICE, alpha: float = .05, k: int = 5,
-            ) -> Tuple[torch.Tensor, torch.Tensor, VICE]:
+def pruning(model: model.VICE, alpha: float = .05, k: int = 5,
+            ) -> Tuple[torch.Tensor, torch.Tensor, model.VICE]:
     params = model.detached_params
     loc = params['loc']
     scale = params['scale']
@@ -226,7 +226,7 @@ def evaluate_models(
     for i, model_path in enumerate(model_paths):
         print(f'Currently pruning and evaluating model: {i+1}\n')
         try:
-            model = VICE(
+            vice = model.VICE(
                 task=task,
                 k=k,
                 n_train=None,
@@ -248,12 +248,12 @@ def evaluate_models(
                 results_dir=results_dir,
                 device=device,
                 init_weights=True)
-            model = utils.load_model(
-                model=model, PATH=model_path, device=device)
+            vice = utils.load_model(
+                model=vice, PATH=model_path, device=device)
         except FileNotFoundError:
             raise Exception(f'Could not find params for {model_path}\n')
-        pruned_loc, pruned_scale, pruned_model = pruning(model)
-        val_loss, _ = pruned_model.evaluate(val_batches)
+        pruned_loc, pruned_scale, pruned_vice = pruning(vice)
+        val_loss, _ = pruned_vice.evaluate(val_batches)
         val_losses[i] += val_loss
         pruned_locs.append(pruned_loc)
         pruned_scales.append(pruned_scale)

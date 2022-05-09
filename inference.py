@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from typing import List
-from model.vice import VICE
 from collections import defaultdict
 
 import numpy as np
@@ -10,7 +9,7 @@ import argparse
 import os
 import re
 import random
-
+import model
 import torch
 import utils
 
@@ -91,13 +90,13 @@ def compute_divergences(human_pmfs: dict, model_pmfs: dict, metric: str) -> np.n
     return divergences
 
 
-def prune_weights(model: VICE, indices: np.ndarray) -> VICE:
+def prune_weights(model: model.VICE, indices: np.ndarray) -> model.VICE:
     for p in model.parameters():
         p.data = p.data[torch.from_numpy(indices)]
     return model
 
 
-def pruning(model: VICE, alpha: float = .05, k: int = 5) -> VICE:
+def pruning(model: model.VICE, alpha: float = .05, k: int = 5) -> model.VICE:
     params = model.detached_params
     loc = params['loc']
     scale = params['scale']
@@ -110,7 +109,7 @@ def pruning(model: VICE, alpha: float = .05, k: int = 5) -> VICE:
 
 
 def get_models(
-    model_paths: List[str],
+    vice_paths: List[str],
     task: str,
     prior: str,
     n_items: int,
@@ -120,11 +119,11 @@ def get_models(
     results_dir: str,
     device: torch.device,
     k: int = 5,
-) -> List[VICE]:
-    models = []
-    for model_path in model_paths:
-        seed = model_path.split('/')[-1]
-        model = VICE(
+) -> list:
+    vice_instances = []
+    for vice_path in vice_paths:
+        seed = vice_path.split('/')[-1]
+        vice = getattr(model, 'VICE')(
             task=task,
             n_train=None,
             n_items=n_items,
@@ -147,13 +146,13 @@ def get_models(
             device=device,
             init_weights=True)
         try:
-            model = utils.load_model(
-                model=model, PATH=model_path, device=device)
-            models.append((seed, model))
+            vice = utils.load_model(
+                model=vice, PATH=vice_path, device=device)
+            vice_instances.append((seed, vice))
         except RuntimeError:
             raise Exception(
-                f'\nModel parameters were incorrectly stored for: {model_path}\n')
-    return models
+                f'\nVICE parameters were incorrectly stored for: {vice_path}\n')
+    return vice_instances
 
 
 def inference(
@@ -169,9 +168,9 @@ def inference(
 ) -> None:
 
     in_path = os.path.join(results_dir, f'{latent_dim}d')
-    model_paths = get_model_paths(in_path)
-    seeds, models = zip(*get_models(model_paths, task, prior, n_items,
-                                    latent_dim, batch_size, mc_samples, results_dir, device))
+    vice_paths = get_model_paths(in_path)
+    seeds, vice_models = zip(*get_models(vice_paths, task, prior, n_items,
+                                latent_dim, batch_size, mc_samples, results_dir, device))
 
     test_triplets = utils.load_data(
         device=device, triplets_dir=triplets_dir, inference=True)
@@ -191,27 +190,27 @@ def inference(
     val_losses = {}
     test_accs = {}
     test_losses = {}
-    model_choices = {}
-    model_pmfs_all = defaultdict(dict)
+    vice_choices = {}
+    vice_pmfs_all = defaultdict(dict)
 
-    for seed, model, model_path in zip(seeds, models, model_paths):
-        pruned_model = pruning(model)
-        val_loss, _ = pruned_model.evaluate(val_batches)
-        test_acc, test_loss, probas, model_pmfs, triplet_choices = pruned_model.inference(
+    for seed, vice, vice_path in zip(seeds, vice_models, vice_paths):
+        pruned_vice = pruning(vice)
+        val_loss, _ = pruned_vice.evaluate(val_batches)
+        test_acc, test_loss, probas, vice_pmfs, triplet_choices = pruned_vice.inference(
             test_batches)
         val_losses[seed] = val_loss
         test_accs[seed] = test_acc
         test_losses[seed] = test_loss
-        model_pmfs_all[seed] = model_pmfs
-        model_choices[seed] = triplet_choices
+        vice_pmfs_all[seed] = vice_pmfs
+        vice_choices[seed] = triplet_choices
 
         print(f'Test accuracy for current random seed: {test_acc}\n')
 
-        with open(os.path.join(model_path, 'test_probas.npy'), 'wb') as f:
+        with open(os.path.join(vice_path, 'test_probas.npy'), 'wb') as f:
             np.save(f, probas)
 
     seeds, _ = zip(*sorted(val_losses.items(),
-                   key=lambda kv: kv[1], reverse=False))
+        key=lambda kv: kv[1], reverse=False))
     median_model = seeds[int(len(seeds) // 2) - 1]
     test_accs_ = list(test_accs.values())
     avg_test_acc = np.mean(test_accs_)
@@ -232,8 +231,8 @@ def inference(
         sorted(test_losses.items(), key=lambda kv: kv[1], reverse=True))
     # NOTE: we leverage the model that is slightly better than the median model (since we have 20 random seeds, the median is the average between model 10 and 11)
     # median_model = list(test_losses.keys())[int(len(test_losses)//2)-1]
-    median_model_pmfs = model_pmfs_all[median_model]
-    median_model_choices = model_choices[median_model]
+    median_model_pmfs = vice_pmfs_all[median_model]
+    median_model_choices = vice_choices[median_model]
 
     utils.pickle_file(median_model_choices, out_path, 'triplet_choices')
     utils.pickle_file(median_model_pmfs, out_path, 'model_choice_pmfs')
@@ -255,13 +254,13 @@ def inference(
     np.savetxt(os.path.join(out_path, 'l1_distances_median.txt'), l1_distances)
 
     klds, cross_entropies, l1_distances = {}, {}, {}
-    for seed, model_pmfs in model_pmfs_all.items():
+    for seed, vice_pmfs in vice_pmfs_all.items():
         klds[seed] = np.mean(compute_divergences(
-            human_pmfs, model_pmfs, metric='kld'))
+            human_pmfs, vice_pmfs, metric='kld'))
         cross_entropies[seed] = np.mean(compute_divergences(
-            human_pmfs, model_pmfs, metric='cross-entropy'))
+            human_pmfs, vice_pmfs, metric='cross-entropy'))
         l1_distances[seed] = np.mean(compute_divergences(
-            human_pmfs, model_pmfs, metric='l1-distance'))
+            human_pmfs, vice_pmfs, metric='l1-distance'))
 
     utils.pickle_file(klds, out_path, 'klds_all')
     utils.pickle_file(cross_entropies, out_path, 'cross_entropies_all')

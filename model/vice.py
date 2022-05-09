@@ -128,5 +128,5 @@ class VICE(Trainer):
         W_loc = self.mu.mu.weight.data.T.detach()
         W_scale = self.sigma.logsigma.weight.data.T.exp().detach()
         W_loc = F.relu(W_loc)
-        params = {"loc": W_loc.cpu().numpy(), "scale": W_scale.cpu().numpy()}
+        params = dict(loc=W_loc.cpu().numpy(), scale=W_scale.cpu().numpy())
         return params

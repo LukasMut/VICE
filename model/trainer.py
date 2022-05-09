@@ -13,7 +13,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from collections import defaultdict
-from torch.optim import SGD, Adam, AdamW
 from typing import Any, Dict, Iterator, List, Tuple
 
 
@@ -130,17 +129,20 @@ class Trainer(nn.Module):
 
     def initialize_optim_(self) -> None:
         if self.optim == "adam":
-            self.optim = Adam(self.parameters(), eps=1e-08, lr=self.eta)
+            self.optim = getattr(torch.optim, 'Adam')(self.parameters(), 
+            eps=1e-08, lr=self.eta)
         elif self.optim == "adamw":
-            self.optim = AdamW(self.parameters(), eps=1e-08, lr=self.eta)
+            self.optim = getattr(torch.optim, 'AdamW')(self.parameters(),
+            eps=1e-08, lr=self.eta)
         else:
-            self.optim = SGD(self.parameters(), lr=self.eta)
+            self.optim = getattr(torch.optim, 'SGD')(self.parameters(),
+            lr=self.eta)
 
     @staticmethod
     def norm_pdf(
         W_sample: torch.Tensor, W_loc: torch.Tensor, W_scale: torch.Tensor
     ) -> torch.Tensor:
-        """Probability density function for a normal distribution."""
+        """Probability density function of a normal distribution."""
         return (
             torch.exp(-((W_sample - W_loc) ** 2) / (2 * W_scale.pow(2)))
             / W_scale
@@ -151,7 +153,7 @@ class Trainer(nn.Module):
     def laplace_pdf(
         W_sample: torch.Tensor, W_loc: torch.Tensor, W_scale: torch.Tensor
     ) -> torch.Tensor:
-        """Probability density function for a laplace distribution."""
+        """Probability density function of a laplace distribution."""
         return torch.exp(-(W_sample - W_loc).abs() / W_scale) / W_scale.mul(2.0)
 
     def spike_and_slab(self, W_sample: torch.Tensor) -> torch.Tensor:
@@ -167,7 +169,7 @@ class Trainer(nn.Module):
         negative: torch.Tensor,
         task: str,
     ) -> tuple:
-        """Apply the similarity function to each pair in the triplet."""
+        """Apply the similarity function (modeled as a dot product) to each pair in the triplet."""
         pos_sim = torch.sum(anchor * positive, dim=1)
         neg_sim = torch.sum(anchor * negative, dim=1)
         if task == "odd_one_out":
@@ -218,8 +220,9 @@ class Trainer(nn.Module):
         alpha: float = 0.05,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         # Prune the variational parameters theta
-        # by examining the number of *important* dimensions
-        # as defined by our pruning procedure in §3.3.4
+        # by identifying the number of *relevant* dimensions
+        # according to our dimensionality reduction procedure,
+        # defined in VICE §3.3.4
         loc = self.detached_params["loc"]
         scale = self.detached_params["scale"]
         p_vals = utils.compute_pvals(loc, scale)
@@ -232,18 +235,19 @@ class Trainer(nn.Module):
 
     @staticmethod
     def convergence(latent_dimensions: List[int], ws: int) -> bool:
-        """Evaluate convergence of latent dimensions."""
+        """Evaluate convergence of the object dimensions."""
         dimensions_over_time = set(latent_dimensions[-ws:])
         divergence = len(dimensions_over_time)
         if divergence == 1 and dimensions_over_time.pop() != 0:
             return True
         return False
 
+    @torch.no_grad()
     def mc_sampling(
         self,
         batch: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Perform Monte Carlo sampling over the variational posterior."""
+        """Perform Monte Carlo sampling over the variational posterior q_{theta}(X)."""
         n_choices = 3 if self.task == "odd_one_out" else 2
         sampled_probas = torch.zeros(
             self.mc_samples, batch.shape[0] // n_choices, n_choices
@@ -251,19 +255,18 @@ class Trainer(nn.Module):
         sampled_choices = torch.zeros(self.mc_samples, batch.shape[0] // n_choices).to(
             self.device
         )
-        with torch.no_grad():
-            for k in range(self.mc_samples):
-                logits, _, _, _ = self.forward(batch)
-                anchor, positive, negative = torch.unbind(
-                    torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1
-                )
-                similarities = self.compute_similarities(
-                    anchor, positive, negative, self.task
-                )
-                soft_choices = self.softmax(similarities)
-                probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
-                sampled_probas[k] += probas
-                sampled_choices[k] += soft_choices
+        for k in range(self.mc_samples):
+            logits, _, _, _ = self.forward(batch)
+            anchor, positive, negative = torch.unbind(
+                torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1
+            )
+            similarities = self.compute_similarities(
+                anchor, positive, negative, self.task
+            )
+            soft_choices = self.softmax(similarities)
+            probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
+            sampled_probas[k] += probas
+            sampled_choices[k] += soft_choices
         probas = sampled_probas.mean(dim=0)
         val_acc = self.accuracy_(probas.cpu().numpy())
         hard_choices = self.accuracy_(probas.cpu().numpy(), batching=False)
@@ -289,7 +292,7 @@ class Trainer(nn.Module):
         self,
         test_batches: Iterator,
     ) -> Tuple[float, float, np.ndarray, Dict[tuple, list]]:
-        """Perform inference on a held-out test set."""
+        """Perform inference on a held-out test set (may contain repeats)."""
         probas = torch.zeros(int(len(test_batches) * self.batch_size), 3)
         triplet_choices = []
         model_choices = defaultdict(list)
@@ -304,12 +307,12 @@ class Trainer(nn.Module):
             batch_centropies[j] += test_loss
             if batch_probas.shape[0] < self.batch_size:
                 B = batch_probas.shape[0]
-                probas[j * self.batch_size: (j * self.batch_size) + B] += batch_probas
+                probas[j * self.batch_size : (j * self.batch_size) + B] += batch_probas
                 human_choices = (
                     batch.nonzero(as_tuple=True)[-1].view(B, -1).cpu().numpy()
                 )
             else:
-                probas[j * self.batch_size: (j + 1) * self.batch_size] += batch_probas
+                probas[j * self.batch_size : (j + 1) * self.batch_size] += batch_probas
                 human_choices = (
                     batch.nonzero(as_tuple=True)[-1]
                     .view(self.batch_size, -1)
@@ -331,7 +334,7 @@ class Trainer(nn.Module):
         self,
         train_batches: Iterator,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Step over the full training data in mini-batches of size B."""
+        """Step over the full training data in mini-batches of size B and perform SGD."""
         batch_llikelihoods = torch.zeros(len(train_batches))
         batch_closses = torch.zeros(len(train_batches))
         batch_losses = torch.zeros(len(train_batches))
@@ -366,12 +369,13 @@ class Trainer(nn.Module):
         return batch_llikelihoods, batch_closses, batch_losses, batch_accs
 
     def fit(self, train_batches: Iterator, val_batches: Iterator) -> None:
+        """Fit a VICE model to a dataset of n concept triplets."""
         self.initialize_priors_()
         self.initialize_optim_()
         self.load_checkpoint_()
         for epoch in range(self.start, self.epochs):
             self.train()
-            # take a step over the entire training data (i.e., iterate over every mini-batch)
+            # take a step over the entire training data (i.e., iterate over every mini-batch in train_batches)
             batch_llikelihoods, batch_closses, batch_losses, batch_accs = self.stepping(
                 train_batches
             )
@@ -395,7 +399,7 @@ class Trainer(nn.Module):
                     "\n======================================================================================"
                 )
                 print(
-                    f"====== Epoch: {epoch+1:02d}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Latent dimensionality: {n_latents:02d} ======"
+                    f"====== Epoch: {epoch+1:02d}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Identified dimensions: {n_latents:02d} ======"
                 )
                 print(
                     "======================================================================================\n"
@@ -452,13 +456,17 @@ class Trainer(nn.Module):
         ) as rf:
             json.dump(results, rf)
 
-    def save_final_latents(self):
+    def save_final_latents(self) -> None:
         _, pruned_loc, pruned_scale = self.pruning()
-        pruned_loc = pruned_loc[
+        self.pruned_loc = pruned_loc[
             :, np.argsort(-np.linalg.norm(pruned_loc, axis=0, ord=1))
         ]
-        pruned_scale = pruned_scale[
+        self.pruned_scale = pruned_scale[
             :, np.argsort(-np.linalg.norm(pruned_loc, axis=0, ord=1))
         ]
         with open(os.path.join(self.results_dir, "pruned_params.npz"), "wb") as f:
-            np.savez_compressed(f, pruned_loc=pruned_loc, pruned_scale=pruned_scale)
+            np.savez_compressed(f, pruned_loc=self.pruned_loc, pruned_scale=self.pruned_scale)
+
+    @property
+    def pruned_params(self):
+        return dict(pruned_loc=self.pruned_loc, pruned_scale=self.pruned_scale)

@@ -459,7 +459,7 @@ class Trainer(nn.Module):
                 "train_acc": self.train_accs[-1],
             }
             warnings.warn(
-                message='\nNo validation results are being saved. To regularly evaluate VICE on the validation set, set <steps> >> <burnin>.\n',
+                message='\nNo validation results are being saved. To regularly evaluate VICE on the validation set, set <steps> << <burnin>.\n',
                 category=UserWarning
             )
 

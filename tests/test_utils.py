@@ -46,7 +46,7 @@ class TripletLoadingTestCase(unittest.TestCase):
         self.assertTrue(isinstance(train_triplets, torch.Tensor))
         self.assertTrue(isinstance(test_triplets, torch.Tensor))
 
-        M = utils.get_nitems(train_triplets)
+        M = utils.get_nobjects(train_triplets)
         self.assertTrue(type(M) == int)
 
         hypers = helper.get_hypers()

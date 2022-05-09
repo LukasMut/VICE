@@ -22,7 +22,7 @@ test_dir = "./test"
 model_dir = os.path.join(test_dir, "model")
 hypers = helper.get_hypers()
 triplets = helper.create_triplets()
-M = utils.get_nitems(triplets)
+M = utils.get_nobjects(triplets)
 subsample = triplets[
     np.random.choice(triplets.shape[0], size=batch_size, replace=False)
 ]
@@ -35,7 +35,7 @@ class VICETestCase(unittest.TestCase):
         vice = getattr(model, "VICE")(
             task=hypers["task"],
             n_train=hypers["N"],
-            n_items=hypers["M"],
+            n_objects=hypers["M"],
             latent_dim=hypers["P"],
             optim=hypers["optim"],
             eta=hypers["eta"],
@@ -84,7 +84,7 @@ class VICETestCase(unittest.TestCase):
         batches = utils.load_batches(
             train_triplets=None,
             test_triplets=subsample,
-            n_items=M,
+            n_objects=M,
             batch_size=batch_size,
             inference=True,
         )
@@ -102,7 +102,7 @@ class VICETestCase(unittest.TestCase):
         vice = self.get_model(hypers)
         self.assertEqual(vice.task, hypers["task"])
         self.assertEqual(vice.n_train, hypers["N"])
-        self.assertEqual(vice.n_items, hypers["M"])
+        self.assertEqual(vice.n_objects, hypers["M"])
         self.assertEqual(vice.latent_dim, hypers["P"])
         self.assertEqual(vice.optim, hypers["optim"])
         self.assertEqual(vice.eta, hypers["eta"])
@@ -151,7 +151,7 @@ class VICETestCase(unittest.TestCase):
         train_batches, val_batches = utils.load_batches(
             train_triplets=train_triplets,
             test_triplets=test_triplets,
-            n_items=hypers["M"],
+            n_objects=hypers["M"],
             batch_size=hypers["batch_size"],
             inference=False,
         )

@@ -445,12 +445,20 @@ class Trainer(nn.Module):
         )
 
     def save_results(self, epoch: int) -> None:
-        results = {
-            "epoch": epoch + 1,
-            "train_acc": self.train_accs[-1],
-            "val_acc": self.val_accs[-1],
-            "val_loss": self.val_losses[-1],
-        }
+        try:
+            results = {
+                "epoch": epoch + 1,
+                "train_acc": self.train_accs[-1],
+                "val_acc": self.val_accs[-1],
+                "val_loss": self.val_losses[-1],
+            }
+        except IndexError:
+            results = {
+                "epoch": epoch + 1,
+                "train_acc": self.train_accs[-1],
+            }
+            print('\nNo validation results are being saved. To regularly evaluate VICE on the validation set, set <steps> >> <burnin>.\n')
+
         with open(
             os.path.join(self.results_dir, f"results_{epoch+1:04d}.json"), "w"
         ) as rf:

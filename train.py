@@ -161,4 +161,4 @@ def run(
 
     # compress model params and store as binary files
     with open(os.path.join(results_dir, "parameters.npz"), "wb") as f:
-        np.savez_compressed(f, W_loc=params["loc"], W_scale=params["scale"])
+        np.savez_compressed(f, loc=params["loc"], scale=params["scale"])

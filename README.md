@@ -17,8 +17,8 @@ or via `mamba` (this is a faster drop-in replacement for `conda`)
 
 ```bash
 $ conda install mamba -n base -c conda-forge # install mamba into the base environment
-$ mamba create -n vice
-$ mamba env update -n vice --file envs/environment.yml
+$ mamba create -n vice # create an empty environment
+$ mamba env update -n vice --file envs/environment.yml # update the empty environment with dependencies in environment.yml
 $ conda activate vice
 ```
 

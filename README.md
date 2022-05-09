@@ -6,12 +6,21 @@
 
 ### Environment setup and dependencies
 
-We recommend to create a virtual conda environment (e.g., `vice`) including all dependencies before using `VICE`
+Before using `VICE`, we recommend to create a virtual environment (e.g., `vice`), including all dependencies, via `conda`
 
 ```bash
 $ conda env create --prefix /path/to/conda/envs/vice --file envs/environment.yml
 $ conda activate vice
 ```
+
+or `mamba`
+
+```bash
+$ mamba create -n vice
+$ mamba env update -n vice --file envs/environment.yml
+$ conda activate vice
+```
+
 
 Alternatively, dependencies can be installed via `pip`
 

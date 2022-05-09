@@ -92,8 +92,11 @@ class Tripletizer(object):
     def get_choice(self, S: np.ndarray, triplet: np.ndarray) -> np.ndarray:
         combs = list(itertools.combinations(triplet, 2))
         sims = [S[comb[0], comb[1]] for comb in combs]
-        probas = self.softmax(sims)
-        positive = combs[np.argmax(probas)]
+        # TODO: change temperature value (i.e., beta) because 
+        # softmax yields NaNs if similarity values are too large
+        # probas = self.softmax(sims)
+        # positive = combs[np.argmax(probas)]
+        positive = combs[np.argmax(sims)]
         ooo = list(set(triplet).difference(set(positive)))
         choice = np.hstack((positive, ooo))
         return choice

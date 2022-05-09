@@ -194,9 +194,12 @@ class VICETestCase(unittest.TestCase):
         pruned_loc = pruned_params["pruned_loc"]
         pruned_scale = pruned_params["pruned_scale"]
 
-        self.assertTrue(isinstance(pruned_params), dict)
-        self.assertTrue(isinstance(pruned_loc), np.ndarray)
-        self.assertTrue(isinstance(pruned_scale), np.ndarray)
+        self.assertTrue(isinstance(pruned_params, dict))
+        self.assertTrue(isinstance(pruned_loc, np.ndarray))
+        self.assertTrue(isinstance(pruned_scale, np.ndarray))
+
+        self.assertTrue(pruned_loc.shape[1] <= params_opt['loc'].shape[1])
+        self.assertTrue(pruned_scale.shape[1] <= params_opt['scale'].shape[1])
 
     @staticmethod
     def assert_difference(A: np.ndarray, B: np.ndarray) -> bool:

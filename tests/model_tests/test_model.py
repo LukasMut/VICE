@@ -8,14 +8,13 @@ import shutil
 import torch
 import unittest
 import utils
+import model
 
 import numpy as np
 import tests.helper as helper
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model.vice import VICE
-from model.trainer import Trainer
 from typing import Any
 
 batch_size = 128
@@ -31,8 +30,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class VICETestCase(unittest.TestCase):
 
-    def get_model(self, hypers: dict) -> VICE:
-        vice = VICE(
+    def get_model(self, hypers: dict):
+        vice = getattr(model, 'VICE')(
                     task=hypers['task'],
                     n_train=hypers['N'],
                     n_items=hypers['M'],
@@ -61,8 +60,8 @@ class VICETestCase(unittest.TestCase):
 
     def test_attributes(self):
         vice = self.get_model(hypers)
-        self.assertTrue(issubclass(VICE, Trainer))
-        self.assertTrue(issubclass(Trainer, nn.Module))
+        self.assertTrue(issubclass(getattr(model, 'Trainer'), 
+        nn.Module))
         self.assertTrue(
             hasattr(vice, 'cuda' if torch.cuda.is_available() else 'cpu'))
 
@@ -164,6 +163,14 @@ class VICETestCase(unittest.TestCase):
         self.assertTrue(self.assert_difference(params_opt['loc'], vice.detached_params['loc']))
         self.assertTrue(self.assert_difference(params_opt['scale'], vice.detached_params['scale']))
 
+        # get pruned model params after optimization
+        pruned_params = vice.pruned_params
+        pruned_loc = pruned_params['pruned_loc']
+        pruned_scale = pruned_params['pruned_scale']
+
+        self.assertTrue(isinstance(pruned_params), dict)
+        self.assertTrue(isinstance(pruned_loc), np.ndarray)
+        self.assertTrue(isinstance(pruned_scale), np.ndarray)
 
     @staticmethod
     def assert_difference(A: np.ndarray, B: np.ndarray) -> bool:

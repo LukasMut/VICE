@@ -13,9 +13,10 @@ $ conda env create --prefix /path/to/conda/envs/vice --file envs/environment.yml
 $ conda activate vice
 ```
 
-or via `mamba`
+or via `mamba` (this is a faster, drop-in replacement for `conda`)
 
 ```bash
+$ conda install mamba -n base -c conda-forge # install mamba into the base environment
 $ mamba create -n vice
 $ mamba env update -n vice --file envs/environment.yml
 $ conda activate vice

@@ -13,7 +13,7 @@ $ conda env create --prefix /path/to/conda/envs/vice --file envs/environment.yml
 $ conda activate vice
 ```
 
-or `mamba`
+or via `mamba`
 
 ```bash
 $ mamba create -n vice

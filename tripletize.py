@@ -93,7 +93,7 @@ class Tripletizer(object):
         combs = list(itertools.combinations(triplet, 2))
         sims = [S[comb[0], comb[1]] for comb in combs]
         # TODO: change temperature value (i.e., beta) because 
-        # softmax yields NaNs if similarity values are too large
+        # softmax yields NaNs if dot products are too large
         # probas = self.softmax(sims)
         # positive = combs[np.argmax(probas)]
         positive = combs[np.argmax(sims)]

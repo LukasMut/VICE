@@ -4,6 +4,7 @@
 import json
 import math
 import os
+import warnings
 import torch
 import utils
 import copy
@@ -457,7 +458,10 @@ class Trainer(nn.Module):
                 "epoch": epoch + 1,
                 "train_acc": self.train_accs[-1],
             }
-            print('\nNo validation results are being saved. To regularly evaluate VICE on the validation set, set <steps> >> <burnin>.\n')
+            warnings.warn(
+                message='\nNo validation results are being saved. To regularly evaluate VICE on the validation set, set <steps> >> <burnin>.\n',
+                category=UserWarning
+            )
 
         with open(
             os.path.join(self.results_dir, f"results_{epoch+1:04d}.json"), "w"

@@ -236,7 +236,7 @@ class Trainer(nn.Module):
 
     @staticmethod
     def convergence(latent_dimensions: List[int], ws: int) -> bool:
-        """Evaluate convergence of the object dimensions."""
+        """Evaluate *representational stability*, i.e., stability of the embedding dimensions."""
         dimensions_over_time = set(latent_dimensions[-ws:])
         divergence = len(dimensions_over_time)
         if divergence == 1 and dimensions_over_time.pop() != 0:

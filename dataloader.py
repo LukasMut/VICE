@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Iterator
 
 Tensor = Any
+
 @dataclass
 class DataLoader:
     dataset: Tensor

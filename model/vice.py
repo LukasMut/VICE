@@ -9,35 +9,32 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .trainer import Trainer
-from typing import Dict, Tuple
+from typing import (Any, Dict, Tuple)
 
-
+Array = Any
+Tensor = Any
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 
 
 class Sigma(nn.Module):
-    def __init__(self, in_size: int, out_size: int, bias: bool):
+    def __init__(self, n_objects: int, latent_dim: int, bias: bool = False):
         super(Sigma, self).__init__()
-        self.in_size = in_size
-        self.out_size = out_size
-        self.logsigma = nn.Linear(self.in_size, self.out_size, bias=bias)
+        self.logsigma = nn.Linear(n_objects, latent_dim, bias=bias)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         _ = self.logsigma(x)
         W_sigma = self.logsigma.weight.T.exp()
         return W_sigma
 
 
 class Mu(nn.Module):
-    def __init__(self, in_size: int, out_size: int, bias: bool):
+    def __init__(self, n_objects: int, latent_dim: int, bias: bool = False):
         super(Mu, self).__init__()
-        self.in_size = in_size
-        self.out_size = out_size
-        self.mu = nn.Linear(self.in_size, self.out_size, bias=bias)
+        self.mu = nn.Linear(n_objects, latent_dim, bias=bias)
         # initialize means
         nn.init.kaiming_normal_(self.mu.weight, mode="fan_out", nonlinearity="relu")
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         _ = self.mu(x)
         W_mu = self.mu.weight.T
         return W_mu
@@ -93,24 +90,22 @@ class VICE(Trainer):
             device=device,
             verbose=verbose,
         )
-        self.in_size = n_objects
-        self.out_size = latent_dim
-        self.mu = Mu(self.in_size, self.out_size, bias)
-        self.sigma = Sigma(self.in_size, self.out_size, bias)
+        self.mu = Mu(n_objects, latent_dim, bias)
+        self.sigma = Sigma(n_objects, latent_dim, bias)
 
         if init_weights:
             self._initialize_weights()
 
     @staticmethod
-    def reparameterize(loc: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+    def reparameterize(loc: Tensor, scale: Tensor) -> Tensor:
         """Apply reparameterization trick."""
         eps = scale.data.new(scale.size()).normal_()
         W_sampled = eps.mul(scale).add(loc)
         return W_sampled
 
     def forward(
-        self, x: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        self, x: Tensor
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         W_mu = self.mu(x)
         W_sigma = self.sigma(x)
         W_sampled = self.reparameterize(W_mu, W_sigma)
@@ -123,7 +118,7 @@ class VICE(Trainer):
         nn.init.constant_(self.sigma.logsigma.weight, eps)
 
     @property
-    def detached_params(self) -> Dict[str, np.ndarray]:
+    def detached_params(self) -> Dict[str, Array]:
         """Detach params from computational graph."""
         W_loc = self.mu.mu.weight.data.T.detach()
         W_scale = self.sigma.logsigma.weight.data.T.exp().detach()

@@ -10,17 +10,17 @@ import scipy.io
 import numpy as np
 import itertools
 
-from typing import Tuple
+from typing import Any, Tuple
+from dataclasses import dataclass
 
+Array = Any
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 
 
 def parseargs():
     parser = argparse.ArgumentParser()
-
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
-
     aa("--in_path", type=str, help="path/to/design/matrix")
     aa("--out_path", type=str, help="path/to/triplets")
     aa("--n_samples", type=int, help="number of triplet samples")
@@ -29,41 +29,34 @@ def parseargs():
     return args
 
 
-class Tripletizer(object):
-    def __init__(
-        self,
-        in_path: str,
-        out_path: str,
-        n_samples: int,
-        rnd_seed: int,
-        k: int = 3,
-        train_frac: float = 0.8,
-    ):
-        self.in_path = in_path
-        self.out_path = out_path
-        self.n_samples = n_samples
-        self.k = k
-        self.train_frac = train_frac
+@dataclass
+class Tripletizer:
+    in_path: str
+    out_path: str
+    n_samples: int
+    rnd_seed: int
+    k: int = 3
+    train_frac: float = 0.8
 
-        if not re.search(r"(mat|txt|csv|npy|hdf5)$", in_path):
+    def __post_init__(self) -> None:
+        if not re.search(r"(mat|txt|csv|npy|hdf5)$", self.in_path):
             raise Exception(
                 "\nCannot tripletize input data other than .mat, .txt, .csv, .npy, or .hdf5 formats\n"
             )
-
         if not os.path.exists(self.out_path):
             print(f"\n....Creating output directory: {self.out_path}\n")
             os.makedirs(self.out_path)
 
-        np.random.seed(rnd_seed)
-        random.seed(rnd_seed)
+        random.seed(self.rnd_seed)
+        np.random.seed(self.rnd_seed)
 
-    def load_domain(self, in_path: str) -> np.ndarray:
+    def load_domain(self, in_path: str) -> Array:
         if re.search(r"mat$", in_path):
             X = np.vstack(
                 [
                     v
                     for v in scipy.io.loadmat(in_path).values()
-                    if isinstance(v, np.ndarray) and v.dtype == np.float
+                    if isinstance(v, Array) and v.dtype == np.float
                 ]
             )
         elif re.search(r"txt$", in_path):
@@ -81,18 +74,18 @@ class Tripletizer(object):
         return X
 
     @staticmethod
-    def remove_nans_(X: np.ndarray) -> np.ndarray:
+    def remove_nans_(X: Array) -> Array:
         nan_indices = np.isnan(X[:, :]).any(axis=1)
         return X[~nan_indices]
 
     @staticmethod
-    def softmax(z: np.ndarray) -> np.ndarray:
+    def softmax(z: Array) -> Array:
         return np.exp(z) / np.sum(np.exp(z))
 
-    def get_choice(self, S: np.ndarray, triplet: np.ndarray) -> np.ndarray:
+    def get_choice(self, S: Array, triplet: Array) -> Array:
         combs = list(itertools.combinations(triplet, 2))
         sims = [S[comb[0], comb[1]] for comb in combs]
-        # TODO: change temperature value (i.e., beta) because 
+        # TODO: change temperature value (i.e., beta param) because 
         # softmax yields NaNs if dot products are too large
         # probas = self.softmax(sims)
         # positive = combs[np.argmax(probas)]
@@ -102,10 +95,10 @@ class Tripletizer(object):
         return choice
 
     @staticmethod
-    def random_choice(n_samples: int, combs: np.ndarray):
+    def random_choice(n_samples: int, combs: Array):
         return combs[np.random.choice(combs.shape[0], size=n_samples, replace=False)]
 
-    def sample_triplets(self) -> np.ndarray:
+    def sample_triplets(self) -> Array:
         """Create synthetic triplet data."""
         X = self.load_domain(self.in_path)
         M = X.shape[0]
@@ -119,8 +112,8 @@ class Tripletizer(object):
         return triplets
 
     def create_train_test_split(
-        self, triplets: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        self, triplets: Array
+    ) -> Tuple[Array, Array]:
         """Split triplet data into train and test splits."""
         N = triplets.shape[0]
         rnd_perm = np.random.permutation(N)
@@ -128,7 +121,7 @@ class Tripletizer(object):
         test_split = triplets[rnd_perm[int(len(rnd_perm) * self.train_frac):]]
         return train_split, test_split
 
-    def save_triplets(self, triplets: np.ndarray) -> None:
+    def save_triplets(self, triplets: Array) -> None:
         train_split, test_split = self.create_train_test_split(triplets)
         with open(os.path.join(self.out_path, "train_90.npy"), "wb") as train_file:
             np.save(train_file, train_split)

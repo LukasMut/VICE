@@ -14,9 +14,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from collections import defaultdict
-from typing import Any, Dict, Iterator, List, Tuple
+from typing import (Any, Dict, Iterator, List, Tuple)
 
-
+Array = Any
+Tensor = Any
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 
 
@@ -68,7 +69,7 @@ class Trainer(nn.Module):
         self.device = device
         self.verbose = verbose
 
-    def forward(self, *input: Any) -> None:
+    def forward(self, *input: Tensor) -> None:
         raise NotImplementedError
 
     def load_checkpoint_(self) -> None:
@@ -141,8 +142,8 @@ class Trainer(nn.Module):
 
     @staticmethod
     def norm_pdf(
-        W_sample: torch.Tensor, W_loc: torch.Tensor, W_scale: torch.Tensor
-    ) -> torch.Tensor:
+        W_sample: Tensor, W_loc: Tensor, W_scale: Tensor
+    ) -> Tensor:
         """Probability density function of a normal distribution."""
         return (
             torch.exp(-((W_sample - W_loc) ** 2) / (2 * W_scale.pow(2)))
@@ -152,12 +153,12 @@ class Trainer(nn.Module):
 
     @staticmethod
     def laplace_pdf(
-        W_sample: torch.Tensor, W_loc: torch.Tensor, W_scale: torch.Tensor
-    ) -> torch.Tensor:
+        W_sample: Tensor, W_loc: Tensor, W_scale: Tensor
+    ) -> Tensor:
         """Probability density function of a laplace distribution."""
         return torch.exp(-(W_sample - W_loc).abs() / W_scale) / W_scale.mul(2.0)
 
-    def spike_and_slab(self, W_sample: torch.Tensor) -> torch.Tensor:
+    def spike_and_slab(self, W_sample: Tensor) -> Tensor:
         pdf = self.norm_pdf if self.prior == "gaussian" else self.laplace_pdf
         spike = self.pi * pdf(W_sample, self.loc, self.scale_spike)
         slab = (1 - self.pi) * pdf(W_sample, self.loc, self.scale_slab)
@@ -165,9 +166,9 @@ class Trainer(nn.Module):
 
     @staticmethod
     def compute_similarities(
-        anchor: torch.Tensor,
-        positive: torch.Tensor,
-        negative: torch.Tensor,
+        anchor: Tensor,
+        positive: Tensor,
+        negative: Tensor,
         task: str,
     ) -> tuple:
         """Apply the similarity function (modeled as a dot product) to each pair in the triplet."""
@@ -179,7 +180,7 @@ class Trainer(nn.Module):
         return (pos_sim, neg_sim)
 
     @staticmethod
-    def break_ties(probas: np.ndarray) -> np.ndarray:
+    def break_ties(probas: Array) -> Array:
         return np.array(
             [
                 -1 if len(np.unique(pmf)) != len(pmf) else np.argmax(pmf)
@@ -187,26 +188,26 @@ class Trainer(nn.Module):
             ]
         )
 
-    def accuracy_(self, probas: np.ndarray, batching: bool = True) -> float:
+    def accuracy_(self, probas: Array, batching: bool = True) -> float:
         choices = self.break_ties(probas)
         argmax = np.where(choices == 0, 1, 0)
         acc = argmax.mean() if batching else argmax.tolist()
         return acc
 
     @staticmethod
-    def sumexp(sims: Tuple[torch.Tensor]) -> torch.Tensor:
+    def sumexp(sims: Tuple[Tensor]) -> Tensor:
         return torch.sum(torch.exp(torch.stack(sims)), dim=0)
 
-    def softmax(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
+    def softmax(self, sims: Tuple[Tensor]) -> Tensor:
         return torch.exp(sims[0]) / self.sumexp(sims)
 
-    def logsumexp(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
+    def logsumexp(self, sims: Tuple[Tensor]) -> Tensor:
         return torch.log(self.sumexp(sims))
 
-    def log_softmax(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
+    def log_softmax(self, sims: Tuple[Tensor]) -> Tensor:
         return sims[0] - self.logsumexp(sims)
 
-    def cross_entropy_loss(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
+    def cross_entropy_loss(self, sims: Tuple[Tensor]) -> Tensor:
         return torch.mean(-self.log_softmax(sims))
 
     def choice_accuracy(self, similarities: float) -> float:
@@ -219,7 +220,7 @@ class Trainer(nn.Module):
     def pruning(
         self,
         alpha: float = 0.05,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Tuple[Array, Array, Array]:
         # Prune the variational parameters theta
         # by identifying the number of *relevant* dimensions
         # according to our dimensionality reduction procedure,
@@ -244,10 +245,7 @@ class Trainer(nn.Module):
         return False
 
     @torch.no_grad()
-    def mc_sampling(
-        self,
-        batch: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def mc_sampling(self, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """Perform Monte Carlo sampling over the variational posterior q_{theta}(X)."""
         n_choices = 3 if self.task == "odd_one_out" else 2
         sampled_probas = torch.zeros(
@@ -292,7 +290,7 @@ class Trainer(nn.Module):
     def inference(
         self,
         test_batches: Iterator,
-    ) -> Tuple[float, float, np.ndarray, Dict[tuple, list]]:
+    ) -> Tuple[float, float, Array, Dict[tuple, list]]:
         """Perform inference on a held-out test set (may contain repeats)."""
         probas = torch.zeros(int(len(test_batches) * self.batch_size), 3)
         triplet_choices = []
@@ -334,7 +332,7 @@ class Trainer(nn.Module):
     def stepping(
         self,
         train_batches: Iterator,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         """Step over the full training data in mini-batches of size B and perform SGD."""
         batch_llikelihoods = torch.zeros(len(train_batches))
         batch_closses = torch.zeros(len(train_batches))

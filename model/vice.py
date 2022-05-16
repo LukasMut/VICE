@@ -92,9 +92,8 @@ class VICE(Trainer):
     def reparameterize(loc: Tensor, scale: Tensor) -> Tensor:
         """Apply reparameterization trick."""
         eps = scale.data.new(scale.size()).normal_()
-        W_sampled = eps.mul(scale).add(loc)
-        return W_sampled
-
+        return eps.mul(scale).add(loc)
+        
     def forward(self, batch: Tensor
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         mu = self.mu()

@@ -21,11 +21,8 @@ class Sigma(nn.Module):
         super(Sigma, self).__init__()
         self.logsigma = nn.Linear(n_objects, init_dim, bias=bias)
 
-    def forward(self, x: Tensor) -> Tensor:
-        _ = self.logsigma(x)
-        W_sigma = self.logsigma.weight.T.exp()
-        return W_sigma
-
+    def forward(self) -> Tensor:
+        return self.logsigma.weight.T.exp()
 
 class Mu(nn.Module):
     def __init__(self, n_objects: int, init_dim: int, bias: bool = False):
@@ -34,11 +31,8 @@ class Mu(nn.Module):
         # initialize means
         nn.init.kaiming_normal_(self.mu.weight, mode="fan_out", nonlinearity="relu")
 
-    def forward(self, x: Tensor) -> Tensor:
-        _ = self.mu(x)
-        W_mu = self.mu.weight.T
-        return W_mu
-
+    def forward(self) -> Tensor:
+        return self.mu.weight.T
 
 class VICE(Trainer):
     def __init__(
@@ -101,11 +95,10 @@ class VICE(Trainer):
         W_sampled = eps.mul(scale).add(loc)
         return W_sampled
 
-    def forward(
-        self, batch: Tensor
+    def forward(self, batch: Tensor
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-        mu = self.mu(batch)
-        sigma = self.sigma(batch)
+        mu = self.mu()
+        sigma = self.sigma()
         X = self.reparameterize(mu, sigma)
         z = F.relu(torch.mm(batch, X))
         return z, mu, sigma, X

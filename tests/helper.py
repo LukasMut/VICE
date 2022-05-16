@@ -9,8 +9,8 @@ from typing import Tuple
 
 
 N_TRIALS = int(1e+4)
-N_ITEMS = 60
-LATENT_DIM = N_ITEMS // 2
+N_OBJECTS = 60
+INIT_DIM = N_OBJECTS // 2
 k = 3
 
 
@@ -18,9 +18,8 @@ k = 3
 def get_hypers():
     hypers = {}
     hypers['N'] = N_TRIALS
-    hypers['M'] = N_ITEMS
-    hypers['P'] = LATENT_DIM
-    hypers['task'] = 'odd_one_out'
+    hypers['M'] = N_OBJECTS
+    hypers['P'] = INIT_DIM
     hypers['optim'] = 'adam'
     hypers['eta'] = 0.001
     hypers['batch_size'] = 128
@@ -28,7 +27,7 @@ def get_hypers():
     hypers['burnin'] = 20
     hypers['mc_samples'] = 10
     hypers['prior'] = 'gaussian' 
-    hypers['spike'] = 0.1
+    hypers['spike'] = 0.25
     hypers['slab'] = 1.0
     hypers['pi'] = 0.5
     hypers['k'] = 5
@@ -57,7 +56,7 @@ def random_choice(N: int, combs: np.ndarray):
     return combs[random_sample]
 
 
-def create_triplets(N: int=N_TRIALS, M: int=N_ITEMS, P: int=LATENT_DIM, k: int=k) -> np.ndarray:
+def create_triplets(N: int=N_TRIALS, M: int=N_OBJECTS, P: int=INIT_DIM, k: int=k) -> np.ndarray:
     """Create synthetic triplet data."""
     X = np.random.randn(M, P)
     S = X @ X.T

@@ -33,10 +33,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class VICETestCase(unittest.TestCase):
     def get_model(self, hypers: dict):
         vice = getattr(model, "VICE")(
-            task=hypers["task"],
             n_train=hypers["N"],
             n_objects=hypers["M"],
-            latent_dim=hypers["P"],
+            init_dim=hypers["P"],
             optim=hypers["optim"],
             eta=hypers["eta"],
             batch_size=hypers["batch_size"],
@@ -100,10 +99,9 @@ class VICETestCase(unittest.TestCase):
 
     def test_properties(self) -> None:
         vice = self.get_model(hypers)
-        self.assertEqual(vice.task, hypers["task"])
         self.assertEqual(vice.n_train, hypers["N"])
         self.assertEqual(vice.n_objects, hypers["M"])
-        self.assertEqual(vice.latent_dim, hypers["P"])
+        self.assertEqual(vice.init_dim, hypers["P"])
         self.assertEqual(vice.optim, hypers["optim"])
         self.assertEqual(vice.eta, hypers["eta"])
         self.assertEqual(vice.batch_size, hypers["batch_size"])

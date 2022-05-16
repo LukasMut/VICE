@@ -24,10 +24,9 @@ os.environ["PYTHONIOENCODING"] = "UTF-8"
 class Trainer(nn.Module):
     def __init__(
         self,
-        task: str,
         n_train: int,
         n_objects: int,
-        latent_dim: int,
+        init_dim: int,
         optim: Any,
         eta: str,
         batch_size: int,
@@ -47,10 +46,9 @@ class Trainer(nn.Module):
         verbose: bool = False,
     ):
         super(Trainer, self).__init__()
-        self.task = task
         self.n_train = n_train  # number of trials/triplets in dataset
         self.n_objects = n_objects  # number of unique items/objects
-        self.latent_dim = latent_dim
+        self.init_dim = init_dim
         self.optim = optim
         self.eta = eta  # learning rate
         self.batch_size = batch_size
@@ -121,12 +119,12 @@ class Trainer(nn.Module):
             self.latent_dimensions = []
 
     def initialize_priors_(self) -> None:
-        self.loc = torch.zeros(self.n_objects, self.latent_dim).to(self.device)
+        self.loc = torch.zeros(self.n_objects, self.init_dim).to(self.device)
         self.scale_spike = (
-            torch.ones(self.n_objects, self.latent_dim).mul(self.spike).to(self.device)
+            torch.ones(self.n_objects, self.init_dim).mul(self.spike).to(self.device)
         )
         self.scale_slab = (
-            torch.ones(self.n_objects, self.latent_dim).mul(self.slab).to(self.device)
+            torch.ones(self.n_objects, self.init_dim).mul(self.slab).to(self.device)
         )
 
     def initialize_optim_(self) -> None:
@@ -142,26 +140,26 @@ class Trainer(nn.Module):
 
     @staticmethod
     def norm_pdf(
-        W_sample: Tensor, W_loc: Tensor, W_scale: Tensor
+        X: Tensor, loc: Tensor, scale: Tensor
     ) -> Tensor:
         """Probability density function of a normal distribution."""
         return (
-            torch.exp(-((W_sample - W_loc) ** 2) / (2 * W_scale.pow(2)))
-            / W_scale
+            torch.exp(-((X - loc) ** 2) / (2 * scale.pow(2)))
+            / scale
             * math.sqrt(2 * math.pi)
         )
 
     @staticmethod
     def laplace_pdf(
-        W_sample: Tensor, W_loc: Tensor, W_scale: Tensor
+        X: Tensor, loc: Tensor, scale: Tensor
     ) -> Tensor:
         """Probability density function of a laplace distribution."""
-        return torch.exp(-(W_sample - W_loc).abs() / W_scale) / W_scale.mul(2.0)
+        return torch.exp(-(X - loc).abs() / scale) / scale.mul(2.0)
 
-    def spike_and_slab(self, W_sample: Tensor) -> Tensor:
+    def spike_and_slab(self, X: Tensor) -> Tensor:
         pdf = self.norm_pdf if self.prior == "gaussian" else self.laplace_pdf
-        spike = self.pi * pdf(W_sample, self.loc, self.scale_spike)
-        slab = (1 - self.pi) * pdf(W_sample, self.loc, self.scale_slab)
+        spike = self.pi * pdf(X, self.loc, self.scale_spike)
+        slab = (1 - self.pi) * pdf(X, self.loc, self.scale_slab)
         return spike + slab
 
     @staticmethod
@@ -169,15 +167,12 @@ class Trainer(nn.Module):
         anchor: Tensor,
         positive: Tensor,
         negative: Tensor,
-        task: str,
-    ) -> tuple:
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         """Apply the similarity function (modeled as a dot product) to each pair in the triplet."""
-        pos_sim = torch.sum(anchor * positive, dim=1)
-        neg_sim = torch.sum(anchor * negative, dim=1)
-        if task == "odd_one_out":
-            neg_sim_2 = torch.sum(positive * negative, dim=1)
-            return (pos_sim, neg_sim, neg_sim_2)
-        return (pos_sim, neg_sim)
+        sim_i = torch.sum(anchor * positive, dim=1)
+        sim_j = torch.sum(anchor * negative, dim=1)
+        sim_k = torch.sum(positive * negative, dim=1)
+        return (sim_i, sim_j, sim_k)
 
     @staticmethod
     def break_ties(probas: Array) -> Array:
@@ -217,6 +212,12 @@ class Trainer(nn.Module):
         choice_acc = self.accuracy_(probas)
         return choice_acc
 
+    @staticmethod
+    def unbind(logits: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        return torch.unbind(
+                torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1
+            )
+
     def pruning(
         self,
         alpha: float = 0.05,
@@ -247,7 +248,7 @@ class Trainer(nn.Module):
     @torch.no_grad()
     def mc_sampling(self, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """Perform Monte Carlo sampling over the variational posterior q_{theta}(X)."""
-        n_choices = 3 if self.task == "odd_one_out" else 2
+        n_choices = 3
         sampled_probas = torch.zeros(
             self.mc_samples, batch.shape[0] // n_choices, n_choices
         ).to(self.device)
@@ -256,11 +257,9 @@ class Trainer(nn.Module):
         )
         for k in range(self.mc_samples):
             logits, _, _, _ = self.forward(batch)
-            anchor, positive, negative = torch.unbind(
-                torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1
-            )
+            anchor, positive, negative = self.unbind(logits)
             similarities = self.compute_similarities(
-                anchor, positive, negative, self.task
+                anchor, positive, negative
             )
             soft_choices = self.softmax(similarities)
             probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
@@ -341,30 +340,30 @@ class Trainer(nn.Module):
         for i, batch in enumerate(train_batches):
             self.optim.zero_grad()
             batch = batch.to(self.device)
-            logits, W_loc, W_scale, W_sampled = self.forward(batch)
-            anchor, positive, negative = torch.unbind(
-                torch.reshape(logits, (-1, 3, self.latent_dim)), dim=1
+            logits, loc, scale, X = self.forward(batch)
+            anchor, positive, negative = self.unbind(logits)
+            similarities = self.compute_similarities(
+                anchor, positive, negative
             )
-            c_entropy = self.cross_entropy_loss(
-                self.compute_similarities(anchor, positive, negative, self.task)
-            )
+            c_entropy = self.cross_entropy_loss(similarities)
+            acc = self.choice_accuracy(similarities)
 
             if self.prior == "gaussian":
-                log_q = self.norm_pdf(W_sampled, W_loc, W_scale).log()
+                log_q = self.norm_pdf(X, loc, scale).log()
             else:
-                log_q = self.laplace_pdf(W_sampled, W_loc, W_scale).log()
+                log_q = self.laplace_pdf(X, loc, scale).log()
 
-            log_p = self.spike_and_slab(W_sampled).log()
+            log_p = self.spike_and_slab(X).log()
             complexity_loss = (1 / self.n_train) * (log_q.sum() - log_p.sum())
             self.loss = c_entropy + complexity_loss
             self.loss.backward()
             self.optim.step()
+
             batch_losses[i] += self.loss.item()
             batch_llikelihoods[i] += c_entropy.item()
             batch_closses[i] += complexity_loss.item()
-            batch_accs[i] += self.choice_accuracy(
-                self.compute_similarities(anchor, positive, negative, self.task)
-            )
+            batch_accs[i] += acc
+
         return batch_llikelihoods, batch_closses, batch_losses, batch_accs
 
     def fit(self, train_batches: Iterator, val_batches: Iterator) -> None:
@@ -390,15 +389,15 @@ class Trainer(nn.Module):
             self.train_accs.append(avg_train_acc)
 
             signal, _, _ = self.pruning()
-            n_latents = signal.shape[0]
-            self.latent_dimensions.append(n_latents)
+            dimensionality = signal.shape[0]
+            self.latent_dimensions.append(dimensionality)
 
             if self.verbose:
                 print(
                     "\n======================================================================================"
                 )
                 print(
-                    f"====== Epoch: {epoch+1:02d}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Identified dimensions: {n_latents:02d} ======"
+                    f"====== Epoch: {epoch+1:02d}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Identified dimensions: {dimensionality:02d} ======"
                 )
                 print(
                     "======================================================================================\n"

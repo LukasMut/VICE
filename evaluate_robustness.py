@@ -27,11 +27,9 @@ def parseargs():
         parser.add_argument(*args, **kwargs)
     aa('--results_dir', type=str,
         help='results directory (root directory for models)')
-    aa('--task', type=str, default='odd_one_out',
-        choices=['odd_one_out', 'similarity_task'])
     aa('--n_objects', type=int,
         help='number of unique objects/items/stimuli in dataset')
-    aa('--latent_dim', type=int, default=100,
+    aa('--init_dim', type=int, default=100,
         help='initial latent dimensionality of VICE embedding(s)')
     aa('--thresh', type=float, default=0.8,
         choices=[0.7, 0.75, 0.8, 0.85, 0.9, 0.95],
@@ -199,9 +197,8 @@ def pruning(model: model.VICE, alpha: float = .05, k: int = 5,
 
 def evaluate_models(
     results_dir: str,
-    task: str,
     n_objects: int,
-    latent_dim: int,
+    init_dim: int,
     optim: str,
     prior: str,
     spike: float,
@@ -215,7 +212,7 @@ def evaluate_models(
     k: int = 5,
 ) -> None:
     in_path = os.path.join(results_dir,
-                           f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi))
+                           f'{init_dim}d', optim, prior, str(spike), str(slab), str(pi))
     model_paths = get_model_paths(in_path)
     pruned_locs, pruned_scales = [], []
     _, val_triplets = utils.load_data(
@@ -227,13 +224,12 @@ def evaluate_models(
         print(f'Currently pruning and evaluating model: {i+1}\n')
         try:
             vice = model.VICE(
-                task=task,
                 k=k,
                 n_train=None,
                 burnin=None,
                 ws=None,
                 n_objects=n_objects,
-                latent_dim=latent_dim,
+                init_dim=init_dim,
                 optim=None,
                 eta=None,
                 batch_size=batch_size,
@@ -280,9 +276,8 @@ if __name__ == '__main__':
     np.random.seed(args.rnd_seed)
     evaluate_models(
         results_dir=args.results_dir,
-        task=args.task,
         n_objects=args.n_objects,
-        latent_dim=args.latent_dim,
+        init_dim=args.init_dim,
         optim=args.optim,
         prior=args.prior,
         spike=args.spike,

@@ -17,9 +17,9 @@ os.environ["PYTHONIOENCODING"] = "UTF-8"
 
 
 class Sigma(nn.Module):
-    def __init__(self, n_objects: int, latent_dim: int, bias: bool = False):
+    def __init__(self, n_objects: int, init_dim: int, bias: bool = False):
         super(Sigma, self).__init__()
-        self.logsigma = nn.Linear(n_objects, latent_dim, bias=bias)
+        self.logsigma = nn.Linear(n_objects, init_dim, bias=bias)
 
     def forward(self, x: Tensor) -> Tensor:
         _ = self.logsigma(x)
@@ -28,9 +28,9 @@ class Sigma(nn.Module):
 
 
 class Mu(nn.Module):
-    def __init__(self, n_objects: int, latent_dim: int, bias: bool = False):
+    def __init__(self, n_objects: int, init_dim: int, bias: bool = False):
         super(Mu, self).__init__()
-        self.mu = nn.Linear(n_objects, latent_dim, bias=bias)
+        self.mu = nn.Linear(n_objects, init_dim, bias=bias)
         # initialize means
         nn.init.kaiming_normal_(self.mu.weight, mode="fan_out", nonlinearity="relu")
 
@@ -43,10 +43,9 @@ class Mu(nn.Module):
 class VICE(Trainer):
     def __init__(
         self,
-        task: str,
         n_train: int,
         n_objects: int,
-        latent_dim: int,
+        init_dim: int,
         optim: str,
         eta: str,
         batch_size: int,
@@ -68,10 +67,9 @@ class VICE(Trainer):
         bias: bool = False,
     ):
         super().__init__(
-            task=task,
             n_train=n_train,
             n_objects=n_objects,
-            latent_dim=latent_dim,
+            init_dim=init_dim,
             optim=optim,
             eta=eta,
             batch_size=batch_size,
@@ -90,8 +88,8 @@ class VICE(Trainer):
             device=device,
             verbose=verbose,
         )
-        self.mu = Mu(n_objects, latent_dim, bias)
-        self.sigma = Sigma(n_objects, latent_dim, bias)
+        self.mu = Mu(n_objects, init_dim, bias)
+        self.sigma = Sigma(n_objects, init_dim, bias)
 
         if init_weights:
             self._initialize_weights()
@@ -104,13 +102,13 @@ class VICE(Trainer):
         return W_sampled
 
     def forward(
-        self, x: Tensor
+        self, batch: Tensor
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-        W_mu = self.mu(x)
-        W_sigma = self.sigma(x)
-        W_sampled = self.reparameterize(W_mu, W_sigma)
-        z = F.relu(torch.mm(x, W_sampled))
-        return z, W_mu, W_sigma, W_sampled
+        mu = self.mu(batch)
+        sigma = self.sigma(batch)
+        X = self.reparameterize(mu, sigma)
+        z = F.relu(torch.mm(batch, X))
+        return z, mu, sigma, X
 
     def _initialize_weights(self) -> None:
         # this is equivalent to 1 / std(mu)
@@ -120,8 +118,7 @@ class VICE(Trainer):
     @property
     def detached_params(self) -> Dict[str, Array]:
         """Detach params from computational graph."""
-        W_loc = self.mu.mu.weight.data.T.detach()
-        W_scale = self.sigma.logsigma.weight.data.T.exp().detach()
-        W_loc = F.relu(W_loc)
-        params = dict(loc=W_loc.cpu().numpy(), scale=W_scale.cpu().numpy())
+        loc = F.relu(self.mu.mu.weight.data.T.detach())
+        scale = self.sigma.logsigma.weight.data.T.exp().detach()
+        params = dict(loc=loc.cpu().numpy(), scale=scale.cpu().numpy())
         return params

@@ -19,7 +19,7 @@ def create_dirs(
     results_dir: str,
     plots_dir: str,
     modality: str,
-    latent_dim: int,
+    init_dim: int,
     optim: str,
     prior: str,
     spike: float,
@@ -32,7 +32,7 @@ def create_dirs(
     results_dir = os.path.join(
         results_dir,
         modality,
-        f"{latent_dim}d",
+        f"{init_dim}d",
         optim,
         prior,
         str(spike),
@@ -45,7 +45,7 @@ def create_dirs(
     plots_dir = os.path.join(
         plots_dir,
         modality,
-        f"{latent_dim}d",
+        f"{init_dim}d",
         optim,
         prior,
         str(spike),
@@ -60,7 +60,6 @@ def create_dirs(
 
 
 def run(
-    task: str,
     modality: str,
     results_dir: str,
     plots_dir: str,
@@ -69,7 +68,7 @@ def run(
     burnin: int,
     eta: float,
     batch_size: int,
-    latent_dim: int,
+    init_dim: int,
     optim: str,
     prior: str,
     mc_samples: int,
@@ -101,7 +100,7 @@ def run(
         results_dir=results_dir,
         plots_dir=plots_dir,
         modality=modality,
-        latent_dim=latent_dim,
+        init_dim=init_dim,
         optim=optim,
         prior=prior,
         spike=spike,
@@ -111,10 +110,9 @@ def run(
     )
     # initialize VICE model
     vice = getattr(model, "VICE")(
-        task=task,
         n_train=N,
         n_objects=n_objects,
-        latent_dim=latent_dim,
+        init_dim=init_dim,
         optim=optim,
         eta=eta,
         batch_size=batch_size,

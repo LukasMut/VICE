@@ -69,15 +69,14 @@ Explanation of arguments in `main.py`
  
  main.py
   
- --task (str) / # odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task
  --modality (str) / # e.g., behavioral, text, visual, fMRI
  --triplets_dir (str) / # path/to/triplet/data
- --results_dir (str) / # optional specification of results directory (if not provided will resort to ./results/modality/latent_dim/optim/prior/seed/spike/slab/pi)
- --plots_dir (str) / # optional specification of directory for plots (if not provided will resort to ./plots/modality/latent_dim/optim/prior/seed/spike/slab/pi)
+ --results_dir (str) / # optional specification of results directory (if not provided will resort to ./results/modality/init_dim/optim/prior/seed/spike/slab/pi)
+ --plots_dir (str) / # optional specification of directory for plots (if not provided will resort to ./plots/modality/init_dim/optim/prior/seed/spike/slab/pi)
  --epochs (int) / # maximum number of epochs to run VICE optimization
  --burnin (int) / # minimum number of epochs to run VICE optimization (burnin period)
  --eta (float) / # learning rate
- --latent_dim (int) / # initial dimensionality of the model's latent space
+ --init_dim (int) / # initial dimensionality of the model's latent space
  --batch_size (int) / # mini-batch size
  --optim (str) / # optimizer (e.g., 'adam', 'adamw', 'sgd')
  --prior (str) / # whether to use a mixture of Gaussians or Laplacians in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
@@ -97,7 +96,7 @@ Explanation of arguments in `main.py`
 #### Example call
 
 ```python
-$ python main.py --task odd_one_out --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 2000 --burnin 500 --eta 0.001 --latent_dim 100 --batch_size 128 --k 5 --ws 200 --optim adam --prior gaussian --mc_samples 10 --spike 0.25 --slab 1.0 --pi 0.6 --steps 50 --device cpu --num_threads 8 --rnd_seed 42 --verbose
+$ python main.py --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 2000 --burnin 500 --eta 0.001 --init_dim 100 --batch_size 128 --k 5 --ws 200 --optim adam --prior gaussian --mc_samples 10 --spike 0.25 --slab 1.0 --pi 0.6 --steps 50 --device cpu --num_threads 8 --rnd_seed 42 --verbose
 ```
 
 ### NOTES:
@@ -133,9 +132,8 @@ Explanation of arguments in `evaluate_robustness.py`
  evaluate_robustness.py
  
  --results_dir (str) / # path/to/models
- --task (str) / # odd-one-out (i.e., 3AFC) or similarity (i.e., 2AFC) task
  --n_objects (int) / # number of unique objects/items/stimuli in the dataset
- --latent_dim (int) / # latent space dimensionality with which VICE was initialized at run time
+ --init_dim (int) / # latent space dimensionality with which VICE was initialized at run time
  --batch_size (int) / # mini-batch size used during VICE training
  --thresh (float) / # Pearson correlation value to threshold reproducibility of dimensions (e.g., 0.8)
  --optim (str) / # optimizer that was used during training (e.g., 'adam', 'adamw', 'sgd')
@@ -152,7 +150,7 @@ Explanation of arguments in `evaluate_robustness.py`
 #### Example call
 
 ```python
-$ python evaluate_robustness.py --results_dir path/to/models --task odd_one_out --n_objects number/of/unique/objects (e.g., 1854) --latent_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.25 --slab 1.0 --pi 0.6 --triplets_dir path/to/triplets --mc_samples 5 --device cpu --rnd_seed 42
+$ python evaluate_robustness.py --results_dir path/to/models --n_objects number/of/unique/objects (e.g., 1854) --init_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.25 --slab 1.0 --pi 0.6 --triplets_dir path/to/triplets --mc_samples 5 --device cpu --rnd_seed 42
 ```
 
 ### VICE hyperparam. combination

@@ -22,11 +22,9 @@ def parseargs():
 
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
-    aa('--task', type=str, default='odd_one_out',
-        choices=['odd_one_out', 'similarity_task'])
     aa('--n_objects', type=int, default=1854,
         help='number of unique items/objects in dataset')
-    aa('--latent_dim', type=int, default=100,
+    aa('--init_dim', type=int, default=100,
         help='initial dimensionality of VICE latent space')
     aa('--batch_size', metavar='B', type=int, default=128,
         help='number of triplets in each mini-batch')
@@ -110,10 +108,9 @@ def pruning(model: model.VICE, alpha: float = .05, k: int = 5) -> model.VICE:
 
 def get_models(
     vice_paths: List[str],
-    task: str,
     prior: str,
     n_objects: int,
-    latent_dim: int,
+    init_dim: int,
     batch_size: int,
     mc_samples: int,
     results_dir: str,
@@ -124,10 +121,9 @@ def get_models(
     for vice_path in vice_paths:
         seed = vice_path.split('/')[-1]
         vice = getattr(model, 'VICE')(
-            task=task,
             n_train=None,
             n_objects=n_objects,
-            latent_dim=latent_dim,
+            init_dim=init_dim,
             optim=None,
             eta=None,
             batch_size=batch_size,
@@ -156,9 +152,8 @@ def get_models(
 
 
 def inference(
-    task: str,
     n_objects: int,
-    latent_dim: int,
+    init_dim: int,
     batch_size: int,
     prior: str,
     mc_samples: int,
@@ -167,10 +162,10 @@ def inference(
     device: torch.device,
 ) -> None:
 
-    in_path = os.path.join(results_dir, f'{latent_dim}d')
+    in_path = os.path.join(results_dir, f'{init_dim}d')
     vice_paths = get_model_paths(in_path)
-    seeds, vice_models = zip(*get_models(vice_paths, task, prior, n_objects,
-                                latent_dim, batch_size, mc_samples, results_dir, device))
+    seeds, vice_models = zip(*get_models(vice_paths, prior, n_objects,
+                                init_dim, batch_size, mc_samples, results_dir, device))
 
     test_triplets = utils.load_data(
         device=device, triplets_dir=triplets_dir, inference=True)
@@ -274,9 +269,8 @@ if __name__ == '__main__':
     np.random.seed(args.rnd_seed)
     device = torch.device(args.device)
     inference(
-        task=args.task,
         n_objects=args.n_objects,
-        latent_dim=args.latent_dim,
+        init_dim=args.init_dim,
         batch_size=args.batch_size,
         prior=args.prior,
         mc_samples=args.mc_samples,

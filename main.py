@@ -18,23 +18,21 @@ def parseargs():
 
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
-    aa('--task', type=str, default='odd_one_out',
-        choices=['odd_one_out', 'similarity_task'])
     aa('--modality', type=str, default='behavioral',
         help='define current modality (e.g., behavioral, visual, neural, text)')
     aa('--triplets_dir', type=str,
         help='directory from where to load triplets')
     aa('--results_dir', type=str, default='./results/',
-        help='optional specification of results directory (if not provided will resort to ./results/modality/latent_dim/optim/prior/seed/spike/slab/pi)')
+        help='optional specification of results directory (if not provided will resort to ./results/modality/init_dim/optim/prior/seed/spike/slab/pi)')
     aa('--plots_dir', type=str, default='./plots/',
-        help='optional specification of directory for plots (if not provided will resort to ./plots/modality/latent_dim/optim/prior/seed/spike/slab/pi)')
+        help='optional specification of directory for plots (if not provided will resort to ./plots/modality/init_dim/optim/prior/seed/spike/slab/pi)')
     aa('--epochs', metavar='T', type=int, default=2000,
         help='maximum number of epochs to run VICE optimization')
     aa('--burnin', type=int, default=500,
         help='minimum number of epochs to run VICE optimization')
     aa('--eta', type=float, default=0.001,
         help='learning rate to be used in optimizer')
-    aa('--latent_dim', metavar='D', type=int, default=100,
+    aa('--init_dim', metavar='D', type=int, default=100,
         help='initial dimensionality of the latent space')
     aa('--batch_size', metavar='B', type=int, default=128,
         help='number of triplets sampled during each step (i.e., mini-batch size)')
@@ -99,7 +97,6 @@ if __name__ == "__main__":
         device = torch.device(args.device)
 
     train.run(
-        task=args.task,
         modality=args.modality,
         results_dir=args.results_dir,
         plots_dir=args.plots_dir,
@@ -108,7 +105,7 @@ if __name__ == "__main__":
         burnin=args.burnin,
         eta=args.eta,
         batch_size=args.batch_size,
-        latent_dim=args.latent_dim,
+        init_dim=args.init_dim,
         optim=args.optim,
         prior=args.prior,
         mc_samples=args.mc_samples,

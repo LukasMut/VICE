@@ -270,9 +270,12 @@ def evaluate_models(
         np.save(f, val_losses)
 
     print('\nSaving mean embedding with the lowest cross-entropy error on the validation set.\n')
-    final_embedding = pruned_locs[np.argmin(val_losses)]
+    final_embedding = pruned_locs[np.argmin(val_losses)].T
+    final_embedding[
+            :, np.argsort(-np.linalg.norm(final_embedding, axis=0, ord=1))
+        ]
     with open(os.path.join(in_path, 'final_embedding.npy'), 'wb') as f:
-        np.save(f, final_embedding.T)
+        np.save(f, final_embedding)
 
 
 if __name__ == '__main__':

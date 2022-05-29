@@ -50,7 +50,7 @@ root
 ├── evaluate_robustness.py
 ├── find_best_hypers.py
 ├── inference.py
-├── partition_food_data.py
+├── partition_triplets.py
 ├── requirements.txt
 ├── main.py
 ├── train.py

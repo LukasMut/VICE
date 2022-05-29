@@ -39,8 +39,12 @@ root
 ├── model
 ├── ├── vice.py
 ├── └── trainer.py
+├── embeddings
+├── ├── things
+├── └── └── final_embedding.npy
 ├── .gitignore
 ├── DEMO.ipynb
+├── get_embeddings.sh
 ├── create_things_splits.py
 ├── dataloader.py
 ├── evaluate_robustness.py

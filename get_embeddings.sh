@@ -12,15 +12,16 @@ FILES=(
 	"final_embedding.npy"
 )
 
-data_dir="$(pwd)/data/";
-embedding_dir="$(pwd)/embeddings";
+dataset="things";
+data_dir="$(pwd)/data/${dataset}";
+embedding_dir="$(pwd)/embeddings/${dataset}";
 subdirs=( $data_dir $embedding_dir );
 
 for subdir in ${subdirs[@]}; do
 	if [[ -d $subdir ]]; then
 		printf "\nThe directory $subdir exists\n"
 	else
-		mkdir "$subdir";
+		mkdir -p "$subdir";
 		printf "\nCreated $subdir\n"	
 	fi
 done

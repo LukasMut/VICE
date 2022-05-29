@@ -214,12 +214,12 @@ def evaluate_models(
     in_path = os.path.join(results_dir,
                            f'{init_dim}d', optim, prior, str(spike), str(slab), str(pi))
     model_paths = get_model_paths(in_path)
-    pruned_locs, pruned_scales = [], []
     _, val_triplets = utils.load_data(
         device=device, triplets_dir=triplets_dir, inference=False)
     val_batches = utils.load_batches(
         train_triplets=None, test_triplets=val_triplets, n_objects=n_objects, batch_size=batch_size, inference=True)
-    val_losses = np.zeros(len(model_paths))
+    pruned_locs, pruned_scales = [], []
+    val_losses = np.zeros(len(model_paths), dtype=np.float32)
     for i, model_path in enumerate(model_paths):
         print(f'Currently pruning and evaluating model: {i+1}\n')
         try:
@@ -268,6 +268,11 @@ def evaluate_models(
 
     with open(os.path.join(in_path, 'val_entropies.npy'), 'wb') as f:
         np.save(f, val_losses)
+
+    print('\nSaving mean embedding with the lowest cross-entropy error on the validation set.\n')
+    final_embedding = pruned_locs[np.argmin(val_losses)]
+    with open(os.path.join(in_path, 'final_embedding.npy'), 'wb') as f:
+        np.save(f, final_embedding.T)
 
 
 if __name__ == '__main__':

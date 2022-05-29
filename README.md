@@ -179,6 +179,19 @@ $ python find_best_hypers.py --in_path path/to/models/and/evaluation/results --p
 
 After calling `find_best_hypers.py`, a `txt` file called `model_paths.txt` is saved to the data split subfolder in `path/to/models/and/evaluation/results` pointing towards the latest model snapshot (i.e., last epoch) for the best hyperparameter combination per data split and random seed.
 
+
+## VICE embeddings
+
+VICE embeddings for [THINGS](https://osf.io/jum2f/) can be found [here](https://github.com/LukasMut/VICE/tree/main/embeddings/things). The corresponding object concept names can be found on [OSF](https://osf.io/jum2f/) or [here](https://github.com/LukasMut/VICE/tree/main/data). 
+
+If you want to download the embeddings and the `csv` file containing the object names simultaneously, download [this file](https://github.com/LukasMut/VICE/blob/main/get_embeddings.sh) and execute it as follows
+
+```bash
+bash get_embedding.sh
+```
+
+This will download the THINGS object concept names to a subdirectory called `($pwd)\data\things` and the VICE embedding for THINGS to a subdirectory called `($pwd)\embeddings\things`.
+
 ## Tripletize any data
 
 ### Tripletizing representations

@@ -190,7 +190,7 @@ If you want to download the embeddings and the `tsv` file containing the object 
 $ bash get_embedding.sh
 ```
 
-This will download the THINGS object concept names to a subdirectory called `$(pwd)\data\things` and the VICE embeddings for THINGS to a different subdirectory called `$(pwd)\embeddings\things`.
+This will download the THINGS object concept names to a subdirectory called `$(pwd)/data/things` and the VICE embeddings for the THINGS objects to a different subdirectory called `$(pwd)/embeddings/things/`.
 
 ## Tripletize any data
 

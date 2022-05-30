@@ -4,6 +4,7 @@
 import json
 import math
 import os
+import warnings
 import torch
 import utils
 import copy
@@ -13,20 +14,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from collections import defaultdict
-from torch.optim import SGD, Adam, AdamW
-from typing import Any, Dict, Iterator, List, Tuple
+from typing import (Any, Dict, Iterator, List, Tuple)
 
-
+Array = Any
+Tensor = Any
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 
 
 class Trainer(nn.Module):
     def __init__(
         self,
-        task: str,
         n_train: int,
-        n_items: int,
-        latent_dim: int,
+        n_objects: int,
+        init_dim: int,
         optim: Any,
         eta: str,
         batch_size: int,
@@ -46,10 +46,9 @@ class Trainer(nn.Module):
         verbose: bool = False,
     ):
         super(Trainer, self).__init__()
-        self.task = task
         self.n_train = n_train  # number of trials/triplets in dataset
-        self.n_items = n_items  # number of unique items/objects
-        self.latent_dim = latent_dim
+        self.n_objects = n_objects  # number of unique items/objects
+        self.init_dim = init_dim
         self.optim = optim
         self.eta = eta  # learning rate
         self.batch_size = batch_size
@@ -68,7 +67,7 @@ class Trainer(nn.Module):
         self.device = device
         self.verbose = verbose
 
-    def forward(self, *input: Any) -> None:
+    def forward(self, *input: Tensor) -> None:
         raise NotImplementedError
 
     def load_checkpoint_(self) -> None:
@@ -91,7 +90,7 @@ class Trainer(nn.Module):
                     self.val_losses = checkpoint["val_losses"]
                     self.loglikelihoods = checkpoint["loglikelihoods"]
                     self.complexity_losses = checkpoint["complexity_costs"]
-                    self.latent_causes = checkpoint["latent_causes"]
+                    self.latent_dimensions = checkpoint["latent_dimensions"]
                     print(
                         f"...Loaded model and optimizer params from previous run. Resuming training at epoch {self.start}.\n"
                     )
@@ -104,76 +103,79 @@ class Trainer(nn.Module):
                     self.train_accs, self.val_accs = [], []
                     self.train_losses, self.val_losses = [], []
                     self.loglikelihoods, self.complexity_losses = [], []
-                    self.latent_causes = []
+                    self.latent_dimensions = []
             else:
                 self.start = 0
                 self.train_accs, self.val_accs = [], []
                 self.train_losses, self.val_losses = [], []
                 self.loglikelihoods, self.complexity_losses = [], []
-                self.latent_causes = []
+                self.latent_dimensions = []
         else:
             os.makedirs(self.model_dir)
             self.start = 0
             self.train_accs, self.val_accs = [], []
             self.train_losses, self.val_losses = [], []
             self.loglikelihoods, self.complexity_losses = [], []
-            self.latent_causes = []
+            self.latent_dimensions = []
 
     def initialize_priors_(self) -> None:
-        self.loc = torch.zeros(self.n_items, self.latent_dim).to(self.device)
+        self.loc = torch.zeros(self.n_objects, self.init_dim).to(self.device)
         self.scale_spike = (
-            torch.ones(self.n_items, self.latent_dim).mul(self.spike).to(self.device)
+            torch.ones(self.n_objects, self.init_dim).mul(self.spike).to(self.device)
         )
         self.scale_slab = (
-            torch.ones(self.n_items, self.latent_dim).mul(self.slab).to(self.device)
+            torch.ones(self.n_objects, self.init_dim).mul(self.slab).to(self.device)
         )
 
     def initialize_optim_(self) -> None:
         if self.optim == "adam":
-            self.optim = Adam(self.parameters(), eps=1e-08, lr=self.eta)
+            self.optim = getattr(torch.optim, 'Adam')(self.parameters(), 
+            eps=1e-08, lr=self.eta)
         elif self.optim == "adamw":
-            self.optim = AdamW(self.parameters(), eps=1e-08, lr=self.eta)
+            self.optim = getattr(torch.optim, 'AdamW')(self.parameters(),
+            eps=1e-08, lr=self.eta)
         else:
-            self.optim = SGD(self.parameters(), lr=self.eta)
+            self.optim = getattr(torch.optim, 'SGD')(self.parameters(),
+            lr=self.eta)
 
     @staticmethod
     def norm_pdf(
-        W_sample: torch.Tensor, W_loc: torch.Tensor, W_scale: torch.Tensor
-    ) -> torch.Tensor:
+        X: Tensor, loc: Tensor, scale: Tensor
+    ) -> Tensor:
+        """Probability density function of a normal distribution."""
         return (
-            torch.exp(-((W_sample - W_loc) ** 2) / (2 * W_scale.pow(2)))
-            / W_scale
+            torch.exp(-((X - loc) ** 2) / (2 * scale.pow(2)))
+            / scale
             * math.sqrt(2 * math.pi)
         )
 
     @staticmethod
     def laplace_pdf(
-        W_sample: torch.Tensor, W_loc: torch.Tensor, W_scale: torch.Tensor
-    ) -> torch.Tensor:
-        return torch.exp(-(W_sample - W_loc).abs() / W_scale) / W_scale.mul(2.0)
+        X: Tensor, loc: Tensor, scale: Tensor
+    ) -> Tensor:
+        """Probability density function of a laplace distribution."""
+        return torch.exp(-(X - loc).abs() / scale) / scale.mul(2.0)
 
-    def spike_and_slab(self, W_sample: torch.Tensor) -> torch.Tensor:
+    def spike_and_slab(self, X: Tensor) -> Tensor:
         pdf = self.norm_pdf if self.prior == "gaussian" else self.laplace_pdf
-        spike = self.pi * pdf(W_sample, self.loc, self.scale_spike)
-        slab = (1 - self.pi) * pdf(W_sample, self.loc, self.scale_slab)
+        spike = self.pi * pdf(X, self.loc, self.scale_spike)
+        slab = (1 - self.pi) * pdf(X, self.loc, self.scale_slab)
         return spike + slab
 
     @staticmethod
     def compute_similarities(
-        anchor: torch.Tensor,
-        positive: torch.Tensor,
-        negative: torch.Tensor,
-        task: str,
-    ) -> tuple:
-        pos_sim = torch.sum(anchor * positive, dim=1)
-        neg_sim = torch.sum(anchor * negative, dim=1)
-        if task == "odd_one_out":
-            neg_sim_2 = torch.sum(positive * negative, dim=1)
-            return (pos_sim, neg_sim, neg_sim_2)
-        return (pos_sim, neg_sim)
+        anchor: Tensor,
+        positive: Tensor,
+        negative: Tensor,
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        """Apply the similarity function (modeled as a dot product) to each pair in the triplet."""
+        sim_i = torch.sum(anchor * positive, dim=1)
+        sim_j = torch.sum(anchor * negative, dim=1)
+        sim_k = torch.sum(positive * negative, dim=1)
+        return (sim_i, sim_j, sim_k)
 
     @staticmethod
-    def break_ties(probas: np.ndarray) -> np.ndarray:
+    def break_ties(probas: Array) -> Array:
         return np.array(
             [
                 -1 if len(np.unique(pmf)) != len(pmf) else np.argmax(pmf)
@@ -181,26 +183,26 @@ class Trainer(nn.Module):
             ]
         )
 
-    def accuracy_(self, probas: np.ndarray, batching: bool = True) -> float:
+    def accuracy_(self, probas: Array, batching: bool = True) -> float:
         choices = self.break_ties(probas)
         argmax = np.where(choices == 0, 1, 0)
         acc = argmax.mean() if batching else argmax.tolist()
         return acc
 
     @staticmethod
-    def sumexp(sims: Tuple[torch.Tensor]) -> torch.Tensor:
+    def sumexp(sims: Tuple[Tensor]) -> Tensor:
         return torch.sum(torch.exp(torch.stack(sims)), dim=0)
 
-    def softmax(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
+    def softmax(self, sims: Tuple[Tensor]) -> Tensor:
         return torch.exp(sims[0]) / self.sumexp(sims)
 
-    def logsumexp(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
+    def logsumexp(self, sims: Tuple[Tensor]) -> Tensor:
         return torch.log(self.sumexp(sims))
 
-    def log_softmax(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
+    def log_softmax(self, sims: Tuple[Tensor]) -> Tensor:
         return sims[0] - self.logsumexp(sims)
 
-    def cross_entropy_loss(self, sims: Tuple[torch.Tensor]) -> torch.Tensor:
+    def cross_entropy_loss(self, sims: Tuple[Tensor]) -> Tensor:
         return torch.mean(-self.log_softmax(sims))
 
     def choice_accuracy(self, similarities: float) -> float:
@@ -210,10 +212,20 @@ class Trainer(nn.Module):
         choice_acc = self.accuracy_(probas)
         return choice_acc
 
+    @staticmethod
+    def unbind(logits: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        return torch.unbind(
+                torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1
+            )
+
     def pruning(
         self,
         alpha: float = 0.05,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Tuple[Array, Array, Array]:
+        # Prune the variational parameters theta
+        # by identifying the number of *relevant* dimensions
+        # according to our dimensionality reduction procedure,
+        # defined in VICE §3.3.4
         loc = self.detached_params["loc"]
         scale = self.detached_params["scale"]
         p_vals = utils.compute_pvals(loc, scale)
@@ -225,39 +237,34 @@ class Trainer(nn.Module):
         return signal, pruned_loc, pruned_scale
 
     @staticmethod
-    def convergence(latent_causes: List[int], ws: int) -> bool:
-        """Evaluate convergence of latent causes."""
-        causes_over_time = set(latent_causes[-ws:])
-        divergence = len(causes_over_time)
-        if divergence == 1 and causes_over_time.pop() != 0:
+    def convergence(latent_dimensions: List[int], ws: int) -> bool:
+        """Evaluate *representational stability*, i.e., stability of the embedding dimensions."""
+        dimensions_over_time = set(latent_dimensions[-ws:])
+        divergence = len(dimensions_over_time)
+        if divergence == 1 and dimensions_over_time.pop() != 0:
             return True
         return False
 
-    def mc_sampling(
-        self,
-        batch: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Perform Monte Carlo sampling."""
-        n_choices = 3 if self.task == "odd_one_out" else 2
+    @torch.no_grad()
+    def mc_sampling(self, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        """Perform Monte Carlo sampling over the variational posterior q_{theta}(X)."""
+        n_choices = 3
         sampled_probas = torch.zeros(
             self.mc_samples, batch.shape[0] // n_choices, n_choices
         ).to(self.device)
         sampled_choices = torch.zeros(self.mc_samples, batch.shape[0] // n_choices).to(
             self.device
         )
-        with torch.no_grad():
-            for k in range(self.mc_samples):
-                logits, _, _, _ = self.forward(batch)
-                anchor, positive, negative = torch.unbind(
-                    torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1
-                )
-                similarities = self.compute_similarities(
-                    anchor, positive, negative, self.task
-                )
-                soft_choices = self.softmax(similarities)
-                probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
-                sampled_probas[k] += probas
-                sampled_choices[k] += soft_choices
+        for k in range(self.mc_samples):
+            logits, _, _, _ = self.forward(batch)
+            anchor, positive, negative = self.unbind(logits)
+            similarities = self.compute_similarities(
+                anchor, positive, negative
+            )
+            soft_choices = self.softmax(similarities)
+            probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
+            sampled_probas[k] += probas
+            sampled_choices[k] += soft_choices
         probas = sampled_probas.mean(dim=0)
         val_acc = self.accuracy_(probas.cpu().numpy())
         hard_choices = self.accuracy_(probas.cpu().numpy(), batching=False)
@@ -266,7 +273,7 @@ class Trainer(nn.Module):
         return val_acc, val_loss, probas, hard_choices
 
     def evaluate(self, val_batches: Iterator) -> Tuple[float, float]:
-        """Evaluate model on validation set."""
+        """Evaluate model on the validation set."""
         self.eval()
         batch_losses_val = torch.zeros(len(val_batches))
         batch_accs_val = torch.zeros(len(val_batches))
@@ -282,8 +289,8 @@ class Trainer(nn.Module):
     def inference(
         self,
         test_batches: Iterator,
-    ) -> Tuple[float, float, np.ndarray, Dict[tuple, list]]:
-        """Perform inference on a held-out test set."""
+    ) -> Tuple[float, float, Array, Dict[tuple, list]]:
+        """Perform inference on a held-out test set (may contain repeats)."""
         probas = torch.zeros(int(len(test_batches) * self.batch_size), 3)
         triplet_choices = []
         model_choices = defaultdict(list)
@@ -298,12 +305,12 @@ class Trainer(nn.Module):
             batch_centropies[j] += test_loss
             if batch_probas.shape[0] < self.batch_size:
                 B = batch_probas.shape[0]
-                probas[j * self.batch_size: (j * self.batch_size) + B] += batch_probas
+                probas[j * self.batch_size : (j * self.batch_size) + B] += batch_probas
                 human_choices = (
                     batch.nonzero(as_tuple=True)[-1].view(B, -1).cpu().numpy()
                 )
             else:
-                probas[j * self.batch_size: (j + 1) * self.batch_size] += batch_probas
+                probas[j * self.batch_size : (j + 1) * self.batch_size] += batch_probas
                 human_choices = (
                     batch.nonzero(as_tuple=True)[-1]
                     .view(self.batch_size, -1)
@@ -324,8 +331,8 @@ class Trainer(nn.Module):
     def stepping(
         self,
         train_batches: Iterator,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Step over the full training data in mini-batches of size B."""
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        """Step over the full training data in mini-batches of size B and perform SGD."""
         batch_llikelihoods = torch.zeros(len(train_batches))
         batch_closses = torch.zeros(len(train_batches))
         batch_losses = torch.zeros(len(train_batches))
@@ -333,39 +340,40 @@ class Trainer(nn.Module):
         for i, batch in enumerate(train_batches):
             self.optim.zero_grad()
             batch = batch.to(self.device)
-            logits, W_loc, W_scale, W_sampled = self.forward(batch)
-            anchor, positive, negative = torch.unbind(
-                torch.reshape(logits, (-1, 3, self.latent_dim)), dim=1
+            logits, loc, scale, X = self.forward(batch)
+            anchor, positive, negative = self.unbind(logits)
+            similarities = self.compute_similarities(
+                anchor, positive, negative
             )
-            c_entropy = self.cross_entropy_loss(
-                self.compute_similarities(anchor, positive, negative, self.task)
-            )
+            c_entropy = self.cross_entropy_loss(similarities)
+            acc = self.choice_accuracy(similarities)
 
             if self.prior == "gaussian":
-                log_q = self.norm_pdf(W_sampled, W_loc, W_scale).log()
+                log_q = self.norm_pdf(X, loc, scale).log()
             else:
-                log_q = self.laplace_pdf(W_sampled, W_loc, W_scale).log()
+                log_q = self.laplace_pdf(X, loc, scale).log()
 
-            log_p = self.spike_and_slab(W_sampled).log()
+            log_p = self.spike_and_slab(X).log()
             complexity_loss = (1 / self.n_train) * (log_q.sum() - log_p.sum())
             self.loss = c_entropy + complexity_loss
             self.loss.backward()
             self.optim.step()
+
             batch_losses[i] += self.loss.item()
             batch_llikelihoods[i] += c_entropy.item()
             batch_closses[i] += complexity_loss.item()
-            batch_accs[i] += self.choice_accuracy(
-                self.compute_similarities(anchor, positive, negative, self.task)
-            )
+            batch_accs[i] += acc
+
         return batch_llikelihoods, batch_closses, batch_losses, batch_accs
 
     def fit(self, train_batches: Iterator, val_batches: Iterator) -> None:
+        """Fit a VICE model to a dataset of n concept triplets."""
         self.initialize_priors_()
         self.initialize_optim_()
         self.load_checkpoint_()
         for epoch in range(self.start, self.epochs):
             self.train()
-            # take a step over the entire training data (i.e., iterate over every mini-batch)
+            # take a step over the entire training data (i.e., iterate over every mini-batch in train_batches)
             batch_llikelihoods, batch_closses, batch_losses, batch_accs = self.stepping(
                 train_batches
             )
@@ -381,15 +389,15 @@ class Trainer(nn.Module):
             self.train_accs.append(avg_train_acc)
 
             signal, _, _ = self.pruning()
-            n_latents = signal.shape[0]
-            self.latent_causes.append(n_latents)
+            dimensionality = signal.shape[0]
+            self.latent_dimensions.append(dimensionality)
 
             if self.verbose:
                 print(
                     "\n======================================================================================"
                 )
                 print(
-                    f"====== Epoch: {epoch+1:02d}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Latent causes: {n_latents:02d} ======"
+                    f"====== Epoch: {epoch+1:02d}, Train acc: {avg_train_acc:.3f}, Train loss: {avg_train_loss:.3f}, Identified dimensions: {dimensionality:02d} ======"
                 )
                 print(
                     "======================================================================================\n"
@@ -404,7 +412,7 @@ class Trainer(nn.Module):
 
             if epoch > self.burnin:
                 # evaluate model convergence
-                if self.convergence(self.latent_causes, self.ws):
+                if self.convergence(self.latent_dimensions, self.ws):
                     self.save_checkpoint(epoch)
                     self.save_results(epoch)
                     print("\n...Stopping VICE optimzation.")
@@ -428,31 +436,46 @@ class Trainer(nn.Module):
             "val_accs": self.val_accs,
             "loglikelihoods": self.loglikelihoods,
             "complexity_costs": self.complexity_losses,
-            "latent_causes": self.latent_causes,
+            "latent_dimensions": self.latent_dimensions,
         }
         torch.save(
             checkpoint, os.path.join(self.model_dir, f"model_epoch{epoch+1:04d}.tar")
         )
 
     def save_results(self, epoch: int) -> None:
-        results = {
-            "epoch": epoch + 1,
-            "train_acc": self.train_accs[-1],
-            "val_acc": self.val_accs[-1],
-            "val_loss": self.val_losses[-1],
-        }
+        try:
+            results = {
+                "epoch": epoch + 1,
+                "train_acc": self.train_accs[-1],
+                "val_acc": self.val_accs[-1],
+                "val_loss": self.val_losses[-1],
+            }
+        except IndexError:
+            results = {
+                "epoch": epoch + 1,
+                "train_acc": self.train_accs[-1],
+            }
+            warnings.warn(
+                message='\nNo validation results are being saved. To regularly evaluate VICE on the validation set, set <steps> << <burnin>.\n',
+                category=UserWarning
+            )
+
         with open(
             os.path.join(self.results_dir, f"results_{epoch+1:04d}.json"), "w"
         ) as rf:
             json.dump(results, rf)
 
-    def save_final_latents(self):
+    def save_final_latents(self) -> None:
         _, pruned_loc, pruned_scale = self.pruning()
-        pruned_loc = pruned_loc[
+        self.pruned_loc = pruned_loc[
             :, np.argsort(-np.linalg.norm(pruned_loc, axis=0, ord=1))
         ]
-        pruned_scale = pruned_scale[
+        self.pruned_scale = pruned_scale[
             :, np.argsort(-np.linalg.norm(pruned_loc, axis=0, ord=1))
         ]
         with open(os.path.join(self.results_dir, "pruned_params.npz"), "wb") as f:
-            np.savez_compressed(f, pruned_loc=pruned_loc, pruned_scale=pruned_scale)
+            np.savez_compressed(f, pruned_loc=self.pruned_loc, pruned_scale=self.pruned_scale)
+
+    @property
+    def pruned_params(self):
+        return dict(pruned_loc=self.pruned_loc, pruned_scale=self.pruned_scale)

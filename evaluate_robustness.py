@@ -9,10 +9,10 @@ import re
 import torch
 import utils
 import itertools
+import model
 
 import numpy as np
 
-from model.vice import VICE
 from typing import Tuple, List
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
@@ -27,11 +27,9 @@ def parseargs():
         parser.add_argument(*args, **kwargs)
     aa('--results_dir', type=str,
         help='results directory (root directory for models)')
-    aa('--task', type=str, default='odd_one_out',
-        choices=['odd_one_out', 'similarity_task'])
-    aa('--n_items', type=int,
-        help='number of unique items/stimuli/objects in dataset')
-    aa('--latent_dim', type=int, default=100,
+    aa('--n_objects', type=int,
+        help='number of unique objects/items/stimuli in dataset')
+    aa('--init_dim', type=int, default=100,
         help='initial latent dimensionality of VICE embedding(s)')
     aa('--thresh', type=float, default=0.8,
         choices=[0.7, 0.75, 0.8, 0.85, 0.9, 0.95],
@@ -176,14 +174,14 @@ def get_model_paths(PATH: str) -> List[str]:
     return paths
 
 
-def prune_weights(model: VICE, indices: np.ndarray) -> VICE:
+def prune_weights(model: model.VICE, indices: np.ndarray) -> model.VICE:
     for p in model.parameters():
         p.data = p.data[torch.from_numpy(indices)]
     return model
 
 
-def pruning(model: VICE, alpha: float = .05, k: int = 5,
-            ) -> Tuple[torch.Tensor, torch.Tensor, VICE]:
+def pruning(model: model.VICE, alpha: float = .05, k: int = 5,
+            ) -> Tuple[torch.Tensor, torch.Tensor, model.VICE]:
     params = model.detached_params
     loc = params['loc']
     scale = params['scale']
@@ -199,9 +197,8 @@ def pruning(model: VICE, alpha: float = .05, k: int = 5,
 
 def evaluate_models(
     results_dir: str,
-    task: str,
-    n_items: int,
-    latent_dim: int,
+    n_objects: int,
+    init_dim: int,
     optim: str,
     prior: str,
     spike: float,
@@ -215,25 +212,24 @@ def evaluate_models(
     k: int = 5,
 ) -> None:
     in_path = os.path.join(results_dir,
-                           f'{latent_dim}d', optim, prior, str(spike), str(slab), str(pi))
+                           f'{init_dim}d', optim, prior, str(spike), str(slab), str(pi))
     model_paths = get_model_paths(in_path)
-    pruned_locs, pruned_scales = [], []
     _, val_triplets = utils.load_data(
         device=device, triplets_dir=triplets_dir, inference=False)
     val_batches = utils.load_batches(
-        train_triplets=None, test_triplets=val_triplets, n_items=n_items, batch_size=batch_size, inference=True)
-    val_losses = np.zeros(len(model_paths))
+        train_triplets=None, test_triplets=val_triplets, n_objects=n_objects, batch_size=batch_size, inference=True)
+    pruned_locs, pruned_scales = [], []
+    val_losses = np.zeros(len(model_paths), dtype=np.float32)
     for i, model_path in enumerate(model_paths):
         print(f'Currently pruning and evaluating model: {i+1}\n')
         try:
-            model = VICE(
-                task=task,
+            vice = model.VICE(
                 k=k,
                 n_train=None,
                 burnin=None,
                 ws=None,
-                n_items=n_items,
-                latent_dim=latent_dim,
+                n_objects=n_objects,
+                init_dim=init_dim,
                 optim=None,
                 eta=None,
                 batch_size=batch_size,
@@ -248,12 +244,12 @@ def evaluate_models(
                 results_dir=results_dir,
                 device=device,
                 init_weights=True)
-            model = utils.load_model(
-                model=model, PATH=model_path, device=device)
+            vice = utils.load_model(
+                model=vice, PATH=model_path, device=device)
         except FileNotFoundError:
             raise Exception(f'Could not find params for {model_path}\n')
-        pruned_loc, pruned_scale, pruned_model = pruning(model)
-        val_loss, _ = pruned_model.evaluate(val_batches)
+        pruned_loc, pruned_scale, pruned_vice = pruning(vice)
+        val_loss, _ = pruned_vice.evaluate(val_batches)
         val_losses[i] += val_loss
         pruned_locs.append(pruned_loc)
         pruned_scales.append(pruned_scale)
@@ -273,6 +269,14 @@ def evaluate_models(
     with open(os.path.join(in_path, 'val_entropies.npy'), 'wb') as f:
         np.save(f, val_losses)
 
+    print('\nSaving mean embedding with the lowest cross-entropy error on the validation set.\n')
+    final_embedding = pruned_locs[np.argmin(val_losses)].T
+    final_embedding[
+            :, np.argsort(-np.linalg.norm(final_embedding, axis=0, ord=1))
+        ]
+    with open(os.path.join(in_path, 'final_embedding.npy'), 'wb') as f:
+        np.save(f, final_embedding)
+
 
 if __name__ == '__main__':
     args = parseargs()
@@ -280,9 +284,8 @@ if __name__ == '__main__':
     np.random.seed(args.rnd_seed)
     evaluate_models(
         results_dir=args.results_dir,
-        task=args.task,
-        n_items=args.n_items,
-        latent_dim=args.latent_dim,
+        n_objects=args.n_objects,
+        init_dim=args.init_dim,
         optim=args.optim,
         prior=args.prior,
         spike=args.spike,

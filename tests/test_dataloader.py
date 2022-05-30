@@ -61,11 +61,11 @@ class TripletLoadingTestCase(unittest.TestCase):
         self.assertTrue(isinstance(train_triplets, torch.Tensor))
         self.assertTrue(isinstance(test_triplets, torch.Tensor))
 
-        M = utils.get_nitems(train_triplets)
+        M = utils.get_nobjects(train_triplets)
         self.assertTrue(type(M) == int)
 
         train_batches, val_batches = utils.load_batches(
-            train_triplets=train_triplets, test_triplets=test_triplets, n_items=M, batch_size=batch_size, inference=False)
+            train_triplets=train_triplets, test_triplets=test_triplets, n_objects=M, batch_size=batch_size, inference=False)
 
         for i, batches in enumerate([train_batches, val_batches]):
             item_order = self.collect_order(batches)

@@ -8,48 +8,38 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model.trainer import Trainer
-from typing import Dict, Tuple
+from .trainer import Trainer
+from typing import (Any, Dict, Tuple)
 
-
+Array = Any
+Tensor = Any
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 
 
 class Sigma(nn.Module):
-    def __init__(self, in_size: int, out_size: int, bias: bool):
+    def __init__(self, n_objects: int, init_dim: int, bias: bool = False):
         super(Sigma, self).__init__()
-        self.in_size = in_size
-        self.out_size = out_size
-        self.logsigma = nn.Linear(self.in_size, self.out_size, bias=bias)
+        self.logsigma = nn.Linear(n_objects, init_dim, bias=bias)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        _ = self.logsigma(x)
-        W_sigma = self.logsigma.weight.T.exp()
-        return W_sigma
-
+    def forward(self) -> Tensor:
+        return self.logsigma.weight.T.exp()
 
 class Mu(nn.Module):
-    def __init__(self, in_size: int, out_size: int, bias: bool):
+    def __init__(self, n_objects: int, init_dim: int, bias: bool = False):
         super(Mu, self).__init__()
-        self.in_size = in_size
-        self.out_size = out_size
-        self.mu = nn.Linear(self.in_size, self.out_size, bias=bias)
+        self.mu = nn.Linear(n_objects, init_dim, bias=bias)
         # initialize means
         nn.init.kaiming_normal_(self.mu.weight, mode="fan_out", nonlinearity="relu")
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        _ = self.mu(x)
-        W_mu = self.mu.weight.T
-        return W_mu
-
+    def forward(self) -> Tensor:
+        return self.mu.weight.T
 
 class VICE(Trainer):
     def __init__(
         self,
-        task: str,
         n_train: int,
-        n_items: int,
-        latent_dim: int,
+        n_objects: int,
+        init_dim: int,
         optim: str,
         eta: str,
         batch_size: int,
@@ -71,10 +61,9 @@ class VICE(Trainer):
         bias: bool = False,
     ):
         super().__init__(
-            task=task,
             n_train=n_train,
-            n_items=n_items,
-            latent_dim=latent_dim,
+            n_objects=n_objects,
+            init_dim=init_dim,
             optim=optim,
             eta=eta,
             batch_size=batch_size,
@@ -93,29 +82,25 @@ class VICE(Trainer):
             device=device,
             verbose=verbose,
         )
-        self.in_size = n_items
-        self.out_size = latent_dim
-        self.mu = Mu(self.in_size, self.out_size, bias)
-        self.sigma = Sigma(self.in_size, self.out_size, bias)
+        self.mu = Mu(n_objects, init_dim, bias)
+        self.sigma = Sigma(n_objects, init_dim, bias)
 
         if init_weights:
             self._initialize_weights()
 
     @staticmethod
-    def reparameterize(loc: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+    def reparameterize(loc: Tensor, scale: Tensor) -> Tensor:
         """Apply reparameterization trick."""
         eps = scale.data.new(scale.size()).normal_()
-        W_sampled = eps.mul(scale).add(loc)
-        return W_sampled
-
-    def forward(
-        self, x: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        W_mu = self.mu(x)
-        W_sigma = self.sigma(x)
-        W_sampled = self.reparameterize(W_mu, W_sigma)
-        z = F.relu(torch.mm(x, W_sampled))
-        return z, W_mu, W_sigma, W_sampled
+        return eps.mul(scale).add(loc)
+        
+    def forward(self, batch: Tensor
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        mu = self.mu()
+        sigma = self.sigma()
+        X = self.reparameterize(mu, sigma)
+        z = F.relu(torch.mm(batch, X))
+        return z, mu, sigma, X
 
     def _initialize_weights(self) -> None:
         # this is equivalent to 1 / std(mu)
@@ -123,10 +108,9 @@ class VICE(Trainer):
         nn.init.constant_(self.sigma.logsigma.weight, eps)
 
     @property
-    def detached_params(self) -> Dict[str, np.ndarray]:
+    def detached_params(self) -> Dict[str, Array]:
         """Detach params from computational graph."""
-        W_loc = self.mu.mu.weight.data.T.detach()
-        W_scale = self.sigma.logsigma.weight.data.T.exp().detach()
-        W_loc = F.relu(W_loc)
-        params = {"loc": W_loc.cpu().numpy(), "scale": W_scale.cpu().numpy()}
+        loc = F.relu(self.mu.mu.weight.data.T.detach())
+        scale = self.sigma.logsigma.weight.data.T.exp().detach()
+        params = dict(loc=loc.cpu().numpy(), scale=scale.cpu().numpy())
         return params

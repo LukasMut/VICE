@@ -67,6 +67,10 @@ class Trainer(nn.Module):
         self.device = device
         self.verbose = verbose
 
+
+        from tensorboardX import SummaryWriter
+        self.writer = SummaryWriter('./tboard')
+
     def forward(self, *input: Tensor) -> None:
         raise NotImplementedError
 
@@ -338,7 +342,9 @@ class Trainer(nn.Module):
         batch_closses = torch.zeros(len(train_batches))
         batch_losses = torch.zeros(len(train_batches))
         batch_accs = torch.zeros(len(train_batches))
+        n_batches = len(train_batches)
         for i, batch in enumerate(train_batches):
+            print(f'{i}/{n_batches}', end='\r')
             self.optim.zero_grad()
             batch = batch.to(self.device)
             logits, loc, scale, X = self.forward(batch)
@@ -351,7 +357,6 @@ class Trainer(nn.Module):
                 anchor, positive, negative
             )
             c_entropy = self.cross_entropy_loss(similarities)
-
             # looks if the argmax of the probas is also at position 0, which is the true ooo (?). the average of the
             # correct argmax is then the accuracy.
             acc = self.choice_accuracy(similarities)
@@ -364,10 +369,12 @@ class Trainer(nn.Module):
             log_p = self.spike_and_slab(X).log()
             complexity_loss = (1 / self.n_train) * (log_q.sum() - log_p.sum())
 
+        
 
-            breakpoint()
+            self.writer.add_scalar('ce', c_entropy.item(), i)
+            self.writer.add_scalar('complex', complexity_loss.item(), i)
 
-            self.loss = c_entropy + complexity_loss
+            self.loss = c_entropy + complexity_loss        
             self.loss.backward()
             self.optim.step()
 

@@ -43,6 +43,6 @@ EPOCHS=2000
 
 echo "Started VSPoSE $SLURM_ARRAY_TASK_ID optimization at $(date)"
 
-srun python3 ./main.py --triplets_dir $TR_DIR --k $K --eta $ETA --spike 0.06720551273974978 --slab 0.5488116360940263 --pi 0.5 --init_dim $DIM --batch_size $BS --epochs $EPOCHS --ws $WINDOW --mc_samples $MCSAMPLES --steps $STEPS --device $DEVICE --rnd_seed $RND_SEED --burnin $BURNIN >> vspose_vision_dnn.out
+srun python3 ./main.py --triplets_dir $TR_DIR --k $K --eta $ETA --spike 0.25 --slab 1 --pi 0.5 --init_dim $DIM --batch_size $BS --epochs $EPOCHS --ws $WINDOW --mc_samples $MCSAMPLES --steps $STEPS --device $DEVICE --rnd_seed $RND_SEED --burnin $BURNIN >> vspose_vision_dnn.out
 
 echo "Finished VSPoSE $SLURM_ARRAY_TASK_ID optimization at $(date)"

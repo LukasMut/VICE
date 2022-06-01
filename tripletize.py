@@ -39,7 +39,7 @@ class Tripletizer:
     n_samples: int
     rnd_seed: int
     k: int = 3
-    train_frac: float = 0.8
+    train_frac: float = 0.9
 
     def __post_init__(self) -> None:
         if not re.search(r"(mat|txt|csv|npy|hdf5)$", self.in_path):
@@ -115,23 +115,28 @@ class Tripletizer:
         X = self.load_domain(self.in_path)
         M = X.shape[0]
 
-        # NOTE: This is a matrix of N x N (i.e. image_features x image_features). 
+        # This is a matrix of N x N (i.e. image_features x image_features). 
         # i.e. The dot product between the corresponding network representations
         S = X @ X.T 
         
+        # Adaptive sampling of unique triplets
         unique_triplets = set()
         count = Counter()
         count.update({x:0 for x in range(M)})
-        p_per_item = [1 / M for _ in range(M)] # at the start all classes have zero counts and we sample uniformly
+
+        # At the start all classes have zero counts and we sample uniformly
+        p_per_item = [1 / M for _ in range(M)] 
         sample_idx, n_iter = 1, 1
         while sample_idx < self.n_samples+1:
             n_iter += 1
             print(f'{n_iter} samples drawn, {sample_idx}/{self.n_samples} added', end='\r')
             triplet = np.random.choice(range(M), 3, replace=False, p=p_per_item)
-            triplet.sort() # using this we can avoid duplicate triplets when adding to the set
+
+            # Using this we can avoid duplicate triplets when adding to the set
+            triplet.sort() 
             triplet = tuple(triplet)
 
-            # add to set and increase count if triplet is still unique
+            # Add to set and increase count if triplet is still unique
             if triplet not in unique_triplets:
                 count.update(triplet)
                 unique_triplets.add(triplet)
@@ -141,7 +146,9 @@ class Tripletizer:
             if sample_idx % 100000 == 0:
                 sum_count = sum(count.values())
                 sorted_count = sorted(count.items())
-                inverse_probas_per_item = [1 - s[1] / sum_count for s in sorted_count] # make smallest proba the largest
+
+                # Make smallest proba the largest
+                inverse_probas_per_item = [1 - s[1] / sum_count for s in sorted_count] 
                 
                 # Correct uniform distribution
                 norm_probas =  [float(i)/sum(inverse_probas_per_item) for i in inverse_probas_per_item] 

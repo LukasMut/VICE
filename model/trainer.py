@@ -176,12 +176,13 @@ class Trainer(nn.Module):
 
     @staticmethod
     def break_ties(probas: Array) -> Array:
-        return np.array(
+        choices = torch.tensor(
             [
-                -1 if len(np.unique(pmf)) != len(pmf) else np.argmax(pmf)
+                -1 if len(torch.unique(pmf)) != len(pmf) else torch.argmax(pmf)
                 for pmf in probas
-            ]
-        )
+            ])
+
+        return choices 
 
     def accuracy_(self, probas: Array, batching: bool = True) -> float:
         choices = self.break_ties(probas)
@@ -207,7 +208,7 @@ class Trainer(nn.Module):
 
     def choice_accuracy(self, similarities: float) -> float:
         probas = (
-            F.softmax(torch.stack(similarities, dim=-1), dim=1).detach().cpu().numpy()
+            F.softmax(torch.stack(similarities, dim=-1), dim=1)
         )
         choice_acc = self.accuracy_(probas)
         return choice_acc
@@ -341,11 +342,18 @@ class Trainer(nn.Module):
             self.optim.zero_grad()
             batch = batch.to(self.device)
             logits, loc, scale, X = self.forward(batch)
+
+            # anchor, positive, negative are the optimized vectors in the embedding, where anchor is the ooo?
             anchor, positive, negative = self.unbind(logits)
+
+            # similarities is a tuple of the dot product for each i,j,k
             similarities = self.compute_similarities(
                 anchor, positive, negative
             )
             c_entropy = self.cross_entropy_loss(similarities)
+
+            # looks if the argmax of the probas is also at position 0, which is the true ooo (?). the average of the
+            # correct argmax is then the accuracy.
             acc = self.choice_accuracy(similarities)
 
             if self.prior == "gaussian":

@@ -363,6 +363,10 @@ class Trainer(nn.Module):
 
             log_p = self.spike_and_slab(X).log()
             complexity_loss = (1 / self.n_train) * (log_q.sum() - log_p.sum())
+
+
+            breakpoint()
+
             self.loss = c_entropy + complexity_loss
             self.loss.backward()
             self.optim.step()

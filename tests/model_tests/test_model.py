@@ -9,6 +9,7 @@ import torch
 import unittest
 import utils
 import model
+import copy
 
 import numpy as np
 import tests.helper as helper
@@ -134,7 +135,7 @@ class VICETestCase(unittest.TestCase):
 
         params = vice.detached_params
         np.testing.assert_allclose(
-            params["loc"], F.relu(vice.mu.mu.weight.data.T.cpu()).numpy()
+            params["loc"], vice.mu.mu.weight.data.T.cpu().numpy()
         )
         np.testing.assert_allclose(
             params["scale"], vice.sigma.logsigma.weight.data.T.exp().cpu().numpy()
@@ -143,7 +144,7 @@ class VICETestCase(unittest.TestCase):
     def test_optimization(self) -> None:
         vice = self.get_model(hypers)
         # get detached model parameters at initilization / start of training
-        params_init = vice.detached_params
+        params_init = copy.deepcopy(vice.detached_params)
 
         train_triplets, test_triplets = helper.create_train_test_split(triplets)
         train_batches, val_batches = utils.load_batches(
@@ -157,10 +158,11 @@ class VICETestCase(unittest.TestCase):
         vice.fit(train_batches=train_batches, val_batches=val_batches)
 
         # get model paramters after optimization / end of training
-        params_opt = vice.detached_params
+        params_opt = copy.deepcopy(vice.detached_params)
 
         # check whether model parameters have changed during optimization
-        self.assertTrue(self.assert_difference(params_init["loc"], params_opt["loc"]))
+        self.assertTrue(
+            self.assert_difference(params_init["loc"], params_opt["loc"]))
         self.assertTrue(
             self.assert_difference(params_init["scale"], params_opt["scale"])
         )

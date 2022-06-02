@@ -21,6 +21,7 @@ dependencies:
  - h5py
  - pip
  - pip:
+   - functorch
    - pyflakes
    - codecov
    - pep8

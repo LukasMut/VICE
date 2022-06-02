@@ -14,7 +14,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from collections import defaultdict
-from typing import (Any, Dict, Iterator, List, Tuple)
+from functorch import vmap
+from typing import Any, Dict, Iterator, List, Tuple
 
 Array = Any
 Tensor = Any
@@ -129,19 +130,18 @@ class Trainer(nn.Module):
 
     def initialize_optim_(self) -> None:
         if self.optim == "adam":
-            self.optim = getattr(torch.optim, 'Adam')(self.parameters(), 
-            eps=1e-08, lr=self.eta)
+            self.optim = getattr(torch.optim, "Adam")(
+                self.parameters(), eps=1e-08, lr=self.eta
+            )
         elif self.optim == "adamw":
-            self.optim = getattr(torch.optim, 'AdamW')(self.parameters(),
-            eps=1e-08, lr=self.eta)
+            self.optim = getattr(torch.optim, "AdamW")(
+                self.parameters(), eps=1e-08, lr=self.eta
+            )
         else:
-            self.optim = getattr(torch.optim, 'SGD')(self.parameters(),
-            lr=self.eta)
+            self.optim = getattr(torch.optim, "SGD")(self.parameters(), lr=self.eta)
 
     @staticmethod
-    def norm_pdf(
-        X: Tensor, loc: Tensor, scale: Tensor
-    ) -> Tensor:
+    def norm_pdf(X: Tensor, loc: Tensor, scale: Tensor) -> Tensor:
         """Probability density function of a normal distribution."""
         return (
             torch.exp(-((X - loc) ** 2) / (2 * scale.pow(2)))
@@ -150,9 +150,7 @@ class Trainer(nn.Module):
         )
 
     @staticmethod
-    def laplace_pdf(
-        X: Tensor, loc: Tensor, scale: Tensor
-    ) -> Tensor:
+    def laplace_pdf(X: Tensor, loc: Tensor, scale: Tensor) -> Tensor:
         """Probability density function of a laplace distribution."""
         return torch.exp(-(X - loc).abs() / scale) / scale.mul(2.0)
 
@@ -175,15 +173,15 @@ class Trainer(nn.Module):
         return (sim_i, sim_j, sim_k)
 
     @staticmethod
-    def break_ties(probas: Array) -> Array:
-        return np.array(
-            [
-                -1 if len(np.unique(pmf)) != len(pmf) else np.argmax(pmf)
-                for pmf in probas
-            ]
-        )
+    def break_ties(probas: Tensor) -> Tensor:
+        def tie_break(pmf: Tensor) -> int:
+            return (
+                -1 if torch.unique(pmf).shape[0] != pmf.shape[0] else torch.argmax(pmf)
+            )
 
-    def accuracy_(self, probas: Array, batching: bool = True) -> float:
+        return vmap(tie_break)(probas)
+
+    def accuracy_(self, probas: Tensor, batching: bool = True) -> Tensor:
         choices = self.break_ties(probas)
         argmax = np.where(choices == 0, 1, 0)
         acc = argmax.mean() if batching else argmax.tolist()
@@ -206,17 +204,13 @@ class Trainer(nn.Module):
         return torch.mean(-self.log_softmax(sims))
 
     def choice_accuracy(self, similarities: float) -> float:
-        probas = (
-            F.softmax(torch.stack(similarities, dim=-1), dim=1).detach().cpu().numpy()
-        )
+        probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
         choice_acc = self.accuracy_(probas)
         return choice_acc
 
     @staticmethod
     def unbind(logits: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        return torch.unbind(
-                torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1
-            )
+        return torch.unbind(torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1)
 
     def pruning(
         self,
@@ -258,16 +252,14 @@ class Trainer(nn.Module):
         for k in range(self.mc_samples):
             logits, _, _, _ = self.forward(batch)
             anchor, positive, negative = self.unbind(logits)
-            similarities = self.compute_similarities(
-                anchor, positive, negative
-            )
+            similarities = self.compute_similarities(anchor, positive, negative)
             soft_choices = self.softmax(similarities)
             probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
             sampled_probas[k] += probas
             sampled_choices[k] += soft_choices
         probas = sampled_probas.mean(dim=0)
-        val_acc = self.accuracy_(probas.cpu().numpy())
-        hard_choices = self.accuracy_(probas.cpu().numpy(), batching=False)
+        val_acc = self.accuracy_(probas)
+        hard_choices = self.accuracy_(probas, batching=False)
         soft_choices = sampled_choices.mean(dim=0)
         val_loss = torch.mean(-torch.log(soft_choices))
         return val_acc, val_loss, probas, hard_choices
@@ -342,9 +334,7 @@ class Trainer(nn.Module):
             batch = batch.to(self.device)
             logits, loc, scale, X = self.forward(batch)
             anchor, positive, negative = self.unbind(logits)
-            similarities = self.compute_similarities(
-                anchor, positive, negative
-            )
+            similarities = self.compute_similarities(anchor, positive, negative)
             c_entropy = self.cross_entropy_loss(similarities)
             acc = self.choice_accuracy(similarities)
 
@@ -456,8 +446,8 @@ class Trainer(nn.Module):
                 "train_acc": self.train_accs[-1],
             }
             warnings.warn(
-                message='\nNo validation results are being saved. To regularly evaluate VICE on the validation set, set <steps> << <burnin>.\n',
-                category=UserWarning
+                message="\nNo validation results are being saved. To regularly evaluate VICE on the validation set, set <steps> << <burnin>.\n",
+                category=UserWarning,
             )
 
         with open(
@@ -474,7 +464,9 @@ class Trainer(nn.Module):
             :, np.argsort(-np.linalg.norm(pruned_loc, axis=0, ord=1))
         ]
         with open(os.path.join(self.results_dir, "pruned_params.npz"), "wb") as f:
-            np.savez_compressed(f, pruned_loc=self.pruned_loc, pruned_scale=self.pruned_scale)
+            np.savez_compressed(
+                f, pruned_loc=self.pruned_loc, pruned_scale=self.pruned_scale
+            )
 
     @property
     def pruned_params(self):

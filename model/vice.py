@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .trainer import Trainer
-from typing import (Any, Dict, Tuple)
+from typing import Any, Dict, Tuple
 
 Array = Any
 Tensor = Any
@@ -24,6 +24,7 @@ class Sigma(nn.Module):
     def forward(self) -> Tensor:
         return self.logsigma.weight.T.exp()
 
+
 class Mu(nn.Module):
     def __init__(self, n_objects: int, init_dim: int, bias: bool = False):
         super(Mu, self).__init__()
@@ -33,6 +34,7 @@ class Mu(nn.Module):
 
     def forward(self) -> Tensor:
         return self.mu.weight.T
+
 
 class VICE(Trainer):
     def __init__(
@@ -93,9 +95,8 @@ class VICE(Trainer):
         """Apply reparameterization trick."""
         eps = scale.data.new(scale.size()).normal_()
         return eps.mul(scale).add(loc)
-        
-    def forward(self, batch: Tensor
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+
+    def forward(self, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         mu = self.mu()
         sigma = self.sigma()
         X = self.reparameterize(mu, sigma)
@@ -110,7 +111,7 @@ class VICE(Trainer):
     @property
     def detached_params(self) -> Dict[str, Array]:
         """Detach params from computational graph."""
-        loc = F.relu(self.mu.mu.weight.data.T.detach())
+        loc = self.mu.mu.weight.data.T.detach()
         scale = self.sigma.logsigma.weight.data.T.exp().detach()
         params = dict(loc=loc.cpu().numpy(), scale=scale.cpu().numpy())
         return params

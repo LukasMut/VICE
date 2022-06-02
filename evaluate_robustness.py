@@ -192,7 +192,7 @@ def pruning(model: model.VICE, alpha: float = .05, k: int = 5,
     pruned_loc = loc[:, signal]
     pruned_scale = scale[:, signal]
     pruned_model = prune_weights(model, signal)
-    return pruned_loc.T, pruned_scale, pruned_model
+    return loc, pruned_loc.T, pruned_scale, pruned_model
 
 
 def evaluate_models(
@@ -218,7 +218,7 @@ def evaluate_models(
         device=device, triplets_dir=triplets_dir, inference=False)
     val_batches = utils.load_batches(
         train_triplets=None, test_triplets=val_triplets, n_objects=n_objects, batch_size=batch_size, inference=True)
-    pruned_locs, pruned_scales = [], []
+    locs, pruned_locs, pruned_scales = [], [], []
     val_losses = np.zeros(len(model_paths), dtype=np.float32)
     for i, model_path in enumerate(model_paths):
         print(f'Currently pruning and evaluating model: {i+1}\n')
@@ -248,9 +248,10 @@ def evaluate_models(
                 model=vice, PATH=model_path, device=device)
         except FileNotFoundError:
             raise Exception(f'Could not find params for {model_path}\n')
-        pruned_loc, pruned_scale, pruned_vice = pruning(vice)
+        loc, pruned_loc, pruned_scale, pruned_vice = pruning(vice)
         val_loss, _ = pruned_vice.evaluate(val_batches)
         val_losses[i] += val_loss
+        locs.append(loc)
         pruned_locs.append(pruned_loc)
         pruned_scales.append(pruned_scale)
 
@@ -270,12 +271,16 @@ def evaluate_models(
         np.save(f, val_losses)
 
     print('\nSaving mean embedding with the lowest cross-entropy error on the validation set.\n')
-    final_embedding = pruned_locs[np.argmin(val_losses)].T
-    final_embedding[
-            :, np.argsort(-np.linalg.norm(final_embedding, axis=0, ord=1))
+    final_embedding_unpruned = locs[np.argmin(val_losses)]
+    final_embedding_pruned = pruned_locs[np.argmin(val_losses)].T
+    final_embedding_pruned[
+            :, np.argsort(-np.linalg.norm(final_embedding_pruned, axis=0, ord=1))
         ]
-    with open(os.path.join(in_path, 'final_embedding.npy'), 'wb') as f:
-        np.save(f, final_embedding)
+    with open(os.path.join(in_path, 'final_embedding_pruned.npy'), 'wb') as f:
+        np.save(f, final_embedding_pruned)
+    
+    with open(os.path.join(in_path, 'final_embedding_unpruned.npy'), 'wb') as f:
+        np.save(f, final_embedding_unpruned)
 
 
 if __name__ == '__main__':

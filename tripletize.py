@@ -5,11 +5,12 @@ import argparse
 import os
 import h5py
 import random
+import math
 import re
 import scipy.io
 import numpy as np
 import itertools
-
+from collections import Counter
 from typing import Any, Tuple
 from dataclasses import dataclass
 
@@ -36,7 +37,7 @@ class Tripletizer:
     n_samples: int
     rnd_seed: int
     k: int = 3
-    train_frac: float = 0.8
+    train_frac: float = 0.9
 
     def __post_init__(self) -> None:
         if not re.search(r"(mat|txt|csv|npy|hdf5)$", self.in_path):
@@ -79,8 +80,17 @@ class Tripletizer:
         return X[~nan_indices]
 
     @staticmethod
-    def softmax(z: Array) -> Array:
-        return np.exp(z) / np.sum(np.exp(z))
+    def softmax(z: np.ndarray) -> np.ndarray:
+        proba = np.exp(z) / np.sum(np.exp(z))
+        return proba 
+
+    @staticmethod
+    def log_softmax_scaled(z: np.ndarray, const) -> np.ndarray:
+        ''' see https://www.xarg.org/2016/06/the-log-sum-exp-trick-in-machine-learning/'''  
+        z = z - const
+        scaled_proba = np.exp(z) / np.sum(np.exp(z))
+        scaled_log_proba = const + np.log(scaled_proba)
+        return scaled_log_proba
 
     def get_choice(self, S: Array, triplet: Array) -> Array:
         combs = list(itertools.combinations(triplet, 2))
@@ -102,13 +112,53 @@ class Tripletizer:
         """Create synthetic triplet data."""
         X = self.load_domain(self.in_path)
         M = X.shape[0]
-        S = X @ X.T
+
+        # This is a matrix of N x N (i.e. image_features x image_features). 
+        # i.e. The dot product between the corresponding network representations
+        S = X @ X.T 
+        
+        # Adaptive sampling of unique triplets
+        unique_triplets = set()
+        count = Counter()
+        count.update({x:0 for x in range(M)})
+
+        # At the start all classes have zero counts and we sample uniformly
+        p_per_item = [1 / M for _ in range(M)] 
+        sample_idx, n_iter = 1, 1
+        while sample_idx < self.n_samples+1:
+            n_iter += 1
+            print(f'{n_iter} samples drawn, {sample_idx}/{self.n_samples} added', end='\r')
+            triplet = np.random.choice(range(M), 3, replace=False, p=p_per_item)
+
+            # Using this we can avoid duplicate triplets when adding to the set
+            triplet.sort() 
+            triplet = tuple(triplet)
+
+            # Add to set and increase count if triplet is still unique
+            if triplet not in unique_triplets:
+                count.update(triplet)
+                unique_triplets.add(triplet)
+                sample_idx += 1 
+
+            # Update histogram of each class and sample random choices with the inverse of the actual distribution
+            if sample_idx % 100000 == 0:
+                sum_count = sum(count.values())
+                sorted_count = sorted(count.items())
+
+                # Make smallest proba the largest
+                inverse_probas_per_item = [1 - s[1] / sum_count for s in sorted_count] 
+                
+                # Correct uniform distribution
+                norm_probas =  [float(i)/sum(inverse_probas_per_item) for i in inverse_probas_per_item] 
+                p_per_item = norm_probas
+
+
         triplets = np.zeros((self.n_samples, self.k), dtype=int)
-        combs = np.array(list(itertools.combinations(range(M), self.k)))
-        random_sample = self.random_choice(self.n_samples, combs)
-        for i, triplet in enumerate(random_sample):
+        for i, triplet in enumerate(unique_triplets):
+            print(f'Process {i}/{self.n_samples} triplets', end='\r')
             choice = self.get_choice(S, triplet)
-            triplets[i] = choice
+            triplets[i] = choice # probably returns a list of indices of shape k where for that image the odd one out is
+
         return triplets
 
     def create_train_test_split(

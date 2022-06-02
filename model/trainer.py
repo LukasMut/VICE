@@ -174,12 +174,12 @@ class Trainer(nn.Module):
 
     @staticmethod
     def break_ties(probas: Tensor) -> Tensor:
-        def tie_break(pmf: Tensor) -> int:
-            return (
+        return torch.tensor(
+            [
                 -1 if torch.unique(pmf).shape[0] != pmf.shape[0] else torch.argmax(pmf)
-            )
-
-        return vmap(tie_break)(probas)
+                for pmf in probas
+            ]
+        )
 
     def accuracy_(self, probas: Tensor, batching: bool = True) -> Tensor:
         choices = self.break_ties(probas)

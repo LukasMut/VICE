@@ -14,7 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from collections import defaultdict
-from functorch import vmap
+# from functorch import vmap
 from typing import Any, Dict, Iterator, List, Tuple
 
 Array = Any

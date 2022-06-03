@@ -6,7 +6,7 @@ import shutil
 import unittest
 
 import numpy as np
-from tripletize import Tripletizer
+from main_tripletize import Tripletizer
 
 
 test_dir = './test'

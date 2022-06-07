@@ -149,7 +149,7 @@ class Sampler:
 
         # This is a matrix of N x N (i.e. image_features x image_features). 
         # i.e. The dot product between the corresponding network representations
-        S = X @ X.T 
+        S = X @ X.T
         
         # Adaptive sampling of unique triplets
         unique_triplets = set()
@@ -228,7 +228,7 @@ if __name__ == "__main__":
         similarity_judgements = tripletizer.sample_similarity_judgements()
         tripletizer.save_similarity_judgements(similarity_judgements)
     else:
-        assert isinstance(args.similarity, str), '\nSpecify similarity function.\n'
+        assert isinstance(args.similarity, str), '\nSpecify similarity function to compute the similarity matrix S.\n'
         S, random_sample = tripletizer.sample_pairs(args.similarity)
         tripletizer.save_similarity_judgements(random_sample)
         with open(os.path.join(args.out_path, "similarity_matrix.npy"), "wb") as f:

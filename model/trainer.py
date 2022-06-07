@@ -309,7 +309,7 @@ class Trainer(nn.Module):
         if self.task == 'triplet':
             probas = sampled_probas.mean(dim=0)
             val_acc = self.accuracy_(probas)
-            hard_choices = self.accuracy_(proba, batching=False)
+            hard_choices = self.accuracy_(probas, batching=False)
             soft_choices = sampled_choices.mean(dim=0)
             val_loss = torch.mean(-torch.log(soft_choices))
             return val_acc, val_loss, probas, hard_choices

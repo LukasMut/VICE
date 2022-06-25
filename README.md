@@ -42,7 +42,8 @@ root
 ├── └── trainer.py
 ├── embeddings
 ├── ├── things
-├── └── └── final_embedding.npy
+├── ├── ├── final_embedding.npy
+├── └── └── final_model.tar
 ├── .gitignore
 ├── DEMO.ipynb
 ├── get_embeddings.sh

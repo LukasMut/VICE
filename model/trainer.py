@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import copy
 import json
-import math
 import os
 import warnings
-import torch
-import utils
-import copy
-
-import numpy as np
-import torch.nn as nn
-import torch.nn.functional as F
-
 from collections import defaultdict
+
 # from functorch import vmap
 from typing import Any, Dict, Iterator, List, Tuple
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import utils
+
+from .priors import SpikeandSlab
+from .triplet_loss import TripletLoss
 
 Array = Any
 Tensor = Any
@@ -67,6 +69,16 @@ class Trainer(nn.Module):
         self.results_dir = results_dir
         self.device = device
         self.verbose = verbose
+        self.loss_fun = TripletLoss(temperature=1.0)
+        self.spike_and_slab = SpikeandSlab(
+            prior=self.prior,
+            spike=self.spike,
+            slab=self.slab,
+            pi=self.pi,
+            n_objects=self.n_objects,
+            init_dim=self.init_dim,
+            device=self.device,
+        )
 
     def forward(self, *input: Tensor) -> None:
         raise NotImplementedError
@@ -119,46 +131,23 @@ class Trainer(nn.Module):
             self.loglikelihoods, self.complexity_losses = [], []
             self.latent_dimensions = []
 
-    def initialize_priors_(self) -> None:
-        self.loc = torch.zeros(self.n_objects, self.init_dim).to(self.device)
-        self.scale_spike = (
-            torch.ones(self.n_objects, self.init_dim).mul(self.spike).to(self.device)
-        )
-        self.scale_slab = (
-            torch.ones(self.n_objects, self.init_dim).mul(self.slab).to(self.device)
-        )
-
     def initialize_optim_(self) -> None:
-        if self.optim == "adam":
+        if self.optim.lower() == "adam":
             self.optim = getattr(torch.optim, "Adam")(
                 self.parameters(), eps=1e-08, lr=self.eta
             )
-        elif self.optim == "adamw":
+        elif self.optim.lower() == "adamw":
             self.optim = getattr(torch.optim, "AdamW")(
                 self.parameters(), eps=1e-08, lr=self.eta
             )
+        elif self.optim.lower() == 'sgd':
+            self.optim = getattr(torch.optim, "SGD")(
+                self.parameters(), lr=self.eta, momentum=0.9
+            )
         else:
-            self.optim = getattr(torch.optim, "SGD")(self.parameters(), lr=self.eta)
-
-    @staticmethod
-    def norm_pdf(X: Tensor, loc: Tensor, scale: Tensor) -> Tensor:
-        """Probability density function of a normal distribution."""
-        return (
-            torch.exp(-((X - loc) ** 2) / (2 * scale.pow(2)))
-            / scale
-            * math.sqrt(2 * math.pi)
-        )
-
-    @staticmethod
-    def laplace_pdf(X: Tensor, loc: Tensor, scale: Tensor) -> Tensor:
-        """Probability density function of a laplace distribution."""
-        return torch.exp(-(X - loc).abs() / scale) / scale.mul(2.0)
-
-    def spike_and_slab(self, X: Tensor) -> Tensor:
-        pdf = self.norm_pdf if self.prior == "gaussian" else self.laplace_pdf
-        spike = self.pi * pdf(X, self.loc, self.scale_spike)
-        slab = (1 - self.pi) * pdf(X, self.loc, self.scale_slab)
-        return spike + slab
+            raise ValueError(
+                "\nUse Adam, AdamW or SGD for VICE optimization.\n"
+            )
 
     @staticmethod
     def compute_similarities(
@@ -193,15 +182,6 @@ class Trainer(nn.Module):
 
     def softmax(self, sims: Tuple[Tensor]) -> Tensor:
         return torch.exp(sims[0]) / self.sumexp(sims)
-
-    def logsumexp(self, sims: Tuple[Tensor]) -> Tensor:
-        return torch.log(self.sumexp(sims))
-
-    def log_softmax(self, sims: Tuple[Tensor]) -> Tensor:
-        return sims[0] - self.logsumexp(sims)
-
-    def cross_entropy_loss(self, sims: Tuple[Tensor]) -> Tensor:
-        return torch.mean(-self.log_softmax(sims))
 
     def choice_accuracy(self, similarities: float) -> float:
         probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
@@ -335,14 +315,9 @@ class Trainer(nn.Module):
             logits, loc, scale, X = self.forward(batch)
             anchor, positive, negative = self.unbind(logits)
             similarities = self.compute_similarities(anchor, positive, negative)
-            c_entropy = self.cross_entropy_loss(similarities)
+            c_entropy = self.loss_fun(similarities)
             acc = self.choice_accuracy(similarities)
-
-            if self.prior == "gaussian":
-                log_q = self.norm_pdf(X, loc, scale).log()
-            else:
-                log_q = self.laplace_pdf(X, loc, scale).log()
-
+            log_q = self.spike_and_slab.pdf(X, loc, scale).log()
             log_p = self.spike_and_slab(X).log()
             complexity_loss = (1 / self.n_train) * (log_q.sum() - log_p.sum())
             self.loss = c_entropy + complexity_loss
@@ -358,7 +333,6 @@ class Trainer(nn.Module):
 
     def fit(self, train_batches: Iterator, val_batches: Iterator) -> None:
         """Fit a VICE model to a dataset of n concept triplets."""
-        self.initialize_priors_()
         self.initialize_optim_()
         self.load_checkpoint_()
         for epoch in range(self.start, self.epochs):

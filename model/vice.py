@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import os
-import torch
+from typing import Any, Dict, Tuple
 
 import numpy as np
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from .trainer import Trainer
-from typing import Any, Dict, Tuple
 
 Array = Any
 Tensor = Any

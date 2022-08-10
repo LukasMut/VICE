@@ -62,7 +62,7 @@ def concat_images(images: np.ndarray, indices: np.ndarray) -> np.ndarray:
     img_combination = np.concatenate([
         np.concatenate([img for img in images[:int(indices/2)]], axis = 0),
         np.concatenate([img for img in images[int(indices/2):]], axis = 0)], axis = 1)
-return img_combination
+    return img_combination
 
 
 def concat_image_subsets(images: np.ndarray, subsets: List[np.ndarray]) -> np.ndarray:

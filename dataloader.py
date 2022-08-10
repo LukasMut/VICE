@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import math
-import torch
-
 from dataclasses import dataclass
 from typing import Any, Iterator
 
+import torch
+
 Tensor = Any
+
 
 @dataclass
 class DataLoader:
@@ -15,7 +16,7 @@ class DataLoader:
     n_objects: int
     batch_size: int
     train: bool = True
-    
+
     def __post_init__(self) -> None:
         # initialize an identity matrix of size m x m for one-hot-encoding of triplets
         self.identity = torch.eye(self.n_objects)
@@ -32,7 +33,7 @@ class DataLoader:
             triplets = triplets[torch.randperm(triplets.shape[0])]
         for i in range(self.n_batches):
             batch = self.encode_as_onehot(
-                triplets[i * self.batch_size: (i + 1) * self.batch_size]
+                triplets[i * self.batch_size : (i + 1) * self.batch_size]
             )
             yield batch
 

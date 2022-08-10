@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import os
-import torch
-import utils
-import visualization
-import model
+from typing import Tuple
 
 import numpy as np
+import torch
 
-from typing import Tuple
+import model
+import utils
+import visualization
 
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"

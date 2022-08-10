@@ -5,10 +5,11 @@ import argparse
 import os
 import random
 import re
-import torch
-import train
 
 import numpy as np
+import torch
+
+import train
 
 os.environ['PYTHONIOENCODING'] = 'UTF-8'
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'

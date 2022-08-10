@@ -116,20 +116,20 @@ class VICETestCase(unittest.TestCase):
         self.assertEqual(vice.device, device)
         self.assertTrue(vice.verbose)
 
-        vice.initialize_priors_()
-        self.assertTrue(hasattr(vice, "loc"))
-        self.assertTrue(hasattr(vice, "scale_spike"))
-        self.assertTrue(hasattr(vice, "scale_slab"))
+        self.assertTrue(hasattr(vice, "spike_and_slab"))
+        self.assertTrue(hasattr(vice.spike_and_slab, "loc"))
+        self.assertTrue(hasattr(vice.spike_and_slab, "scale_spike"))
+        self.assertTrue(hasattr(vice.spike_and_slab, "scale_slab"))
 
         np.testing.assert_allclose(
-            vice.loc, torch.zeros(hypers["M"], hypers["P"]).to(device)
+            vice.spike_and_slab.loc, torch.zeros(hypers["M"], hypers["P"]).to(device)
         )
         np.testing.assert_allclose(
-            vice.scale_spike,
+            vice.spike_and_slab.scale_spike,
             torch.ones(hypers["M"], hypers["P"]).mul(hypers["spike"]).to(device),
         )
         np.testing.assert_allclose(
-            vice.scale_slab,
+            vice.spike_and_slab.scale_slab,
             torch.ones(hypers["M"], hypers["P"]).mul(hypers["slab"]).to(device),
         )
 

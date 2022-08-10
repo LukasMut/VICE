@@ -132,15 +132,15 @@ class Trainer(nn.Module):
             self.latent_dimensions = []
 
     def initialize_optim_(self) -> None:
-        if self.optim.lower() == "adam":
+        if self.optim == "adam":
             self.optim = getattr(torch.optim, "Adam")(
                 self.parameters(), eps=1e-08, lr=self.eta
             )
-        elif self.optim.lower() == "adamw":
+        elif self.optim == "adamw":
             self.optim = getattr(torch.optim, "AdamW")(
                 self.parameters(), eps=1e-08, lr=self.eta
             )
-        elif self.optim.lower() == 'sgd':
+        elif self.optim == 'sgd':
             self.optim = getattr(torch.optim, "SGD")(
                 self.parameters(), lr=self.eta, momentum=0.9
             )
@@ -333,7 +333,8 @@ class Trainer(nn.Module):
 
     def fit(self, train_batches: Iterator, val_batches: Iterator) -> None:
         """Fit a VICE model to a dataset of n concept triplets."""
-        self.initialize_optim_()
+        if isinstance(self.optim, str):
+            self.initialize_optim_() 
         self.load_checkpoint_()
         for epoch in range(self.start, self.epochs):
             self.train()

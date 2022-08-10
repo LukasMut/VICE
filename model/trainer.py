@@ -140,14 +140,12 @@ class Trainer(nn.Module):
             self.optim = getattr(torch.optim, "AdamW")(
                 self.parameters(), eps=1e-08, lr=self.eta
             )
-        elif self.optim == 'sgd':
+        elif self.optim == "sgd":
             self.optim = getattr(torch.optim, "SGD")(
                 self.parameters(), lr=self.eta, momentum=0.9
             )
         else:
-            raise ValueError(
-                "\nUse Adam, AdamW or SGD for VICE optimization.\n"
-            )
+            raise ValueError("\nUse Adam, AdamW or SGD for VICE optimization.\n")
 
     @staticmethod
     def compute_similarities(
@@ -334,7 +332,7 @@ class Trainer(nn.Module):
     def fit(self, train_batches: Iterator, val_batches: Iterator) -> None:
         """Fit a VICE model to a dataset of n concept triplets."""
         if isinstance(self.optim, str):
-            self.initialize_optim_() 
+            self.initialize_optim_()
         self.load_checkpoint_()
         for epoch in range(self.start, self.epochs):
             self.train()

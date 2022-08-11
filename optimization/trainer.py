@@ -58,7 +58,7 @@ class Trainer(nn.Module):
         self.epochs = epochs
         self.burnin = burnin
         self.mc_samples = mc_samples  # number of weight samples M
-        self.prior = prior  # Gaussian or Laplace prior
+        self.prior = prior  # Gaussian or Laplace mixture prior
         self.spike = spike
         self.slab = slab
         self.pi = pi

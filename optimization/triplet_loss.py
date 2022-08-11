@@ -8,7 +8,7 @@ Tensor = torch.Tensor
 
 class TripletLoss(nn.Module):
     def __init__(self, temperature: float = 1.0) -> None:
-        super().__init__()
+        super(TripletLoss, self).__init__()
         self.temperature = temperature
 
     def logsumexp(self, dots: Tuple[Tensor]) -> Tensor:

@@ -9,7 +9,7 @@ Tensor = torch.Tensor
 class SpikeandSlab(nn.Module):
     def __init__(
         self,
-        prior: str,
+        mixture: str,
         spike: float,
         slab: float,
         pi: float,
@@ -18,14 +18,14 @@ class SpikeandSlab(nn.Module):
         device: torch.device,
     ) -> None:
         super(SpikeandSlab, self).__init__()
-        self.prior = prior
+        self.mixture = mixture
         self.spike = spike
         self.slab = slab
         self.pi = pi
         self.n_objects = n_objects
         self.init_dim = init_dim
         self.device = device
-        self.pdf = self.norm_pdf if self.prior == "gaussian" else self.laplace_pdf
+        self.pdf = self.norm_pdf if self.mixture == "gaussian" else self.laplace_pdf
         self.initialize_priors_()
 
     @staticmethod

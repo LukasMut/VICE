@@ -71,7 +71,7 @@ class Trainer(nn.Module):
         self.verbose = verbose
         self.loss_fun = TripletLoss(temperature=1.0)
         self.spike_and_slab = SpikeandSlab(
-            prior=self.prior,
+            mixture=self.prior,
             spike=self.spike,
             slab=self.slab,
             pi=self.pi,

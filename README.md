@@ -72,7 +72,7 @@ root
 ├── requirements.txt
 ├── main.py
 ├── train.py
-├── tripletize.py
+├── main_tripletize.py
 ├── utils.py
 └── visualization.py
 ```

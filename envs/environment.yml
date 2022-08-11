@@ -4,7 +4,7 @@ channels:
  - conda-forge
  - pytorch
 dependencies:
- - python=3.8
+ - python=3.9
  - numpy=1.19.*
  - ftfy=5.8
  - pandas=1.0.*
@@ -15,13 +15,14 @@ dependencies:
  - numba=0.53.*
  - matplotlib=3.2.*
  - seaborn=0.11.*
- - statsmodels
+ - statsmodels=0.12.*
  - regex
  - scipy
  - h5py
  - pip
  - pip:
-   - functorch
+   - functorch==0.1.*
    - pyflakes
    - codecov
+   - black
    - pep8

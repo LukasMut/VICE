@@ -7,7 +7,7 @@ from typing import Tuple
 import numpy as np
 import torch
 
-import model
+import optimization
 import utils
 import visualization
 
@@ -27,7 +27,7 @@ def create_dirs(
     pi: float,
     rnd_seed: int,
 ) -> Tuple[str, str, str]:
-    """Create directories for results, plots, and model parameters."""
+    """Create directories for results, plots, and optimization parameters."""
     print("\n...Creating directories.\n")
     results_dir = os.path.join(
         results_dir,
@@ -109,7 +109,7 @@ def run(
         rnd_seed=rnd_seed,
     )
     # initialize VICE model
-    vice = getattr(model, "VICE")(
+    vice = getattr(optimization, "VICE")(
         n_train=N,
         n_objects=n_objects,
         init_dim=init_dim,

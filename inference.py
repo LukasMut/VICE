@@ -9,12 +9,15 @@ import argparse
 import os
 import re
 import random
-import model
+import optimization
 import torch
 import utils
 
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 os.environ["OMP_NUM_THREADS"] = "1"
+
+
+Array = np.ndarray
 
 
 def parseargs():
@@ -23,46 +26,23 @@ def parseargs():
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
 
-    aa(
-        "--n_objects",
-        type=int,
-        default=1854,
-        help="number of unique items/objects in dataset",
-    )
-    aa(
-        "--init_dim",
-        type=int,
+    aa("--n_objects", type=int, default=1854,
+        help="number of unique items/objects in dataset")
+    aa("--init_dim", type=int, 
         default=100,
-        help="initial dimensionality of VICE latent space",
-    )
-    aa(
-        "--batch_size",
-        metavar="B",
-        type=int,
+        help="initial dimensionality of VICE latent space")
+    aa("--batch_size", metavar="B", type=int,
         default=128,
-        help="number of triplets in each mini-batch",
-    )
-    aa(
-        "--prior",
-        type=str,
-        metavar="p",
-        default="gaussian",
+        help="number of triplets in each mini-batch")
+    aa("--prior", type=str, metavar="p", default="gaussian", 
         choices=["gaussian", "laplace"],
-        help="whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior",
-    )
-    aa(
-        "--mc_samples",
-        type=int,
-        default=25,
+        help="whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior")
+    aa("--mc_samples", type=int, default=25,
         choices=[5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
-        help="number of samples to use for MC sampling at inference time",
-    )
+        help="number of samples to use for MC sampling at inference time")
     aa("--results_dir", type=str, help="results directory (root directory for models)")
-    aa(
-        "--triplets_dir",
-        type=str,
-        help="directory from where to load validation and held-out test set",
-    )
+    aa("--triplets_dir", type=str,
+        help="directory from where to load validation and held-out test set")
     aa("--device", type=str, default="cpu", choices=["cpu", "cuda"])
     aa("--rnd_seed", type=int, default=42, help="random seed for reproducibility")
     args = parser.parse_args()
@@ -79,23 +59,23 @@ def get_model_paths(PATH: str) -> List[str]:
     return model_paths
 
 
-def entropy(p: np.ndarray) -> np.ndarray:
+def entropy(p: Array) -> Array:
     return np.sum(np.where(p == 0, 0, p * np.log(p)))
 
 
-def cross_entropy(p: np.ndarray, q: np.ndarray) -> np.ndarray:
+def cross_entropy(p: Array, q: Array) -> Array:
     return -np.sum(p * np.log(q))
 
 
-def kld(p: np.ndarray, q: np.ndarray) -> np.ndarray:
+def kld(p: Array, q: Array) -> Array:
     return entropy(p) + cross_entropy(p, q)
 
 
-def l1_distance(p: np.ndarray, q: np.ndarray) -> np.ndarray:
+def l1_distance(p: Array, q: Array) -> Array:
     return np.linalg.norm(p - q, ord=1)
 
 
-def compute_divergences(human_pmfs: dict, model_pmfs: dict, metric: str) -> np.ndarray:
+def compute_divergences(human_pmfs: dict, model_pmfs: dict, metric: str) -> Array:
     assert len(human_pmfs) == len(
         model_pmfs
     ), "\nNumber of triplets in human and model distributions must correspond.\n"
@@ -112,13 +92,13 @@ def compute_divergences(human_pmfs: dict, model_pmfs: dict, metric: str) -> np.n
     return divergences
 
 
-def prune_weights(model: model.VICE, indices: np.ndarray) -> model.VICE:
+def prune_weights(model: optimization.VICE, indices: Array) -> optimization.VICE:
     for p in model.parameters():
         p.data = p.data[torch.from_numpy(indices)]
     return model
 
 
-def pruning(model: model.VICE, alpha: float = 0.05, k: int = 5) -> model.VICE:
+def pruning(model: optimization.VICE, k: int = 5, alpha: float = 0.05) -> optimization.VICE:
     params = model.detached_params
     loc = params["loc"]
     scale = params["scale"]
@@ -144,7 +124,7 @@ def get_models(
     vice_instances = []
     for vice_path in vice_paths:
         seed = vice_path.split("/")[-1]
-        vice = getattr(model, "VICE")(
+        vice = getattr(optimization, "VICE")(
             n_train=None,
             n_objects=n_objects,
             init_dim=init_dim,

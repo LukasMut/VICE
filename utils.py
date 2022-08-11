@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import skimage.io as io
 
-from dataloader import DataLoader
+from data_loader import DataLoader
 from collections import defaultdict
 from functools import partial
 from os.path import join as pjoin

@@ -8,7 +8,7 @@ import shutil
 import torch
 import unittest
 import utils
-import model
+import optimization
 import copy
 
 import numpy as np
@@ -33,7 +33,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class VICETestCase(unittest.TestCase):
     def get_model(self, hypers: dict):
-        vice = getattr(model, "VICE")(
+        vice = getattr(optimization, "VICE")(
             n_train=hypers["N"],
             n_objects=hypers["M"],
             init_dim=hypers["P"],
@@ -61,7 +61,7 @@ class VICETestCase(unittest.TestCase):
 
     def test_attributes(self):
         vice = self.get_model(hypers)
-        self.assertTrue(issubclass(getattr(model, "Trainer"), nn.Module))
+        self.assertTrue(issubclass(getattr(optimization, "Trainer"), nn.Module))
         self.assertTrue(hasattr(vice, "cuda" if torch.cuda.is_available() else "cpu"))
 
         self.assertTrue(hasattr(vice, "mu"))

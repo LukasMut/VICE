@@ -12,7 +12,7 @@ from typing import List, Tuple
 import numpy as np
 import torch
 
-import model
+import optimization
 import utils
 
 os.environ["PYTHONIOENCODING"] = "UTF-8"
@@ -27,65 +27,30 @@ def parseargs():
         parser.add_argument(*args, **kwargs)
 
     aa("--results_dir", type=str, help="results directory (root directory for models)")
-    aa(
-        "--n_objects",
-        type=int,
-        help="number of unique objects/items/stimuli in dataset",
-    )
-    aa(
-        "--init_dim",
-        type=int,
-        default=100,
-        help="initial latent dimensionality of VICE embedding(s)",
-    )
-    aa(
-        "--thresh",
-        type=float,
-        default=0.8,
+    aa("--n_objects", type=int,
+        help="number of unique objects/items/stimuli in dataset")
+    aa("--init_dim", type=int, default=100,
+        help="initial latent dimensionality of VICE embedding(s)")
+    aa("--thresh", type=float, default=0.8,
         choices=[0.7, 0.75, 0.8, 0.85, 0.9, 0.95],
-        help="reproducibility threshold (0.8 used in the ICLR paper)",
-    )
-    aa(
-        "--batch_size",
-        metavar="B",
-        type=int,
-        default=128,
-        help="number of triplets in each mini-batch",
-    )
-    aa(
-        "--optim",
-        type=str,
-        metavar="o",
-        default="adam",
+        help="reproducibility threshold (0.8 used in our NeurIPS paper)")
+    aa("--batch_size", metavar="B", type=int, default=128,
+        help="number of triplets in each mini-batch")
+    aa("--optim", type=str, metavar="o", default="adam",
         choices=["adam", "adamw", "sgd"],
-        help="optimizer that was used to train VICE",
-    )
-    aa(
-        "--prior",
-        type=str,
-        metavar="p",
-        default="gaussian",
+        help="optimizer that was used to train VICE")
+    aa("--prior", type=str, metavar="p", default="gaussian",
         choices=["gaussian", "laplace"],
-        help="whether to use a Gaussian or Laplacian mixture for the spike-and-slab prior",
-    )
+        help="whether to use a Gaussian or Laplacian mixture for the spike-and-slab prior")
     aa("--spike", type=float, help="sigma of spike distribution")
     aa("--slab", type=float, help="sigma of slab distribution")
     aa("--pi", type=float, help="probability value with which to sample from the spike")
     aa("--triplets_dir", type=str, help="path/to/triplets/data")
-    aa(
-        "--mc_samples",
-        type=int,
-        default=5,
-        choices=[1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
-        help="number of weight samples used in Monte Carlo (MC) sampling",
-    )
+    aa("--mc_samples", type=int, default=5, choices=[1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
+        help="number of weight samples used in Monte Carlo (MC) sampling")
     aa("--device", type=str, choices=["cpu", "cuda"])
-    aa(
-        "--rnd_seed",
-        type=int,
-        default=42,
-        help="random seed for reproducibility of results",
-    )
+    aa("--rnd_seed", type=int, default=42, 
+        help="random seed for reproducibility of results")
     args = parser.parse_args()
     return args
 
@@ -212,17 +177,17 @@ def get_model_paths(PATH: str) -> List[str]:
     return paths
 
 
-def prune_weights(model: model.VICE, indices: np.ndarray) -> model.VICE:
+def prune_weights(model: optimization.VICE, indices: np.ndarray) -> optimization.VICE:
     for p in model.parameters():
         p.data = p.data[torch.from_numpy(indices)]
     return model
 
 
 def pruning(
-    model: model.VICE,
+    model: optimization.VICE,
     alpha: float = 0.05,
     k: int = 5,
-) -> Tuple[torch.Tensor, torch.Tensor, model.VICE]:
+) -> Tuple[torch.Tensor, torch.Tensor, optimization.VICE]:
     params = model.detached_params
     loc = params["loc"]
     scale = params["scale"]
@@ -271,7 +236,7 @@ def evaluate_models(
     for i, model_path in enumerate(model_paths):
         print(f"Currently pruning and evaluating model: {i+1}\n")
         try:
-            vice = model.VICE(
+            vice = optimization.VICE(
                 k=k,
                 n_train=None,
                 burnin=None,

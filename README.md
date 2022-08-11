@@ -47,7 +47,7 @@ root
 ├── ├── ├── final_embedding.npy
 ├── └── └── final_model.tar
 ├── evaluation
-├── └──evaluate_robustness.py
+├── └── evaluate_robustness.py
 ├── .gitignore
 ├── DEMO.ipynb
 ├── get_embeddings.sh

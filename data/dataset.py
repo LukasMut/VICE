@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any
 
 import numpy as np
 import torch
@@ -8,12 +8,14 @@ Array = np.ndarray
 
 
 class TripletData(torch.utils.data.Dataset):
-    def __init__(self, triplets: List[List[int]], n_objects: int):
+    def __init__(self, triplets: Any, n_objects: int):
         super(TripletData, self).__init__()
-        try:
-            self.triplets = torch.tensor(triplets).type(torch.LongTensor)
-        except UserWarning:
+        if isinstance(triplets, Tensor):
             self.triplets = triplets
+        elif isinstance(triplets, Array):
+            self.triplets = torch.from_numpy(triplets).type(torch.LongTensor)
+        else:
+            raise TypeError(f'\nData has incorrect type:{type(triplets)}\n')
         self.identity = torch.eye(n_objects).to(self.triplets.device)
 
     def encode_as_onehot(self, triplet: Tensor) -> Tensor:

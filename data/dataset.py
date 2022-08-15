@@ -10,8 +10,11 @@ Array = np.ndarray
 class TripletData(torch.utils.data.Dataset):
     def __init__(self, triplets: List[List[int]], n_objects: int):
         super(TripletData, self).__init__()
-        self.triplets = torch.tensor(triplets).type(torch.LongTensor)
-        self.identity = torch.eye(n_objects)
+        try:
+            self.triplets = torch.tensor(triplets).type(torch.LongTensor)
+        except UserWarning:
+            self.triplets = triplets
+        self.identity = torch.eye(n_objects).to(self.triplets.device)
 
     def encode_as_onehot(self, triplet: Tensor) -> Tensor:
         """Encode a triplet of indices as a matrix of three one-hot-vectors."""

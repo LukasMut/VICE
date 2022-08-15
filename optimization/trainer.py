@@ -220,11 +220,10 @@ class Trainer(nn.Module):
     @torch.no_grad()
     def mc_sampling(self, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """Perform Monte Carlo sampling over the variational posterior q_{theta}(X)."""
-        n_choices = 3
         sampled_probas = torch.zeros(
-            self.mc_samples, batch.shape[0] // n_choices, n_choices
+            self.mc_samples, batch.shape[0], 3
         ).to(self.device)
-        sampled_choices = torch.zeros(self.mc_samples, batch.shape[0] // n_choices).to(
+        sampled_choices = torch.zeros(self.mc_samples, batch.shape[0]).to(
             self.device
         )
         for k in range(self.mc_samples):

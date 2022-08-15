@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from typing import List
-from collections import defaultdict
-
-import numpy as np
 import argparse
 import os
-import re
 import random
-import optimization
+import re
+from collections import defaultdict
+from typing import List
+
+import numpy as np
 import torch
+
+# crucial to do relative imports    
+module_path = os.path.abspath(os.path.join('..'))
+if module_path not in sys.path:
+    sys.path.append(module_path)
+
+import optimization
 import utils
+from data import TripletData
 
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -26,23 +33,46 @@ def parseargs():
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
 
-    aa("--n_objects", type=int, default=1854,
-        help="number of unique items/objects in dataset")
-    aa("--init_dim", type=int, 
+    aa(
+        "--n_objects",
+        type=int,
+        default=1854,
+        help="number of unique items/objects in dataset",
+    )
+    aa(
+        "--init_dim",
+        type=int,
         default=100,
-        help="initial dimensionality of VICE latent space")
-    aa("--batch_size", metavar="B", type=int,
+        help="initial dimensionality of VICE latent space",
+    )
+    aa(
+        "--batch_size",
+        metavar="B",
+        type=int,
         default=128,
-        help="number of triplets in each mini-batch")
-    aa("--prior", type=str, metavar="p", default="gaussian", 
+        help="number of triplets in each mini-batch",
+    )
+    aa(
+        "--prior",
+        type=str,
+        metavar="p",
+        default="gaussian",
         choices=["gaussian", "laplace"],
-        help="whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior")
-    aa("--mc_samples", type=int, default=25,
+        help="whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior",
+    )
+    aa(
+        "--mc_samples",
+        type=int,
+        default=25,
         choices=[5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
-        help="number of samples to use for MC sampling at inference time")
+        help="number of samples to use for MC sampling at inference time",
+    )
     aa("--results_dir", type=str, help="results directory (root directory for models)")
-    aa("--triplets_dir", type=str,
-        help="directory from where to load validation and held-out test set")
+    aa(
+        "--triplets_dir",
+        type=str,
+        help="directory from where to load validation and held-out test set",
+    )
     aa("--device", type=str, default="cpu", choices=["cpu", "cuda"])
     aa("--rnd_seed", type=int, default=42, help="random seed for reproducibility")
     args = parser.parse_args()
@@ -98,7 +128,9 @@ def prune_weights(model: optimization.VICE, indices: Array) -> optimization.VICE
     return model
 
 
-def pruning(model: optimization.VICE, k: int = 5, alpha: float = 0.05) -> optimization.VICE:
+def pruning(
+    model: optimization.VICE, k: int = 5, alpha: float = 0.05
+) -> optimization.VICE:
     params = model.detached_params
     loc = params["loc"]
     scale = params["scale"]
@@ -181,29 +213,30 @@ def inference(
             device,
         )
     )
-
     test_triplets = utils.load_data(
         device=device, triplets_dir=triplets_dir, inference=True
     )
     _, val_triplets = utils.load_data(
         device=device, triplets_dir=triplets_dir, inference=False
     )
-
-    test_batches = utils.load_batches(
-        train_triplets=None,
-        test_triplets=test_triplets,
+    val_triplets = TripletData(
+        triplets=val_triplets,
         n_objects=n_objects,
-        batch_size=batch_size,
-        inference=True,
     )
-    val_batches = utils.load_batches(
-        train_triplets=None,
-        test_triplets=val_triplets,
+    val_triplets = TripletData(
+        triplets=test_triplets,
         n_objects=n_objects,
-        batch_size=batch_size,
-        inference=True,
     )
-
+    val_batches = utils.get_batches(
+        triplets=val_triplets,
+        batch_size=batch_size,
+        train=False,
+    )
+    test_batches = utils.get_batches(
+        triplets=test_triplets,
+        batch_size=batch_size,
+        train=False,
+    )
     print(f"\nNumber of validation batches in current process: {len(val_batches)}\n")
     print(f"Number of test batches in current process: {len(test_batches)}\n")
 

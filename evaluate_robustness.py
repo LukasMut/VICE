@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import sys
 import argparse
 import itertools
 import os
@@ -14,6 +15,7 @@ import torch
 
 import optimization
 import utils
+from data import TripletData
 
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 # number of cores used per Python process (set to 2 if HT is enabled, else keep 1)
@@ -224,12 +226,11 @@ def evaluate_models(
     _, val_triplets = utils.load_data(
         device=device, triplets_dir=triplets_dir, inference=False
     )
-    val_batches = utils.load_batches(
-        train_triplets=None,
-        test_triplets=val_triplets,
-        n_objects=n_objects,
-        batch_size=batch_size,
-        inference=True,
+    val_triplets = TripletData(
+            triplets=val_triplets, n_objects=n_objects,
+    )
+    val_batches = utils.get_batches(
+        triplets=val_triplets, batch_size=batch_size, train=False,
     )
     locs, pruned_locs, pruned_scales = [], [], []
     val_losses = np.zeros(len(model_paths), dtype=np.float32)
@@ -298,7 +299,7 @@ def evaluate_models(
         np.save(f, final_embedding_unpruned)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
     args = parseargs()
     random.seed(args.rnd_seed)
     np.random.seed(args.rnd_seed)

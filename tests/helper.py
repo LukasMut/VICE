@@ -5,7 +5,8 @@ import numpy as np
 import torch
 import itertools
 
-from typing import Tuple
+from typing import Tuple, Iterator
+from torch.utils.data import DataLoader
 
 
 N_TRIALS = int(1e+4)
@@ -13,6 +14,7 @@ N_OBJECTS = 60
 INIT_DIM = N_OBJECTS // 2
 k = 3
 
+Tensor = torch.Tensor
 
 
 def get_hypers():
@@ -77,3 +79,15 @@ def create_train_test_split(triplets: np.ndarray, train_frac: float=.8,
     train_split = triplets[rnd_perm[:int(len(rnd_perm) * train_frac)]]
     test_split = triplets[rnd_perm[int(len(rnd_perm) * train_frac):]]
     return train_split, test_split
+
+
+def get_batches(triplets: Tensor, batch_size: int, train: bool) -> Iterator:
+    dl = DataLoader(
+        dataset=triplets,
+        batch_size=batch_size,
+        shuffle=True if train else False,
+        num_workers=0,
+        drop_last=False,
+        pin_memory=True if train else False,
+    )
+    return dl

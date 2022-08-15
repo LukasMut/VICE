@@ -3,6 +3,7 @@
 
 import os
 from typing import Tuple
+from data import TripletData
 
 import numpy as np
 import torch
@@ -13,6 +14,9 @@ import visualization
 
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+
+Array = np.ndarray
+Tensor = torch.Tensor
 
 
 def create_dirs(
@@ -84,16 +88,28 @@ def run(
 ) -> None:
     """Perform VICE training."""
     # load triplets into memory
-    train_triplets, test_triplets = utils.load_data(
+    train_triplets, val_triplets = utils.load_data(
         device=device, triplets_dir=triplets_dir
     )
     N = train_triplets.shape[0]
     n_objects = utils.get_nobjects(train_triplets)
-    train_batches, val_batches = utils.load_batches(
-        train_triplets=train_triplets,
-        test_triplets=test_triplets,
+    train_triplets = TripletData(
+        triplets=train_triplets,
         n_objects=n_objects,
+    )
+    val_triplets = TripletData(
+        triplets=val_triplets,
+        n_objects=n_objects,
+    )
+    train_batches = utils.get_batches(
+        triplets=train_triplets,
         batch_size=batch_size,
+        train=True,
+    )
+    val_batches = utils.get_batches(
+        triplets=val_triplets,
+        batch_size=batch_size,
+        train=False,
     )
     print(f"\nNumber of train batches: {len(train_batches)}\n")
     results_dir, plots_dir, model_dir = create_dirs(

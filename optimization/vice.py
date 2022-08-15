@@ -100,7 +100,7 @@ class VICE(Trainer):
         mu = self.mu()
         sigma = self.sigma()
         X = self.reparameterize(mu, sigma)
-        z = F.relu(torch.mm(batch, X))
+        z = F.relu(batch @ X)
         return z, mu, sigma, X
 
     def _initialize_weights(self) -> None:

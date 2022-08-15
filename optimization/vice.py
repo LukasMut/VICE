@@ -62,7 +62,7 @@ class VICE(Trainer):
         init_weights: bool = True,
         bias: bool = False,
     ):
-        super().__init__(
+        super(VICE, self).__init__(
             n_train=n_train,
             n_objects=n_objects,
             init_dim=init_dim,

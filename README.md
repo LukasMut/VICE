@@ -50,7 +50,11 @@ $ pip install -r requirements.txt
 root
 ├── envs
 ├── └── environment.yml
+├── data
+├── ├── __init__.py
+├── └── dataset.py
 ├── optimization
+├── ├── __init__.py
 ├── ├── triplet_loss.py
 ├── ├── priors.py
 ├── ├── vice.py
@@ -59,14 +63,12 @@ root
 ├── ├── things
 ├── ├── ├── final_embedding.npy
 ├── └── └── final_model.tar
-├── evaluation
-├── └── evaluate_robustness.py
 ├── .gitignore
 ├── DEMO.ipynb
 ├── get_embeddings.sh
 ├── create_things_splits.py
-├── data_loader.py
 ├── find_best_hypers.py
+├── evaluate_robustness.py
 ├── inference.py
 ├── partition_triplets.py
 ├── requirements.txt
@@ -151,7 +153,7 @@ Explanation of arguments in `evaluation.evaluate_robustness.py`
 
 ```python
  
- ./evaluation/evaluate_robustness.py
+ evaluate_robustness.py
  
  --results_dir (str) / # path/to/models
  --n_objects (int) / # number of unique objects/items/stimuli in the dataset
@@ -172,7 +174,7 @@ Explanation of arguments in `evaluation.evaluate_robustness.py`
 #### Example call
 
 ```python
-$ python ./evaluation/evaluate_robustness.py --results_dir path/to/models --n_objects number/of/unique/objects (e.g., 1854) --init_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.25 --slab 1.0 --pi 0.6 --triplets_dir path/to/triplets --mc_samples 5 --device cpu --rnd_seed 42
+$ python evaluate_robustness.py --results_dir path/to/models --n_objects number/of/unique/objects (e.g., 1854) --init_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.25 --slab 1.0 --pi 0.6 --triplets_dir path/to/triplets --mc_samples 5 --device cpu --rnd_seed 42
 ```
 
 ### VICE hyperparam. combination

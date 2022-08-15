@@ -17,6 +17,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from typing import Any
+from data import TripletData
 
 batch_size = 128
 test_dir = "./test"
@@ -81,22 +82,24 @@ class VICETestCase(unittest.TestCase):
 
     def test_output(self):
         vice = self.get_model(hypers)
-        batches = utils.load_batches(
-            train_triplets=None,
-            test_triplets=subsample,
+        triplets = TripletData(
+            triplets=subsample,
             n_objects=M,
+            )
+        batches = utils.get_batches(
+            triplets=triplets,
             batch_size=batch_size,
-            inference=True,
+            train=False,
         )
         for batch in batches:
-            self.assertEqual(batch.shape, (int(batch_size * 3), M))
+            self.assertEqual(batch.shape, (batch_size, 3, M))
             out = vice(batch)
             self.assertEqual(len(out), 4)
             z, W_mu, W_sigma, W_sample = out
             self.assertTrue(z.min() >= 0.0)
             self.assertTrue(W_sigma.min() >= 0.0)
             self.assertEqual(W_mu.shape, W_sigma.shape, W_sample.shape)
-            self.assertEqual(z.shape, (int(batch_size * 3), int(M / 2)))
+            self.assertEqual(z.shape, (batch_size, 3, int(M / 2)))
 
     def test_properties(self) -> None:
         vice = self.get_model(hypers)
@@ -145,14 +148,26 @@ class VICETestCase(unittest.TestCase):
         vice = self.get_model(hypers)
         # get detached model parameters at initilization / start of training
         params_init = copy.deepcopy(vice.detached_params)
+        # create triplet data
+        train_triplets, val_triplets = helper.create_train_test_split(triplets)
 
-        train_triplets, test_triplets = helper.create_train_test_split(triplets)
-        train_batches, val_batches = utils.load_batches(
-            train_triplets=train_triplets,
-            test_triplets=test_triplets,
+        train_triplets = TripletData(
+        triplets=train_triplets,
+        n_objects=hypers["M"],
+        )
+        val_triplets = TripletData(
+            triplets=val_triplets,
             n_objects=hypers["M"],
+        )
+        train_batches = utils.get_batches(
+            triplets=train_triplets,
             batch_size=hypers["batch_size"],
-            inference=False,
+            train=True,
+        )
+        val_batches = utils.get_batches(
+            triplets=val_triplets,
+            batch_size=hypers["batch_size"],
+            train=False,
         )
 
         vice.fit(train_batches=train_batches, val_batches=val_batches)

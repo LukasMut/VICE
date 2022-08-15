@@ -103,16 +103,25 @@ def load_batches(
     if inference:
         assert train_triplets is None
         test_batches = DataLoader(
-            dataset=test_triplets, n_objects=n_objects, batch_size=batch_size, train=False
+            dataset=test_triplets,
+            n_objects=n_objects,
+            batch_size=batch_size,
+            train=False,
         )
         return test_batches
     else:
         # create two iterators of train and validation mini-batches respectively
         train_batches = DataLoader(
-            dataset=train_triplets, n_objects=n_objects, batch_size=batch_size, train=True
+            dataset=train_triplets,
+            n_objects=n_objects,
+            batch_size=batch_size,
+            train=True,
         )
         val_batches = DataLoader(
-            dataset=test_triplets, n_objects=n_objects, batch_size=batch_size, train=False
+            dataset=test_triplets,
+            n_objects=n_objects,
+            batch_size=batch_size,
+            train=False,
         )
     return train_batches, val_batches
 

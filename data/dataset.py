@@ -6,6 +6,7 @@ import torch
 Tensor = torch.Tensor
 Array = np.ndarray
 
+
 class TripletData(torch.utils.data.Dataset):
     def __init__(self, triplets: List[List[int]], n_objects: int):
         super(TripletData, self).__init__()

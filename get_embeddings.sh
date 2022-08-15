@@ -1,8 +1,8 @@
 #!/bin/bash
 
 URLS=(
-	"https://raw.githubusercontent.com/LukasMut/VICE/main/data/item_names.tsv"
-	"https://raw.githubusercontent.com/LukasMut/VICE/main/data/things_concepts.tsv"
+	"https://raw.githubusercontent.com/LukasMut/VICE/main/data/files/item_names.tsv"
+	"https://raw.githubusercontent.com/LukasMut/VICE/main/data/files/things_concepts.tsv"
 	"https://raw.githubusercontent.com/LukasMut/VICE/main/embeddings/things/final_embedding.npy"
 );
 

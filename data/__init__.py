@@ -1,1 +1,1 @@
-from .dataset import TripletData
+from .triplet_dataset import TripletData

@@ -11,11 +11,6 @@ from typing import List
 import numpy as np
 import torch
 
-# crucial to do relative imports    
-module_path = os.path.abspath(os.path.join('..'))
-if module_path not in sys.path:
-    sys.path.append(module_path)
-
 import optimization
 import utils
 from data import TripletData

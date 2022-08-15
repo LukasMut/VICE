@@ -164,9 +164,9 @@ def get_models(
             epochs=None,
             mc_samples=mc_samples,
             prior=prior,
-            spike=None,
-            slab=None,
-            pi=None,
+            spike=1.,
+            slab=1.,
+            pi=1.,
             steps=None,
             model_dir=None,
             results_dir=results_dir,
@@ -218,7 +218,7 @@ def inference(
         triplets=val_triplets,
         n_objects=n_objects,
     )
-    val_triplets = TripletData(
+    test_triplets = TripletData(
         triplets=test_triplets,
         n_objects=n_objects,
     )

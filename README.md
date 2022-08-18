@@ -91,30 +91,28 @@ Explanation of arguments in `main.py`
 
 ```python
  
- main.py
-  
- --modality (str) / # e.g., behavioral, text, visual, fMRI
- --triplets_dir (str) / # path/to/triplet/data
- --results_dir (str) / # optional specification of results directory (if not provided will resort to ./results/modality/init_dim/optim/prior/seed/spike/slab/pi)
- --plots_dir (str) / # optional specification of directory for plots (if not provided will resort to ./plots/modality/init_dim/optim/prior/seed/spike/slab/pi)
- --epochs (int) / # maximum number of epochs to run VICE optimization
- --burnin (int) / # minimum number of epochs to run VICE optimization (burnin period)
- --eta (float) / # learning rate
- --init_dim (int) / # initial dimensionality of the model's latent space
- --batch_size (int) / # mini-batch size
- --optim (str) / # optimizer (e.g., 'adam', 'adamw', 'sgd')
- --prior (str) / # whether to use a mixture of Gaussians or Laplacians in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
- --mc_samples (int) / # number of weight matrices used in Monte Carlo sampling (for computationaly efficiency, M is set to 1 during training)
- --spike (float) / # sigma of the spike distribution
- --slab (float) / # sigma of the slab distribution
- --pi (float) / # probability value that determines the relative weighting of the distributions; the closer this value is to 1, the higher the probability that weights are drawn from the spike distribution
- --k (int) / # minimum number of objects whose weights are non-zero for a latent dimension (according to importance scores)
- --ws (int) / # determines for how many epochs the number of latent dimensions (after pruning) is not allowed to vary (ws >> 100)
- --steps (int) / # perform validation, save model parameters and create model and optimizer checkpoints every <steps> epochs
- --device (str) / # cuda or cpu
- --num_threads (int) / # number of threads used for intraop parallelism on CPU; use only if device is CPU
- --rnd_seed (int) / # random seed
- --verbose (bool) / # show print statements about model performance and evolution of latent dimensions during training (can be piped into log file)
+ main.py --modality (str) \ # e.g., behavioral, text, visual, fMRI
+ --triplets_dir (str) \ # path/to/triplet/data
+ --results_dir (str) \ # optional specification of results directory (if not provided will resort to ./results/modality/init_dim/optim/prior/seed/spike/slab/pi)
+ --plots_dir (str) \ # optional specification of directory for plots (if not provided will resort to ./plots/modality/init_dim/optim/prior/seed/spike/slab/pi)
+ --epochs (int) \ # maximum number of epochs to run VICE optimization
+ --burnin (int) \ # minimum number of epochs to run VICE optimization (burnin period)
+ --eta (float) \ # learning rate
+ --init_dim (int) \ # initial dimensionality of the model's embedding space
+ --batch_size (int) \ # mini-batch size
+ --optim (str) \ # optimizer (e.g., 'adam', 'adamw', 'sgd')
+ --prior (str) \ # whether to use a mixture of Gaussians or Laplacians in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
+ --mc_samples (int) \ # number of weight matrices used in Monte Carlo sampling (for computationaly efficiency, M is set to 1 during training)
+ --spike (float) \ # sigma of the spike distribution
+ --slab (float) \ # sigma of the slab distribution
+ --pi (float) \ # probability value that determines the relative weighting of the distributions; the closer this value is to 1, the higher the probability that weights are drawn from the spike distribution
+ --k (int) \ # minimum number of objects whose weights are non-zero for a latent dimension (according to importance scores)
+ --ws (int) \ # determines for how many epochs the number of latent dimensions (after pruning) is not allowed to vary (ws >> 100)
+ --steps (int) \ # perform validation, save model parameters and create model and optimizer checkpoints every <steps> epochs
+ --device (str) \ # cuda or cpu
+ --num_threads (int) \ # number of threads used for intraop parallelism on CPU; use only if device is CPU
+ --rnd_seed (int) \ # random seed
+ --verbose (bool) \ # show print statements about model performance and evolution of latent dimensions during training (can be easily piped into log file)
  ```
 
 #### Example call
@@ -152,29 +150,39 @@ root/plots/modality/init_dim/optimizer/prior/spike/slab/pi/seed
 Explanation of arguments in `evaluation.evaluate_robustness.py`
 
 ```python
- 
- evaluate_robustness.py
- 
- --results_dir (str) / # path/to/models
- --n_objects (int) / # number of unique objects/items/stimuli in the dataset
- --init_dim (int) / # latent space dimensionality with which VICE was initialized at run time
- --batch_size (int) / # mini-batch size used during VICE training
- --thresh (float) / # Pearson correlation value to threshold reproducibility of dimensions (e.g., 0.8)
- --optim (str) / # optimizer that was used during training (e.g., 'adam', 'adamw', 'sgd')
- --prior (str) / # whether a Gaussian or Laplacian mixture was used in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
- --spike (float) / # sigma of spike distribution
- --slab (float) / # sigma of slab distribution
- --pi (float) / # probability value that determines likelihood of samples from the spike
- --triplets_dir (str) / # path/to/triplet/data
- --mc_samples (int) / # number of weight matrices used in Monte Carlo sampling for evaluating models on validation set
- --device (str) / # cpu or cuda
- --rnd_seed (int) / # random seed
+ evaluate_robustness.py --results_dir (str) \ # path/to/models
+ --n_objects (int) \ # number of unique objects/items/stimuli in the dataset
+ --init_dim (int) \  # latent space dimensionality with which VICE was initialized at run time
+ --batch_size (int) \  # mini-batch size used during VICE training
+ --thresh (float) \  # Pearson correlation value to threshold reproducibility of dimensions (e.g., 0.8)
+ --optim (str) \ # optimizer that was used during training (e.g., 'adam', 'adamw', 'sgd')
+ --prior (str) \  # whether a Gaussian or Laplacian mixture was used in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
+ --spike (float) \  # sigma of spike distribution
+ --slab (float) \  # sigma of slab distribution
+ --pi (float) \  # probability value that determines likelihood of samples from the spike
+ --triplets_dir (str) \  # path/to/triplet/data
+ --mc_samples (int) \ # number of weight matrices used in Monte Carlo sampling for evaluating models on validation set
+ --device (str) \  # cpu or cuda
+ --rnd_seed (int) \  # random seed
  ```
 
 #### Example call
 
 ```python
-$ python evaluate_robustness.py --results_dir path/to/models --n_objects number/of/unique/objects (e.g., 1854) --init_dim 100 --batch_size 128 --thresh 0.8 --optim adam --prior gaussian --spike 0.25 --slab 1.0 --pi 0.6 --triplets_dir path/to/triplets --mc_samples 5 --device cpu --rnd_seed 42
+$ python evaluate_robustness.py --results_dir path/to/models \ 
+--n_objects number/of/unique/objects (e.g., 1854) \
+--init_dim 100 \
+--batch_size 128 \
+--thresh 0.8 \
+--optim adam \
+--prior gaussian \
+--spike 0.25 \
+--slab 1.0 \
+--pi 0.6 \
+--triplets_dir path/to/triplets \
+--mc_samples 5 \
+--device cpu \
+--rnd_seed 42
 ```
 
 ### VICE hyperparam. combination
@@ -182,17 +190,15 @@ $ python evaluate_robustness.py --results_dir path/to/models --n_objects number/
 Find the best hyperparameter combination via `find_best_hypers.py`
 
 ```python
- 
- find_best_hypers.py
- 
- --in_path (str) / # path/to/models/and/evaluation/results (should all have the same root directory)
- --percentages (List[int]) / # List of full dataset fractions used for VICE optimization
+ find_best_hypers.py --in_path (str) \ # path/to/models/and/evaluation/results (should all have the same root directory)
+ --percentages (List[int]) \ # List of full dataset fractions used for VICE optimization
  ```
 
 #### Example call
 
 ```python
-$ python find_best_hypers.py --in_path path/to/models/and/evaluation/results --percentages 10 20 50 100
+$ python find_best_hypers.py --in_path path/to/models/and/evaluation/results \
+--percentages 10 20 50 100
 ```
 
 ### NOTES:
@@ -220,16 +226,17 @@ This will download the THINGS object concept names to a subdirectory called `$(p
 
 ```python
  
- tripletize.py
- 
- --in_path (str) / # path/to/latent/representations
- --out_path (int) / # path/to/triplets
- --n_samples (int) / # number of triplet combinations to be sampled
- --rnd_seed (int) / # random seed to ensure reproducibility of triplet sampling
+ tripletize.py --in_path (str) \ # path/to/latent/representations
+ --out_path (int) \ # path/to/triplets
+ --n_samples (int) \  # number of triplet combinations to be sampled
+ --rnd_seed (int) \ # random seed to ensure reproducibility of triplet sampling
  ```
 
 #### Example call
 
 ```python
-$ python tripletize.py --in_path path/to/latent/representations --out_path path/to/triplets --n_samples 100000 --rnd_seed 42
+$ python tripletize.py --in_path path/to/latent/representations \
+--out_path path/to/triplets \
+--n_samples 100000 \
+--rnd_seed 42
 ```

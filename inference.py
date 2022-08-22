@@ -48,7 +48,7 @@ def parseargs():
         help="number of triplets in each mini-batch",
     )
     aa(
-        "--prior",
+        "--mixture",
         type=str,
         metavar="p",
         default="gaussian",
@@ -139,7 +139,7 @@ def pruning(
 
 def get_models(
     vice_paths: List[str],
-    prior: str,
+    mixture: str,
     n_objects: int,
     init_dim: int,
     batch_size: int,
@@ -163,7 +163,7 @@ def get_models(
             k=k,
             epochs=None,
             mc_samples=mc_samples,
-            prior=prior,
+            mixture=mixture,
             spike=1.,
             slab=1.,
             pi=1.,
@@ -187,7 +187,7 @@ def inference(
     n_objects: int,
     init_dim: int,
     batch_size: int,
-    prior: str,
+    mixture: str,
     mc_samples: int,
     results_dir: str,
     triplets_dir: str,
@@ -199,7 +199,7 @@ def inference(
     seeds, vice_models = zip(
         *get_models(
             vice_paths,
-            prior,
+            mixture,
             n_objects,
             init_dim,
             batch_size,
@@ -325,7 +325,7 @@ if __name__ == "__main__":
         n_objects=args.n_objects,
         init_dim=args.init_dim,
         batch_size=args.batch_size,
-        prior=args.prior,
+        mixture=args.mixture,
         mc_samples=args.mc_samples,
         results_dir=args.results_dir,
         triplets_dir=args.triplets_dir,

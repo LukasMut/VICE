@@ -93,15 +93,15 @@ Explanation of arguments in `main.py`
  
  main.py --modality (str) \ # e.g., behavioral, text, visual, fMRI
  --triplets_dir (str) \ # path/to/triplet/data
- --results_dir (str) \ # optional specification of results directory (if not provided will resort to ./results/modality/init_dim/optim/prior/seed/spike/slab/pi)
- --plots_dir (str) \ # optional specification of directory for plots (if not provided will resort to ./plots/modality/init_dim/optim/prior/seed/spike/slab/pi)
+ --results_dir (str) \ # optional specification of results directory (if not provided will resort to ./results/modality/init_dim/optim/mixture/seed/spike/slab/pi)
+ --plots_dir (str) \ # optional specification of directory for plots (if not provided will resort to ./plots/modality/init_dim/optim/mixture/seed/spike/slab/pi)
  --epochs (int) \ # maximum number of epochs to run VICE optimization
  --burnin (int) \ # minimum number of epochs to run VICE optimization (burnin period)
  --eta (float) \ # learning rate
  --init_dim (int) \ # initial dimensionality of the model's embedding space
  --batch_size (int) \ # mini-batch size
  --optim (str) \ # optimizer (e.g., 'adam', 'adamw', 'sgd')
- --prior (str) \ # whether to use a mixture of Gaussians or Laplacians in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
+ --mixture (str) \ # whether to use a mixture of Gaussians or Laplacians in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
  --mc_samples (int) \ # number of weight matrices used in Monte Carlo sampling (for computationaly efficiency, M is set to 1 during training)
  --spike (float) \ # sigma of the spike distribution
  --slab (float) \ # sigma of the slab distribution
@@ -118,7 +118,7 @@ Explanation of arguments in `main.py`
 #### Example call
 
 ```python
-$ python main.py --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 2000 --burnin 500 --eta 0.001 --init_dim 100 --batch_size 128 --k 5 --ws 200 --optim adam --prior gaussian --mc_samples 10 --spike 0.25 --slab 1.0 --pi 0.6 --steps 50 --device cpu --num_threads 8 --rnd_seed 42 --verbose
+$ python main.py --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 2000 --burnin 500 --eta 0.001 --init_dim 100 --batch_size 128 --k 5 --ws 200 --optim adam --mixture gaussian --mc_samples 10 --spike 0.25 --slab 1.0 --pi 0.6 --steps 50 --device cpu --num_threads 8 --rnd_seed 42 --verbose
 ```
 
 ### NOTES:
@@ -128,7 +128,7 @@ $ python main.py --triplets_dir path/to/triplets --results_dir ./results --plots
 2. Every `--steps` epochs (i.e., `if (epoch + 1) % steps == 0`) a `model_epoch.tar` (including model and optimizer `state_dicts`) and a `results_epoch.json` (including train and validation cross-entropy errors) file are saved to disk. In addition, after convergence of VICE, a `pruned_params.npz` (compressed binary file) with keys `pruned_loc` and `pruned_scale`, including pruned VICE parameters, is saved to disk. Latent dimensions of the pruned parameter matrices are sorted according to their overall importance. See output folder structure below for where to find these files.</br>
 
 ```bash
-root/results/modality/init_dim/optimizer/prior/spike/slab/pi/seed
+root/results/modality/init_dim/optimizer/mixture/spike/slab/pi/seed
 ├── model
 ├── └── f'model_epoch{epoch+1:04d}.tar' if (epoch + 1) % steps == 0
 ├── 'parameters.npz'
@@ -139,7 +139,7 @@ root/results/modality/init_dim/optimizer/prior/spike/slab/pi/seed
 3. `train.py` (which is invoked by `main.py`) plots train and validation performances (to examine overfitting) against as well as negative log-likelihoods and KL-divergences (to evaluate contribution of the different loss terms) alongside each other. Evolution of (identified) latent dimensions over time is additionally plotted after convergence. See folder structure below for where to find plots after the optimization has finished.
 
 ```bash
-root/plots/modality/init_dim/optimizer/prior/spike/slab/pi/seed
+root/plots/modality/init_dim/optimizer/mixture/spike/slab/pi/seed
 ├── 'single_model_performance_over_time.png'
 ├── 'llikelihood_and_complexity_over_time.png'
 └── 'latent_dimensions_over_time.png'
@@ -156,7 +156,7 @@ Explanation of arguments in `evaluation.evaluate_robustness.py`
  --batch_size (int) \  # mini-batch size used during VICE training
  --thresh (float) \  # Pearson correlation value to threshold reproducibility of dimensions (e.g., 0.8)
  --optim (str) \ # optimizer that was used during training (e.g., 'adam', 'adamw', 'sgd')
- --prior (str) \  # whether a Gaussian or Laplacian mixture was used in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
+ --mixture (str) \  # whether a Gaussian or Laplacian mixture was used in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
  --spike (float) \  # sigma of spike distribution
  --slab (float) \  # sigma of slab distribution
  --pi (float) \  # probability value that determines likelihood of samples from the spike
@@ -175,7 +175,7 @@ $ python evaluate_robustness.py --results_dir path/to/models \
 --batch_size 128 \
 --thresh 0.8 \
 --optim adam \
---prior gaussian \
+--mixture gaussian \
 --spike 0.25 \
 --slab 1.0 \
 --pi 0.6 \

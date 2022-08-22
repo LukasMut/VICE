@@ -36,7 +36,7 @@ class Trainer(nn.Module):
         epochs: int,
         burnin: int,
         mc_samples: int,
-        prior: str,
+        mixture: str,
         spike: float,
         slab: float,
         pi: float,
@@ -58,7 +58,7 @@ class Trainer(nn.Module):
         self.epochs = epochs
         self.burnin = burnin
         self.mc_samples = mc_samples  # number of weight samples M
-        self.prior = prior  # Gaussian or Laplace mixture prior
+        self.mixture = mixture  # Gaussian or Laplace mixture prior
         self.spike = spike
         self.slab = slab
         self.pi = pi
@@ -71,7 +71,7 @@ class Trainer(nn.Module):
         self.verbose = verbose
         self.loss_fun = TripletLoss(temperature=1.0)
         self.spike_and_slab = SpikeandSlab(
-            mixture=self.prior,
+            mixture=self.mixture,
             spike=self.spike,
             slab=self.slab,
             pi=self.pi,

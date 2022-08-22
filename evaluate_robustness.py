@@ -40,7 +40,7 @@ def parseargs():
     aa("--optim", type=str, metavar="o", default="adam",
         choices=["adam", "adamw", "sgd"],
         help="optimizer that was used to train VICE")
-    aa("--prior", type=str, metavar="p", default="gaussian",
+    aa("--mixture", type=str, metavar="p", default="gaussian",
         choices=["gaussian", "laplace"],
         help="whether to use a Gaussian or Laplacian mixture for the spike-and-slab prior")
     aa("--spike", type=float, help="sigma of spike distribution")
@@ -207,7 +207,7 @@ def evaluate_models(
     n_objects: int,
     init_dim: int,
     optim: str,
-    prior: str,
+    mixture: str,
     spike: float,
     slab: float,
     pi: float,
@@ -219,7 +219,7 @@ def evaluate_models(
     k: int = 5,
 ) -> None:
     in_path = os.path.join(
-        results_dir, f"{init_dim}d", optim, prior, str(spike), str(slab), str(pi)
+        results_dir, f"{init_dim}d", optim, mixture, str(spike), str(slab), str(pi)
     )
     model_paths = get_model_paths(in_path)
     _, val_triplets = utils.load_data(
@@ -248,7 +248,7 @@ def evaluate_models(
                 batch_size=batch_size,
                 epochs=None,
                 mc_samples=mc_samples,
-                prior=prior,
+                mixture=mixture,
                 spike=spike,
                 slab=slab,
                 pi=pi,
@@ -307,7 +307,7 @@ if __name__ == "__main__":
         n_objects=args.n_objects,
         init_dim=args.init_dim,
         optim=args.optim,
-        prior=args.prior,
+        mixture=args.mixture,
         spike=args.spike,
         slab=args.slab,
         pi=args.pi,

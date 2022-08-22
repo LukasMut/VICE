@@ -24,9 +24,9 @@ def parseargs():
     aa('--triplets_dir', type=str,
         help='directory from where to load triplets')
     aa('--results_dir', type=str, default='./results/',
-        help='optional specification of results directory (if not provided will resort to ./results/modality/init_dim/optim/prior/seed/spike/slab/pi)')
+        help='optional specification of results directory (if not provided will resort to ./results/modality/init_dim/optim/mixture/seed/spike/slab/pi)')
     aa('--plots_dir', type=str, default='./plots/',
-        help='optional specification of directory for plots (if not provided will resort to ./plots/modality/init_dim/optim/prior/seed/spike/slab/pi)')
+        help='optional specification of directory for plots (if not provided will resort to ./plots/modality/init_dim/optim/mixture/seed/spike/slab/pi)')
     aa('--epochs', metavar='T', type=int, default=2000,
         help='maximum number of epochs to run VICE optimization')
     aa('--burnin', type=int, default=500,
@@ -40,7 +40,7 @@ def parseargs():
     aa('--optim', type=str, default='adam',
         choices=['adam', 'adamw', 'sgd'],
         help='optimizer to train VICE')
-    aa('--prior', type=str, metavar='p', default='gaussian',
+    aa('--mixture', type=str, metavar='p', default='gaussian',
         choices=['gaussian', 'laplace'],
         help='whether to use a Gaussian or Laplacian mixture for the spike-and-slab prior')
     aa('--mc_samples', type=int, default=10,
@@ -108,7 +108,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         init_dim=args.init_dim,
         optim=args.optim,
-        prior=args.prior,
+        mixture=args.mixture,
         mc_samples=args.mc_samples,
         spike=args.spike,
         slab=args.slab,

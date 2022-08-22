@@ -28,7 +28,7 @@ def get_hypers():
     hypers['epochs'] = 20
     hypers['burnin'] = 20
     hypers['mc_samples'] = 10
-    hypers['prior'] = 'gaussian' 
+    hypers['mixture'] = 'gaussian' 
     hypers['spike'] = 0.25
     hypers['slab'] = 1.0
     hypers['pi'] = 0.5

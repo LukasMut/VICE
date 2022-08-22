@@ -28,7 +28,7 @@ M = utils.get_nobjects(triplets)
 subsample = triplets[
     np.random.choice(triplets.shape[0], size=batch_size, replace=False)
 ]
-prior = "gaussian"
+mixture = "gaussian"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -44,7 +44,7 @@ class VICETestCase(unittest.TestCase):
             epochs=hypers["epochs"],
             burnin=hypers["burnin"],
             mc_samples=hypers["mc_samples"],
-            prior=hypers["prior"],
+            mixture=hypers["mixture"],
             spike=hypers["spike"],
             slab=hypers["slab"],
             pi=hypers["pi"],
@@ -67,7 +67,7 @@ class VICETestCase(unittest.TestCase):
 
         self.assertTrue(hasattr(vice, "mu"))
         self.assertTrue(hasattr(vice, "sigma"))
-        self.assertTrue(vice.prior, "gaussian")
+        self.assertTrue(vice.mixture, "gaussian")
 
         self.assertEqual(len(torch.unique(vice.sigma.logsigma.weight.data)), 1)
 
@@ -111,7 +111,7 @@ class VICETestCase(unittest.TestCase):
         self.assertEqual(vice.batch_size, hypers["batch_size"])
         self.assertEqual(vice.epochs, hypers["epochs"])
         self.assertEqual(vice.mc_samples, hypers["mc_samples"])
-        self.assertEqual(vice.prior, hypers["prior"])
+        self.assertEqual(vice.mixture, hypers["mixture"])
         self.assertEqual(vice.spike, hypers["spike"])
         self.assertEqual(vice.slab, hypers["slab"])
         self.assertEqual(vice.pi, hypers["pi"])

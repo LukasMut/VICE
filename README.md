@@ -52,6 +52,7 @@ root
 ├── └── environment.yml
 ├── data
 ├── ├── __init__.py
+├── ├── files/*tsv
 ├── └── dataset.py
 ├── optimization
 ├── ├── __init__.py
@@ -68,11 +69,11 @@ root
 ├── get_embeddings.sh
 ├── create_things_splits.py
 ├── find_best_hypers.py
-├── evaluate_robustness.py
-├── inference.py
+├── main_robustness_eval.py
+├── main_inference.py
 ├── partition_triplets.py
 ├── requirements.txt
-├── main.py
+├── main_optimization.py
 ├── train.py
 ├── main_tripletize.py
 ├── utils.py
@@ -83,15 +84,15 @@ root
 
 ### VICE DEMO
 
-We provide a `DEMO` Jupyter Notebook (`JN`) to guide users through each step of the `VICE` optimization. The `DEMO` file is meant to facilitate the process of using `VICE`. In the `DEMO.ipynb` one can easily examine whether `VICE` overfits the trainig data and behaves well with respect to the evolution of latent dimensions over training time. Embeddings can be extracted and analyzed directly in the `JN`.
+We provide a `DEMO` Jupyter Notebook (`JN`) to guide users through each step of the `VICE` optimization. The `DEMO` file is meant to facilitate the process of using `VICE`. In the `DEMO.ipynb` one can easily examine whether `VICE` overfits the trainig data and behaves well with respect to the evolution of latent dimensions over time. Embeddings can be extracted and analyzed directly in the `JN`.
 
 ### VICE optimization
 
-Explanation of arguments in `main.py`
+Explanation of arguments in `main_optimization.py`
 
 ```python
  
- main.py --modality (str) \ # e.g., behavioral, text, visual, fMRI
+ main_optimization.py --modality (str) \ # e.g., name of dataset
  --triplets_dir (str) \ # path/to/triplet/data
  --results_dir (str) \ # optional specification of results directory (if not provided will resort to ./results/modality/init_dim/optim/mixture/seed/spike/slab/pi)
  --plots_dir (str) \ # optional specification of directory for plots (if not provided will resort to ./plots/modality/init_dim/optim/mixture/seed/spike/slab/pi)
@@ -101,24 +102,44 @@ Explanation of arguments in `main.py`
  --init_dim (int) \ # initial dimensionality of the model's embedding space
  --batch_size (int) \ # mini-batch size
  --optim (str) \ # optimizer (e.g., 'adam', 'adamw', 'sgd')
- --mixture (str) \ # whether to use a mixture of Gaussians or Laplacians in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
- --mc_samples (int) \ # number of weight matrices used in Monte Carlo sampling (for computationaly efficiency, M is set to 1 during training)
+ --mixture (str) \ # whether to use a mixture of Gaussians or Laplace distributions in the spike-and-slab prior (i.e., 'gaussian' or 'laplace')
+ --mc_samples (int) \ # number of weight matrices used in Monte Carlo sampling (for computationaly efficiency, M is set to 1 during training but can be set to any number at inference time)
  --spike (float) \ # sigma of the spike distribution
  --slab (float) \ # sigma of the slab distribution
  --pi (float) \ # probability value that determines the relative weighting of the distributions; the closer this value is to 1, the higher the probability that weights are drawn from the spike distribution
- --k (int) \ # minimum number of objects whose weights are non-zero for a latent dimension (according to importance scores)
+ --k (int) \ # an embedding dimension is considered important (and won't be pruned) if the minimum number of objects with a non-zero weight is larger than k (we recommend to set this value to 5 or 10)
  --ws (int) \ # determines for how many epochs the number of latent dimensions (after pruning) is not allowed to vary (ws >> 100)
  --steps (int) \ # perform validation, save model parameters and create model and optimizer checkpoints every <steps> epochs
  --device (str) \ # cuda or cpu
- --num_threads (int) \ # number of threads used for intraop parallelism on CPU; use only if device is CPU
- --rnd_seed (int) \ # random seed
+ --num_threads (int) \ # number of threads used for intraop parallelism on CPU; use only if device is CPU (won't affect performance on GPU)
+ --rnd_seed (int) \ # random seed for reproducibility
  --verbose (bool) \ # show print statements about model performance and evolution of latent dimensions during training (can be easily piped into log file)
  ```
 
 #### Example call
 
-```python
-$ python main.py --triplets_dir path/to/triplets --results_dir ./results --plots_dir ./plots --epochs 2000 --burnin 500 --eta 0.001 --init_dim 100 --batch_size 128 --k 5 --ws 200 --optim adam --mixture gaussian --mc_samples 10 --spike 0.25 --slab 1.0 --pi 0.6 --steps 50 --device cpu --num_threads 8 --rnd_seed 42 --verbose
+```bash
+$ python main_optimization.py --triplets_dir path/to/triplets
+--results_dir ./results \
+--plots_dir ./plots \
+--epochs 2000 \
+--burnin 500 \
+--eta 0.001  \
+--init_dim 100  \ 
+--batch_size 128  \
+--k 5  \
+--ws 200  \ 
+--optim adam  \ 
+--mixture gaussian \ 
+--mc_samples 10 \
+--spike 0.25 \
+--slab 1.0 \
+--pi 0.6  \
+--steps 50  \
+--device cpu  \
+--num_threads 8 \
+--rnd_seed 42 \
+--verbose \
 ```
 
 ### NOTES:
@@ -136,7 +157,7 @@ root/results/modality/init_dim/optimizer/mixture/spike/slab/pi/seed
 └── f'results_{epoch+1:04d}.json' if (epoch + 1) % steps == 0
 ```
 
-3. `train.py` (which is invoked by `main.py`) plots train and validation performances (to examine overfitting) against as well as negative log-likelihoods and KL-divergences (to evaluate contribution of the different loss terms) alongside each other. Evolution of (identified) latent dimensions over time is additionally plotted after convergence. See folder structure below for where to find plots after the optimization has finished.
+3. `train.py` (which is invoked by `main_optimization.py`) plots train and validation performances (to examine overfitting) against as well as negative log-likelihoods and KL-divergences (to evaluate contribution of the different loss terms) alongside each other. Evolution of (identified) latent dimensions over time is additionally plotted after convergence. See folder structure below for where to find plots after the optimization has finished.
 
 ```bash
 root/plots/modality/init_dim/optimizer/mixture/spike/slab/pi/seed
@@ -147,10 +168,10 @@ root/plots/modality/init_dim/optimizer/mixture/spike/slab/pi/seed
 
 ### VICE evaluation
 
-Explanation of arguments in `evaluation.evaluate_robustness.py`
+Explanation of arguments in `main_robustness_eval.py`
 
 ```python
- evaluate_robustness.py --results_dir (str) \ # path/to/models
+ main_robustness_eval.py --results_dir (str) \ # path/to/models
  --n_objects (int) \ # number of unique objects/items/stimuli in the dataset
  --init_dim (int) \  # latent space dimensionality with which VICE was initialized at run time
  --batch_size (int) \  # mini-batch size used during VICE training
@@ -168,8 +189,8 @@ Explanation of arguments in `evaluation.evaluate_robustness.py`
 
 #### Example call
 
-```python
-$ python evaluate_robustness.py --results_dir path/to/models \ 
+```bash
+$ python main_robustness_eval.py --results_dir path/to/models \ 
 --n_objects number/of/unique/objects (e.g., 1854) \
 --init_dim 100 \
 --batch_size 128 \
@@ -208,7 +229,7 @@ After calling `find_best_hypers.py`, a `txt` file called `model_paths.txt` is sa
 
 ## VICE embeddings
 
-VICE embeddings for [THINGS](https://osf.io/jum2f/) can be found [here](https://github.com/LukasMut/VICE/tree/main/embeddings/things). The corresponding object concept names can be found on [OSF](https://osf.io/jum2f/) or [here](https://github.com/LukasMut/VICE/tree/main/data). 
+VICE embeddings for [THINGS](https://osf.io/jum2f/) can be found [here](https://github.com/LukasMut/VICE/tree/main/embeddings/things). The corresponding object concept names can be found on [OSF](https://osf.io/jum2f/) or [here](https://github.com/LukasMut/VICE/tree/main/data/files). 
 
 If you want to download the embeddings and the `tsv` file containing the object names simultaneously, download [this file](https://github.com/LukasMut/VICE/blob/main/get_embeddings.sh) and execute it as follows
 
@@ -222,11 +243,11 @@ This will download the THINGS object concept names to a subdirectory called `$(p
 
 ### Tripletizing representations
 
-`VICE` can be used for any data. We provide a file called `tripletize.py` that converts (latent) representations from any domain (e.g., audio, fMRI, EEG, Deep Neural Networks) corresponding to some set of stimuli (e.g., images, words) into an `N x 3` matrix of `N` triplets (see triplet format above). We do this by exploiting the similarity structure of the representations.
+`VICE` can be used for any data. We provide a file called `main_tripletize.py` that converts (latent) representations from any domain (e.g., audio, fMRI or EEG recordings, Deep Neural Network features) corresponding to some set of stimuli (e.g., images, words) into an `N x 3` matrix of `N` triplets (see triplet format above). We do this by exploiting the similarity structure of the representations.
 
 ```python
  
- tripletize.py --in_path (str) \ # path/to/latent/representations
+ main_tripletize.py --in_path (str) \ # path/to/latent/representations
  --out_path (int) \ # path/to/triplets
  --n_samples (int) \  # number of triplet combinations to be sampled
  --rnd_seed (int) \ # random seed to ensure reproducibility of triplet sampling
@@ -234,9 +255,31 @@ This will download the THINGS object concept names to a subdirectory called `$(p
 
 #### Example call
 
-```python
-$ python tripletize.py --in_path path/to/latent/representations \
+```bash
+$ python main_tripletize.py --in_path path/to/latent/representations \
 --out_path path/to/triplets \
 --n_samples 100000 \
 --rnd_seed 42
+```
+
+## Citation
+
+If you use this GitHub repository (or any modules associated with it), we would appreciate to cite our arXiv [preprint](https://arxiv.org/abs/2205.00756) as follows:
+
+```latex
+@article{Muttenthaler2022,
+       author = {{Muttenthaler}, Lukas and {Zheng}, Charles Y. and {McClure}, Patrick and {Vandermeulen}, Robert A. and {Hebart}, Martin N. and {Pereira}, Francisco},
+        title = {{VICE}: {V}ariational {I}nference for {C}oncept {E}mbeddings}",
+      journal = {arXiv e-prints},
+     keywords = {Computer Science - Machine Learning, Statistics - Applications, Statistics - Machine Learning},
+         year = {2022},
+        month = {May},
+          eid = {arXiv:2205.00756},
+        pages = {arXiv:2205.00756},
+archivePrefix = {arXiv},
+       eprint = {2205.00756},
+ primaryClass = {cs.LG},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2022arXiv220500756M},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
 ```

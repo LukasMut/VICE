@@ -113,7 +113,7 @@ Explanation of arguments in `main_optimization.py`
 
 ```python
  
- main_optimization.py --modality (str) \ # e.g., name of dataset
+ main_optimization.py --task (str) \ # odd-one-out (3AFC) or target-matching (2AFC) task
  --triplets_dir (str) \ # path/to/triplet/data
  --results_dir (str) \ # optional specification of results directory (if not provided will resort to ./results/modality/init_dim/optim/mixture/seed/spike/slab/pi)
  --plots_dir (str) \ # optional specification of directory for plots (if not provided will resort to ./plots/modality/init_dim/optim/mixture/seed/spike/slab/pi)
@@ -140,7 +140,8 @@ Explanation of arguments in `main_optimization.py`
 #### Example call
 
 ```bash
-$ python main_optimization.py --triplets_dir path/to/triplets
+$ python main_optimization.py --task odd-one-out \
+--triplets_dir path/to/triplets \
 --results_dir ./results \
 --plots_dir ./plots \
 --epochs 2000 \
@@ -165,7 +166,7 @@ $ python main_optimization.py --triplets_dir path/to/triplets
 
 ### NOTES:
 
-1. Note that triplet data is expected to be in the format `N x 3`, where `N` = number of triplets (e.g., 100k) and 3 refers to the three objects per triplet, where `col_0` = anchor_1, `col_1` = anchor_2, `col_2` = odd one out. Triplet data must be split into `train` and `test` splits, and named `train_90.txt` or `train_90.npy` and `test_10.txt` or `test_10.npy` respectively.
+1. Note that triplet data is expected to be in the format `N x 3`, where `N` = number of triplets (e.g., 100k) and 3 refers to the three objects in a triplet, where `col_0` = anchor, `col_1` = positive, `col_2` = odd-one-out/negative. Triplet data must be split into `train` and `test` splits, and named `train_90.txt` or `train_90.npy` and `test_10.txt` or `test_10.npy` respectively.
 
 2. Every `--steps` epochs (i.e., `if (epoch + 1) % steps == 0`) a `model_epoch.tar` (including model and optimizer `state_dicts`) and a `results_epoch.json` (including train and validation cross-entropy errors) file are saved to disk. In addition, after convergence of VICE, a `pruned_params.npz` (compressed binary file) with keys `pruned_loc` and `pruned_scale`, including pruned VICE parameters, is saved to disk. Latent dimensions of the pruned parameter matrices are sorted according to their overall importance. See output folder structure below for where to find these files.</br>
 

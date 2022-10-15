@@ -113,7 +113,7 @@ Explanation of arguments in `main_optimization.py`
 
 ```python
  
- main_optimization.py --task (str) \ # odd-one-out (3AFC) or target-matching (2AFC) task
+ main_optimization.py --task (str) \ # "odd-one-out" (3AFC; no anchor) or "target-matching" (2AFC; anchor) task
  --triplets_dir (str) \ # path/to/triplet/data
  --results_dir (str) \ # optional specification of results directory (if not provided will resort to ./results/modality/init_dim/optim/mixture/seed/spike/slab/pi)
  --plots_dir (str) \ # optional specification of directory for plots (if not provided will resort to ./plots/modality/init_dim/optim/mixture/seed/spike/slab/pi)
@@ -193,7 +193,8 @@ root/plots/modality/init_dim/optimizer/mixture/spike/slab/pi/seed
 Explanation of arguments in `main_robustness_eval.py`
 
 ```python
- main_robustness_eval.py --results_dir (str) \ # path/to/models
+ main_robustness_eval.py --task (str) \ # "odd-one-out" (3AFC; no anchor) or "target-matching" (2AFC; anchor) task
+ --results_dir (str) \ # path/to/models
  --n_objects (int) \ # number of unique objects/items/stimuli in the dataset
  --init_dim (int) \  # latent space dimensionality with which VICE was initialized at run time
  --batch_size (int) \  # mini-batch size used during VICE training
@@ -212,7 +213,8 @@ Explanation of arguments in `main_robustness_eval.py`
 #### Example call
 
 ```bash
-$ python main_robustness_eval.py --results_dir path/to/models \ 
+$ python main_robustness_eval.py --task odd-one-out \
+--results_dir path/to/models \ 
 --n_objects number/of/unique/objects (e.g., 1854) \
 --init_dim 100 \
 --batch_size 128 \

@@ -27,6 +27,7 @@ os.environ["PYTHONIOENCODING"] = "UTF-8"
 class Trainer(nn.Module):
     def __init__(
         self,
+        task: str,
         n_train: int,
         n_objects: int,
         init_dim: int,
@@ -49,6 +50,7 @@ class Trainer(nn.Module):
         verbose: bool = False,
     ):
         super(Trainer, self).__init__()
+        self.task = task
         self.n_train = n_train  # number of trials/triplets in dataset
         self.n_objects = n_objects  # number of unique items/objects
         self.init_dim = init_dim
@@ -147,8 +149,8 @@ class Trainer(nn.Module):
         else:
             raise ValueError("\nUse Adam, AdamW or SGD for VICE optimization.\n")
 
-    @staticmethod
     def compute_similarities(
+        self,
         anchor: Tensor,
         positive: Tensor,
         negative: Tensor,
@@ -156,8 +158,11 @@ class Trainer(nn.Module):
         """Apply the similarity function (modeled as a dot product) to each pair in the triplet."""
         sim_i = torch.sum(anchor * positive, dim=1)
         sim_j = torch.sum(anchor * negative, dim=1)
-        sim_k = torch.sum(positive * negative, dim=1)
-        return (sim_i, sim_j, sim_k)
+        sims = [sim_i, sim_j]
+        if self.task == 'odd-one-out':
+            sim_k = torch.sum(positive * negative, dim=1)
+            sims.append(sim_k)
+        return sims
 
     @staticmethod
     def break_ties(probas: Tensor) -> Tensor:
@@ -175,13 +180,13 @@ class Trainer(nn.Module):
         return acc
 
     @staticmethod
-    def sumexp(sims: Tuple[Tensor]) -> Tensor:
+    def sumexp(sims: List[Tensor]) -> Tensor:
         return torch.sum(torch.exp(torch.stack(sims)), dim=0)
 
-    def softmax(self, sims: Tuple[Tensor]) -> Tensor:
+    def softmax(self, sims: List[Tensor]) -> Tensor:
         return torch.exp(sims[0]) / self.sumexp(sims)
 
-    def choice_accuracy(self, similarities: float) -> float:
+    def choice_accuracy(self, similarities: List[Tensor]) -> float:
         probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
         choice_acc = self.accuracy_(probas)
         return choice_acc

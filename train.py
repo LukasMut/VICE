@@ -22,7 +22,6 @@ Tensor = torch.Tensor
 def create_dirs(
     results_dir: str,
     plots_dir: str,
-    modality: str,
     init_dim: int,
     optim: str,
     mixture: str,
@@ -35,7 +34,6 @@ def create_dirs(
     print("\n...Creating directories.\n")
     results_dir = os.path.join(
         results_dir,
-        modality,
         f"{init_dim}d",
         optim,
         mixture,
@@ -48,7 +46,6 @@ def create_dirs(
         os.makedirs(results_dir, exist_ok=True)
     plots_dir = os.path.join(
         plots_dir,
-        modality,
         f"{init_dim}d",
         optim,
         mixture,
@@ -64,10 +61,10 @@ def create_dirs(
 
 
 def run(
-    modality: str,
     results_dir: str,
     plots_dir: str,
     triplets_dir: str,
+    task: str,
     epochs: int,
     burnin: int,
     eta: float,
@@ -115,7 +112,6 @@ def run(
     results_dir, plots_dir, model_dir = create_dirs(
         results_dir=results_dir,
         plots_dir=plots_dir,
-        modality=modality,
         init_dim=init_dim,
         optim=optim,
         mixture=mixture,
@@ -126,6 +122,7 @@ def run(
     )
     # initialize VICE model
     vice = getattr(optimization, "VICE")(
+        task=task,
         n_train=N,
         n_objects=n_objects,
         init_dim=init_dim,

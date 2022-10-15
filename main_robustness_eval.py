@@ -27,6 +27,9 @@ def parseargs():
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
 
+    aa('--task', type=str, default='odd-one-out',
+       choices=['odd-one-out', 'pair-matching'],
+       help='whether to perform an odd-one-out (no anchor) or pair-matching (anchor) triplet task')
     aa("--results_dir", type=str, help="results directory (root directory for models)")
     aa("--n_objects", type=int,
         help="number of unique objects/items/stimuli in dataset")
@@ -40,7 +43,7 @@ def parseargs():
     aa("--optim", type=str, metavar="o", default="adam",
         choices=["adam", "adamw", "sgd"],
         help="optimizer that was used to train VICE")
-    aa("--mixture", type=str, metavar="p", default="gaussian",
+    aa("--mixture", type=str, default="gaussian",
         choices=["gaussian", "laplace"],
         help="whether to use a Gaussian or Laplacian mixture for the spike-and-slab prior")
     aa("--spike", type=float, help="sigma of spike distribution")
@@ -204,6 +207,7 @@ def pruning(
 
 def evaluate_models(
     results_dir: str,
+    task: str,
     n_objects: int,
     init_dim: int,
     optim: str,
@@ -237,7 +241,7 @@ def evaluate_models(
         print(f"Currently pruning and evaluating model: {i+1}\n")
         try:
             vice = optimization.VICE(
-                k=k,
+                task=task,
                 n_train=None,
                 burnin=None,
                 ws=None,
@@ -252,6 +256,7 @@ def evaluate_models(
                 spike=spike,
                 slab=slab,
                 pi=pi,
+                k=k,
                 steps=None,
                 model_dir=os.path.join(model_path, "model"),
                 results_dir=results_dir,
@@ -304,6 +309,7 @@ if __name__ == "__main__":
     np.random.seed(args.rnd_seed)
     evaluate_models(
         results_dir=args.results_dir,
+        task=task,
         n_objects=args.n_objects,
         init_dim=args.init_dim,
         optim=args.optim,

@@ -28,46 +28,25 @@ def parseargs():
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
 
-    aa(
-        "--n_objects",
-        type=int,
-        default=1854,
-        help="number of unique items/objects in dataset",
-    )
-    aa(
-        "--init_dim",
-        type=int,
-        default=100,
-        help="initial dimensionality of VICE latent space",
-    )
-    aa(
-        "--batch_size",
-        metavar="B",
-        type=int,
-        default=128,
-        help="number of triplets in each mini-batch",
-    )
-    aa(
-        "--mixture",
-        type=str,
-        metavar="p",
-        default="gaussian",
+    aa('--task', type=str, default='odd-one-out',
+       choices=['odd-one-out', 'pair-matching'],
+       help='whether to perform an odd-one-out (no anchor) or pair-matching (anchor) triplet task')
+    aa("--n_objects", type=int, default=1854,
+        help="number of unique items/objects/stimuli in dataset")
+    aa("--init_dim", type=int, default=100,
+        help="initial dimensionality of the VICE latent space")
+    aa("--batch_size", metavar="B", type=int, default=128,
+        help="number of triplets in each mini-batch")
+    aa("--mixture", type=str, default="gaussian",
         choices=["gaussian", "laplace"],
-        help="whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior",
-    )
-    aa(
-        "--mc_samples",
-        type=int,
-        default=25,
+        help="whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior"
+    aa("--mc_samples", type=int, default=25,
         choices=[5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
-        help="number of samples to use for MC sampling at inference time",
-    )
-    aa("--results_dir", type=str, help="results directory (root directory for models)")
-    aa(
-        "--triplets_dir",
-        type=str,
-        help="directory from where to load validation and held-out test set",
-    )
+        help="number of weight samples to use for MC sampling at inference time")
+    aa("--results_dir", type=str,
+        help="results directory (root directory for models)")
+    aa("--triplets_dir", type=str, 
+        help="directory from where to load validation and held-out test set")
     aa("--device", type=str, default="cpu", choices=["cpu", "cuda"])
     aa("--rnd_seed", type=int, default=42, help="random seed for reproducibility")
     args = parser.parse_args()
@@ -96,10 +75,6 @@ def kld(p: Array, q: Array) -> Array:
     return entropy(p) + cross_entropy(p, q)
 
 
-def l1_distance(p: Array, q: Array) -> Array:
-    return np.linalg.norm(p - q, ord=1)
-
-
 def compute_divergences(human_pmfs: dict, model_pmfs: dict, metric: str) -> Array:
     assert len(human_pmfs) == len(
         model_pmfs
@@ -109,10 +84,8 @@ def compute_divergences(human_pmfs: dict, model_pmfs: dict, metric: str) -> Arra
         q = np.asarray(model_pmfs[triplet])
         if metric == "kld":
             div = kld(p, q)
-        elif metric == "cross-entropy":
-            div = cross_entropy(p, q)
         else:
-            div = l1_distance(p, q)
+            div = cross_entropy(p, q)
         divergences[i] += div
     return divergences
 
@@ -139,6 +112,7 @@ def pruning(
 
 def get_models(
     vice_paths: List[str],
+    task: str,
     mixture: str,
     n_objects: int,
     init_dim: int,
@@ -152,6 +126,7 @@ def get_models(
     for vice_path in vice_paths:
         seed = vice_path.split("/")[-1]
         vice = getattr(optimization, "VICE")(
+            task=task,
             n_train=None,
             n_objects=n_objects,
             init_dim=init_dim,
@@ -184,6 +159,7 @@ def get_models(
 
 
 def inference(
+    task: str,
     n_objects: int,
     init_dim: int,
     batch_size: int,
@@ -199,6 +175,7 @@ def inference(
     seeds, vice_models = zip(
         *get_models(
             vice_paths,
+            task,
             mixture,
             n_objects,
             init_dim,
@@ -292,27 +269,19 @@ def inference(
     cross_entropies = compute_divergences(
         human_pmfs, median_model_pmfs, metric="cross-entropy"
     )
-    l1_distances = compute_divergences(
-        human_pmfs, median_model_pmfs, metric="l1-distance"
-    )
 
     np.savetxt(os.path.join(out_path, "klds_median.txt"), klds)
     np.savetxt(os.path.join(out_path, "cross_entropies_median.txt"), cross_entropies)
-    np.savetxt(os.path.join(out_path, "l1_distances_median.txt"), l1_distances)
 
-    klds, cross_entropies, l1_distances = {}, {}, {}
+    klds, cross_entropies = {}, {}
     for seed, vice_pmfs in vice_pmfs_all.items():
         klds[seed] = np.mean(compute_divergences(human_pmfs, vice_pmfs, metric="kld"))
         cross_entropies[seed] = np.mean(
             compute_divergences(human_pmfs, vice_pmfs, metric="cross-entropy")
         )
-        l1_distances[seed] = np.mean(
-            compute_divergences(human_pmfs, vice_pmfs, metric="l1-distance")
-        )
 
     utils.pickle_file(klds, out_path, "klds_all")
     utils.pickle_file(cross_entropies, out_path, "cross_entropies_all")
-    utils.pickle_file(cross_entropies, out_path, "l1_distances_all")
 
 
 if __name__ == "__main__":
@@ -322,6 +291,7 @@ if __name__ == "__main__":
     np.random.seed(args.rnd_seed)
     device = torch.device(args.device)
     inference(
+        task=args.task,
         n_objects=args.n_objects,
         init_dim=args.init_dim,
         batch_size=args.batch_size,

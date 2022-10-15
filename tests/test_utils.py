@@ -28,7 +28,7 @@ class TripletLoadingTestCase(unittest.TestCase):
         with open(os.path.join(test_dir, test_file), 'wb') as f:
             np.save(f, test_triplets)
 
-    def test_loading(self):
+    def test_loading(self) -> None:
         triplets = helper.create_triplets()
         train_triplets_before, test_triplets_before = helper.create_train_test_split(triplets)
         self.save_triplets(train_triplets_before, test_triplets_before)
@@ -55,7 +55,7 @@ class TripletLoadingTestCase(unittest.TestCase):
 
 class CorrelationTestCase(unittest.TestCase):
 
-    def test_correlation(self):
+    def test_correlation(self) -> None:
         u = np.random.normal(loc=0., scale=1., size=(100,))
         v = np.random.normal(loc=0., scale=1., size=(100,))
         r = utils.pearsonr(u, v)

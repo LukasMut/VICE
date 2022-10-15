@@ -13,7 +13,7 @@ import helper
 
 from typing import Dict, Iterator, List
 
-
+Array = np.ndarray
 Tensor = torch.Tensor
 batch_size = 128
 test_dir = './test'
@@ -25,7 +25,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 class TripletLoadingTestCase(unittest.TestCase):
 
     @staticmethod
-    def save_triplets(train_triplets: np.ndarray, val_triplets: np.ndarray) -> None:
+    def save_triplets(train_triplets: Array, val_triplets: Array) -> None:
         if not os.path.exists(test_dir):
             os.mkdir(test_dir)
         with open(os.path.join(test_dir, train_file), 'wb') as f:

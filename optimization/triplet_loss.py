@@ -11,16 +11,16 @@ class TripletLoss(nn.Module):
         super(TripletLoss, self).__init__()
         self.temperature = temperature
 
-    def logsumexp(self, dots: Tuple[Tensor]) -> Tensor:
+    def logsumexp(self, dots: List[Tensor]) -> Tensor:
         return torch.log(
             torch.sum(torch.exp(torch.stack(dots) / self.temperature), dim=0)
         )
 
-    def log_softmax(self, dots: Tuple[Tensor]) -> Tensor:
+    def log_softmax(self, dots: List[Tensor]) -> Tensor:
         return dots[0] / self.temperature - self.logsumexp(dots)
 
-    def cross_entropy_loss(self, dots: Tuple[Tensor]) -> Tensor:
+    def cross_entropy_loss(self, dots: List[Tensor]) -> Tensor:
         return torch.mean(-self.log_softmax(dots))
 
-    def forward(self, dots: Tuple[Tensor]):
+    def forward(self, dots: List[Tensor]) -> Tensor:
         return self.cross_entropy_loss(dots)

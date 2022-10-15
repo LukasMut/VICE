@@ -19,17 +19,15 @@ def parseargs():
 
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
-    aa('--modality', type=str, default='behavioral',
-        help='define current modality (e.g., behavioral, visual, neural, text)')
     aa('--task', type=str, default='odd-one-out',
-       choices=['odd-one-out', 'pair-matching'],
-       help='whether to perform an odd-one-out (no anchor) or pair-matching (anchor) triplet task')
+       choices=['odd-one-out', 'target-matching'],
+       help='whether to perform an odd-one-out (3AFC) or target-matching (2AFC) triplet task')
     aa('--triplets_dir', type=str,
         help='directory from where to load triplets')
     aa('--results_dir', type=str, default='./results/',
-        help='optional specification of results directory (if not provided will resort to ./results/modality/init_dim/optim/mixture/seed/spike/slab/pi)')
+        help='optional specification of results directory (if not provided will resort to ./results/init_dim/optim/mixture/seed/spike/slab/pi)')
     aa('--plots_dir', type=str, default='./plots/',
-        help='optional specification of directory for plots (if not provided will resort to ./plots/modality/init_dim/optim/mixture/seed/spike/slab/pi)')
+        help='optional specification of directory for plots (if not provided will resort to ./plots/init_dim/optim/mixture/seed/spike/slab/pi)')
     aa('--epochs', metavar='T', type=int, default=2000,
         help='maximum number of epochs to run VICE optimization')
     aa('--burnin', type=int, default=500,
@@ -43,7 +41,7 @@ def parseargs():
     aa('--optim', type=str, default='adam',
         choices=['adam', 'adamw', 'sgd'],
         help='optimizer to train VICE')
-    aa('--mixture', type=str, metavar='p', default='gaussian',
+    aa('--mixture', type=str, default='gaussian',
         choices=['gaussian', 'laplace'],
         help='whether to use a Gaussian or Laplacian mixture for the spike-and-slab prior')
     aa('--mc_samples', type=int, default=10,
@@ -101,10 +99,10 @@ if __name__ == "__main__":
         device = torch.device(args.device)
 
     train.run(
-        modality=args.modality,
         results_dir=args.results_dir,
         plots_dir=args.plots_dir,
         triplets_dir=args.triplets_dir,
+        task=args.task,
         epochs=args.epochs,
         burnin=args.burnin,
         eta=args.eta,

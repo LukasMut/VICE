@@ -15,9 +15,10 @@ INIT_DIM = N_OBJECTS // 2
 k = 3
 
 Tensor = torch.Tensor
+Array = np.ndarray
 
 
-def get_hypers():
+def get_hypers() -> dict:
     hypers = {}
     hypers['N'] = N_TRIALS
     hypers['M'] = N_OBJECTS
@@ -38,11 +39,11 @@ def get_hypers():
     return hypers
           
 
-def softmax(z: np.ndarray) -> np.ndarray:
+def softmax(z: Array) -> Array:
     return np.exp(z) / np.sum(np.exp(z))
 
 
-def get_choice(S: np.ndarray, triplet: np.ndarray) -> np.ndarray:
+def get_choice(S: Array, triplet: Array) -> Array:
     combs = list(itertools.combinations(triplet, 2))
     sims = [S[comb[0], comb[1]] for comb in combs]
     probas = softmax(sims)
@@ -53,12 +54,12 @@ def get_choice(S: np.ndarray, triplet: np.ndarray) -> np.ndarray:
     return choice
 
 
-def random_choice(N: int, combs: np.ndarray):
+def random_choice(N: int, combs: Array) -> Array:
     random_sample = np.random.choice(combs.shape[0], size=N, replace=False)
     return combs[random_sample]
 
 
-def create_triplets(N: int=N_TRIALS, M: int=N_OBJECTS, P: int=INIT_DIM, k: int=k) -> np.ndarray:
+def create_triplets(N: int=N_TRIALS, M: int=N_OBJECTS, P: int=INIT_DIM, k: int=k) -> Array:
     """Create synthetic triplet data."""
     X = np.random.randn(M, P)
     S = X @ X.T
@@ -71,8 +72,8 @@ def create_triplets(N: int=N_TRIALS, M: int=N_OBJECTS, P: int=INIT_DIM, k: int=k
     return triplets
 
 
-def create_train_test_split(triplets: np.ndarray, train_frac: float=.8,
-) -> Tuple[np.ndarray, np.ndarray]:
+def create_train_test_split(triplets: Array, train_frac: float=.8,
+) -> Tuple[Array, Array]:
     """Split triplet data into train and test splits."""
     N = triplets.shape[0]
     rnd_perm = np.random.permutation(N)

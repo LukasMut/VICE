@@ -39,6 +39,7 @@ class Mu(nn.Module):
 class VICE(Trainer):
     def __init__(
         self,
+        task: str,
         n_train: int,
         n_objects: int,
         init_dim: int,
@@ -60,9 +61,9 @@ class VICE(Trainer):
         device: torch.device,
         verbose: bool = False,
         init_weights: bool = True,
-        bias: bool = False,
     ):
         super(VICE, self).__init__(
+            task=task,
             n_train=n_train,
             n_objects=n_objects,
             init_dim=init_dim,
@@ -84,8 +85,8 @@ class VICE(Trainer):
             device=device,
             verbose=verbose,
         )
-        self.mu = Mu(n_objects, init_dim, bias)
-        self.sigma = Sigma(n_objects, init_dim, bias)
+        self.mu = Mu(n_objects=n_objects, init_dim=init_dim, bias=False)
+        self.sigma = Sigma(n_objects=n_objects, init_dim=init_dim, bias=False)
 
         if init_weights:
             self._initialize_weights()

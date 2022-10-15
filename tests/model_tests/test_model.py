@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from typing import Any
 from data import TripletData
 
+TASKS = ["odd-one-out", "target-matching"]
 batch_size = 128
 test_dir = "./test"
 model_dir = os.path.join(test_dir, "model")
@@ -33,8 +34,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class VICETestCase(unittest.TestCase):
-    def get_model(self, hypers: dict):
+    def get_model(self, hypers: dict, task: str) -> object:
         vice = getattr(optimization, "VICE")(
+            task=task,
             n_train=hypers["N"],
             n_objects=hypers["M"],
             init_dim=hypers["P"],
@@ -60,161 +62,165 @@ class VICETestCase(unittest.TestCase):
         vice.to(device)
         return vice
 
-    def test_attributes(self):
-        vice = self.get_model(hypers)
-        self.assertTrue(issubclass(getattr(optimization, "Trainer"), nn.Module))
-        self.assertTrue(hasattr(vice, "cuda" if torch.cuda.is_available() else "cpu"))
+    def test_attributes(self) -> None:
+        for task in TASKS:
+            vice = self.get_model(hypers, task)
+            self.assertTrue(issubclass(getattr(optimization, "Trainer"), nn.Module))
+            self.assertTrue(hasattr(vice, "cuda" if torch.cuda.is_available() else "cpu"))
 
-        self.assertTrue(hasattr(vice, "mu"))
-        self.assertTrue(hasattr(vice, "sigma"))
-        self.assertTrue(vice.mixture, "gaussian")
+            self.assertTrue(hasattr(vice, "mu"))
+            self.assertTrue(hasattr(vice, "sigma"))
+            self.assertTrue(vice.mixture, "gaussian")
 
-        self.assertEqual(len(torch.unique(vice.sigma.logsigma.weight.data)), 1)
+            self.assertEqual(len(torch.unique(vice.sigma.logsigma.weight.data)), 1)
 
-        self.assertTrue(vice.sigma.logsigma.weight.data.sum() < 0.0)
-        self.assertTrue(vice.sigma.logsigma.weight.data.exp().min() >= 0.0)
+            self.assertTrue(vice.sigma.logsigma.weight.data.sum() < 0.0)
+            self.assertTrue(vice.sigma.logsigma.weight.data.exp().min() >= 0.0)
 
-        self.assertEqual(vice.mu.mu.in_features, vice.sigma.logsigma.in_features, M)
+            self.assertEqual(vice.mu.mu.in_features, vice.sigma.logsigma.in_features, M)
 
-        self.assertEqual(
-            vice.mu.mu.out_features, vice.sigma.logsigma.out_features, int(M / 2)
-        )
-
-    def test_output(self):
-        vice = self.get_model(hypers)
-        triplets = TripletData(
-            triplets=subsample,
-            n_objects=M,
+            self.assertEqual(
+                vice.mu.mu.out_features, vice.sigma.logsigma.out_features, int(M / 2)
             )
-        batches = utils.get_batches(
-            triplets=triplets,
-            batch_size=batch_size,
-            train=False,
-        )
-        for batch in batches:
-            self.assertEqual(batch.shape, (batch_size, 3, M))
-            out = vice(batch)
-            self.assertEqual(len(out), 4)
-            z, W_mu, W_sigma, W_sample = out
-            self.assertTrue(z.min() >= 0.0)
-            self.assertTrue(W_sigma.min() >= 0.0)
-            self.assertEqual(W_mu.shape, W_sigma.shape, W_sample.shape)
-            self.assertEqual(z.shape, (batch_size, 3, int(M / 2)))
+
+    def test_output(self) -> None:
+        for task in TASKS:
+            vice = self.get_model(hypers, task)
+            triplets = TripletData(
+                triplets=subsample,
+                n_objects=M,
+                )
+            batches = utils.get_batches(
+                triplets=triplets,
+                batch_size=batch_size,
+                train=False,
+            )
+            for batch in batches:
+                self.assertEqual(batch.shape, (batch_size, 3, M))
+                out = vice(batch)
+                self.assertEqual(len(out), 4)
+                z, W_mu, W_sigma, W_sample = out
+                self.assertTrue(z.min() >= 0.0)
+                self.assertTrue(W_sigma.min() >= 0.0)
+                self.assertEqual(W_mu.shape, W_sigma.shape, W_sample.shape)
+                self.assertEqual(z.shape, (batch_size, 3, int(M / 2)))
 
     def test_properties(self) -> None:
-        vice = self.get_model(hypers)
-        self.assertEqual(vice.n_train, hypers["N"])
-        self.assertEqual(vice.n_objects, hypers["M"])
-        self.assertEqual(vice.init_dim, hypers["P"])
-        self.assertEqual(vice.optim, hypers["optim"])
-        self.assertEqual(vice.eta, hypers["eta"])
-        self.assertEqual(vice.batch_size, hypers["batch_size"])
-        self.assertEqual(vice.epochs, hypers["epochs"])
-        self.assertEqual(vice.mc_samples, hypers["mc_samples"])
-        self.assertEqual(vice.mixture, hypers["mixture"])
-        self.assertEqual(vice.spike, hypers["spike"])
-        self.assertEqual(vice.slab, hypers["slab"])
-        self.assertEqual(vice.pi, hypers["pi"])
-        self.assertEqual(vice.steps, hypers["steps"])
-        self.assertEqual(vice.device, device)
-        self.assertTrue(vice.verbose)
+        for task in TASKS:
+            vice = self.get_model(hypers, task)
+            self.assertEqual(vice.n_train, hypers["N"])
+            self.assertEqual(vice.n_objects, hypers["M"])
+            self.assertEqual(vice.init_dim, hypers["P"])
+            self.assertEqual(vice.optim, hypers["optim"])
+            self.assertEqual(vice.eta, hypers["eta"])
+            self.assertEqual(vice.batch_size, hypers["batch_size"])
+            self.assertEqual(vice.epochs, hypers["epochs"])
+            self.assertEqual(vice.mc_samples, hypers["mc_samples"])
+            self.assertEqual(vice.mixture, hypers["mixture"])
+            self.assertEqual(vice.spike, hypers["spike"])
+            self.assertEqual(vice.slab, hypers["slab"])
+            self.assertEqual(vice.pi, hypers["pi"])
+            self.assertEqual(vice.steps, hypers["steps"])
+            self.assertEqual(vice.device, device)
+            self.assertTrue(vice.verbose)
 
-        self.assertTrue(hasattr(vice, "spike_and_slab"))
-        self.assertTrue(hasattr(vice.spike_and_slab, "loc"))
-        self.assertTrue(hasattr(vice.spike_and_slab, "scale_spike"))
-        self.assertTrue(hasattr(vice.spike_and_slab, "scale_slab"))
+            self.assertTrue(hasattr(vice, "spike_and_slab"))
+            self.assertTrue(hasattr(vice.spike_and_slab, "loc"))
+            self.assertTrue(hasattr(vice.spike_and_slab, "scale_spike"))
+            self.assertTrue(hasattr(vice.spike_and_slab, "scale_slab"))
 
-        np.testing.assert_allclose(
-            vice.spike_and_slab.loc, torch.zeros(hypers["M"], hypers["P"]).to(device)
-        )
-        np.testing.assert_allclose(
-            vice.spike_and_slab.scale_spike,
-            torch.ones(hypers["M"], hypers["P"]).mul(hypers["spike"]).to(device),
-        )
-        np.testing.assert_allclose(
-            vice.spike_and_slab.scale_slab,
-            torch.ones(hypers["M"], hypers["P"]).mul(hypers["slab"]).to(device),
-        )
+            np.testing.assert_allclose(
+                vice.spike_and_slab.loc, torch.zeros(hypers["M"], hypers["P"]).to(device)
+            )
+            np.testing.assert_allclose(
+                vice.spike_and_slab.scale_spike,
+                torch.ones(hypers["M"], hypers["P"]).mul(hypers["spike"]).to(device),
+            )
+            np.testing.assert_allclose(
+                vice.spike_and_slab.scale_slab,
+                torch.ones(hypers["M"], hypers["P"]).mul(hypers["slab"]).to(device),
+            )
 
-        params = vice.detached_params
-        np.testing.assert_allclose(
-            params["loc"], vice.mu.mu.weight.data.T.cpu().numpy()
-        )
-        np.testing.assert_allclose(
-            params["scale"], vice.sigma.logsigma.weight.data.T.exp().cpu().numpy()
-        )
+            params = vice.detached_params
+            np.testing.assert_allclose(
+                params["loc"], vice.mu.mu.weight.data.T.cpu().numpy()
+            )
+            np.testing.assert_allclose(
+                params["scale"], vice.sigma.logsigma.weight.data.T.exp().cpu().numpy()
+            )
 
     def test_optimization(self) -> None:
-        vice = self.get_model(hypers)
-        # get detached model parameters at initilization / start of training
-        params_init = copy.deepcopy(vice.detached_params)
-        # create triplet data
-        train_triplets, val_triplets = helper.create_train_test_split(triplets)
+        for task in TASKS:
+            vice = self.get_model(hypers, task)
+            # get detached model parameters at initilization / start of training
+            params_init = copy.deepcopy(vice.detached_params)
+            # create triplet data
+            train_triplets, val_triplets = helper.create_train_test_split(triplets)
 
-        train_triplets = TripletData(
-        triplets=train_triplets,
-        n_objects=hypers["M"],
-        )
-        val_triplets = TripletData(
-            triplets=val_triplets,
-            n_objects=hypers["M"],
-        )
-        train_batches = utils.get_batches(
+            train_triplets = TripletData(
             triplets=train_triplets,
-            batch_size=hypers["batch_size"],
-            train=True,
-        )
-        val_batches = utils.get_batches(
-            triplets=val_triplets,
-            batch_size=hypers["batch_size"],
-            train=False,
-        )
+            n_objects=hypers["M"],
+            )
+            val_triplets = TripletData(
+                triplets=val_triplets,
+                n_objects=hypers["M"],
+            )
+            train_batches = utils.get_batches(
+                triplets=train_triplets,
+                batch_size=hypers["batch_size"],
+                train=True,
+            )
+            val_batches = utils.get_batches(
+                triplets=val_triplets,
+                batch_size=hypers["batch_size"],
+                train=False,
+            )
 
-        vice.fit(train_batches=train_batches, val_batches=val_batches)
+            vice.fit(train_batches=train_batches, val_batches=val_batches)
 
-        # get model paramters after optimization / end of training
-        params_opt = copy.deepcopy(vice.detached_params)
+            # get model paramters after optimization / end of training
+            params_opt = copy.deepcopy(vice.detached_params)
 
-        # check whether model parameters have changed during optimization
-        self.assertTrue(
-            self.assert_difference(params_init["loc"], params_opt["loc"]))
-        self.assertTrue(
-            self.assert_difference(params_init["scale"], params_opt["scale"])
-        )
+            # check whether model parameters have changed during optimization
+            self.assertTrue(
+                self.assert_difference(params_init["loc"], params_opt["loc"]))
+            self.assertTrue(
+                self.assert_difference(params_init["scale"], params_opt["scale"])
+            )
 
-        val_loss, val_acc = vice.evaluate(val_batches)
+            val_loss, val_acc = vice.evaluate(val_batches)
 
-        self.assertTrue(type(val_loss) == float)
-        self.assertTrue(type(val_acc) == float)
-        self.assertTrue(val_loss < np.log(3))
-        self.assertTrue(val_acc > 1 / 3)
+            self.assertTrue(type(val_loss) == float)
+            self.assertTrue(type(val_acc) == float)
+            self.assertTrue(val_loss < np.log(3))
+            self.assertTrue(val_acc > 1 / 3)
 
-        vice.fit(train_batches=train_batches, val_batches=val_batches)
-        # examine whether model parameters haven't changed after loading from checkpoint
-        np.testing.assert_allclose(params_opt["loc"], vice.detached_params["loc"])
-        np.testing.assert_allclose(params_opt["scale"], vice.detached_params["scale"])
+            vice.fit(train_batches=train_batches, val_batches=val_batches)
+            # examine whether model parameters haven't changed after loading from checkpoint
+            np.testing.assert_allclose(params_opt["loc"], vice.detached_params["loc"])
+            np.testing.assert_allclose(params_opt["scale"], vice.detached_params["scale"])
 
-        hypers["epochs"] *= 2
-        vice = self.get_model(hypers)
-        vice.fit(train_batches=train_batches, val_batches=val_batches)
-        self.assertTrue(
-            self.assert_difference(params_opt["loc"], vice.detached_params["loc"])
-        )
-        self.assertTrue(
-            self.assert_difference(params_opt["scale"], vice.detached_params["scale"])
-        )
+            hypers["epochs"] *= 2
+            vice = self.get_model(hypers)
+            vice.fit(train_batches=train_batches, val_batches=val_batches)
+            self.assertTrue(
+                self.assert_difference(params_opt["loc"], vice.detached_params["loc"])
+            )
+            self.assertTrue(
+                self.assert_difference(params_opt["scale"], vice.detached_params["scale"])
+            )
 
-        # get pruned model params after optimization
-        pruned_params = vice.pruned_params
-        pruned_loc = pruned_params["pruned_loc"]
-        pruned_scale = pruned_params["pruned_scale"]
+            # get pruned model params after optimization
+            pruned_params = vice.pruned_params
+            pruned_loc = pruned_params["pruned_loc"]
+            pruned_scale = pruned_params["pruned_scale"]
 
-        self.assertTrue(isinstance(pruned_params, dict))
-        self.assertTrue(isinstance(pruned_loc, np.ndarray))
-        self.assertTrue(isinstance(pruned_scale, np.ndarray))
+            self.assertTrue(isinstance(pruned_params, dict))
+            self.assertTrue(isinstance(pruned_loc, np.ndarray))
+            self.assertTrue(isinstance(pruned_scale, np.ndarray))
 
-        self.assertTrue(pruned_loc.shape[1] <= params_opt['loc'].shape[1])
-        self.assertTrue(pruned_scale.shape[1] <= params_opt['scale'].shape[1])
+            self.assertTrue(pruned_loc.shape[1] <= params_opt['loc'].shape[1])
+            self.assertTrue(pruned_scale.shape[1] <= params_opt['scale'].shape[1])
 
     @staticmethod
     def assert_difference(A: np.ndarray, B: np.ndarray) -> bool:

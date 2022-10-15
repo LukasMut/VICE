@@ -11,8 +11,8 @@ import torch.nn.functional as F
 
 from .trainer import Trainer
 
-Array = Any
-Tensor = Any
+Array = np.ndarray
+Tensor = torch.Tensor
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 
 
@@ -61,7 +61,7 @@ class VICE(Trainer):
         device: torch.device,
         verbose: bool = False,
         init_weights: bool = True,
-    ):
+    ) -> None:
         super(VICE, self).__init__(
             task=task,
             n_train=n_train,

@@ -19,8 +19,8 @@ import utils
 from .priors import SpikeandSlab
 from .triplet_loss import TripletLoss
 
-Array = Any
-Tensor = Any
+Array = np.ndarray
+Tensor = torch.Tensor
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 
 

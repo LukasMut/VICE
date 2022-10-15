@@ -226,7 +226,7 @@ class Trainer(nn.Module):
     def mc_sampling(self, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """Perform Monte Carlo sampling over the variational posterior q_{theta}(X)."""
         sampled_probas = torch.zeros(
-            self.mc_samples, batch.shape[0], 3
+            self.mc_samples, batch.shape[0], 3 if self.task == 'odd-one-out' else 2
         ).to(self.device)
         sampled_choices = torch.zeros(self.mc_samples, batch.shape[0]).to(
             self.device
@@ -265,7 +265,7 @@ class Trainer(nn.Module):
         test_batches: Iterator,
     ) -> Tuple[float, float, Array, Dict[tuple, list]]:
         """Perform inference on a held-out test set (may contain repeats)."""
-        probas = torch.zeros(int(len(test_batches) * self.batch_size), 3)
+        probas = torch.zeros(int(len(test_batches) * self.batch_size), 3 if self.task == 'odd-one-out' else 2)
         triplet_choices = []
         model_choices = defaultdict(list)
         self.eval()

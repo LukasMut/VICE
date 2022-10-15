@@ -196,12 +196,15 @@ class VICETestCase(unittest.TestCase):
             self.assertTrue(val_acc > 1 / 3)
 
             vice.fit(train_batches=train_batches, val_batches=val_batches)
+
+            # get model paramters after optimization / end of training
+            params_opt = copy.deepcopy(vice.detached_params)
             # examine whether model parameters haven't changed after loading from checkpoint
             np.testing.assert_allclose(params_opt["loc"], vice.detached_params["loc"])
             np.testing.assert_allclose(params_opt["scale"], vice.detached_params["scale"])
 
             hypers["epochs"] *= 2
-            vice = self.get_model(hypers)
+            vice = self.get_model(hypers, task)
             vice.fit(train_batches=train_batches, val_batches=val_batches)
             self.assertTrue(
                 self.assert_difference(params_opt["loc"], vice.detached_params["loc"])

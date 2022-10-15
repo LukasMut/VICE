@@ -1,4 +1,4 @@
-from .vice import VICE
+from .priors import SpikeandSlab
 from .trainer import Trainer
 from .triplet_loss import TripletLoss
-from .priors import SpikeandSlab
+from .vice import VICE

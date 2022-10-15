@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
-from typing import Any, Dict, Tuple
+from typing import Dict, Tuple
 
 import numpy as np
 import torch

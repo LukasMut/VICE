@@ -6,7 +6,6 @@ import json
 import os
 import warnings
 from collections import defaultdict
-
 # from functorch import vmap
 from typing import Any, Dict, Iterator, List, Tuple
 
@@ -14,6 +13,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 import utils
 
 from .priors import SpikeandSlab
@@ -159,7 +159,7 @@ class Trainer(nn.Module):
         sim_i = torch.sum(anchor * positive, dim=1)
         sim_j = torch.sum(anchor * negative, dim=1)
         sims = [sim_i, sim_j]
-        if self.task == 'odd-one-out':
+        if self.task == "odd-one-out":
             sim_k = torch.sum(positive * negative, dim=1)
             sims.append(sim_k)
         return sims
@@ -226,11 +226,9 @@ class Trainer(nn.Module):
     def mc_sampling(self, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """Perform Monte Carlo sampling over the variational posterior q_{theta}(X)."""
         sampled_probas = torch.zeros(
-            self.mc_samples, batch.shape[0], 3 if self.task == 'odd-one-out' else 2
+            self.mc_samples, batch.shape[0], 3 if self.task == "odd-one-out" else 2
         ).to(self.device)
-        sampled_choices = torch.zeros(self.mc_samples, batch.shape[0]).to(
-            self.device
-        )
+        sampled_choices = torch.zeros(self.mc_samples, batch.shape[0]).to(self.device)
         for k in range(self.mc_samples):
             logits, _, _, _ = self.forward(batch)
             anchor, positive, negative = self.unbind(logits)
@@ -265,7 +263,10 @@ class Trainer(nn.Module):
         test_batches: Iterator,
     ) -> Tuple[float, float, Array, Dict[tuple, list]]:
         """Perform inference on a held-out test set (may contain repeats)."""
-        probas = torch.zeros(int(len(test_batches) * self.batch_size), 3 if self.task == 'odd-one-out' else 2)
+        probas = torch.zeros(
+            int(len(test_batches) * self.batch_size),
+            3 if self.task == "odd-one-out" else 2,
+        )
         triplet_choices = []
         model_choices = defaultdict(list)
         self.eval()

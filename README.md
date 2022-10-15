@@ -20,7 +20,7 @@
 
 ## Citation
 
-If you use this GitHub repository (or any modules associated with it), we would appreciate to cite our arXiv [preprint](https://arxiv.org/abs/2205.00756) as follows:
+If you use this GitHub repository (or any modules associated with it), we would appreciate to cite our NeurIPS [publication](https://arxiv.org/abs/2205.00756) as follows:
 
 ```latex
 @article{Muttenthaler2022,

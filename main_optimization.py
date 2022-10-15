@@ -21,6 +21,9 @@ def parseargs():
         parser.add_argument(*args, **kwargs)
     aa('--modality', type=str, default='behavioral',
         help='define current modality (e.g., behavioral, visual, neural, text)')
+    aa('--task', type=str, default='odd-one-out',
+       choices=['odd-one-out', 'pair-matching'],
+       help='whether to perform an odd-one-out (no anchor) or pair-matching (anchor) triplet task')
     aa('--triplets_dir', type=str,
         help='directory from where to load triplets')
     aa('--results_dir', type=str, default='./results/',

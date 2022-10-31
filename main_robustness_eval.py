@@ -28,7 +28,7 @@ def parseargs():
         parser.add_argument(*args, **kwargs)
 
     aa('--task', type=str, default='odd-one-out',
-       choices=['odd-one-out', 'pair-matching'],
+       choices=['odd-one-out', 'target-matching'],
        help='whether to perform an odd-one-out (no anchor) or pair-matching (anchor) triplet task')
     aa("--results_dir", type=str, help="results directory (root directory for models)")
     aa("--n_objects", type=int,

@@ -29,7 +29,7 @@ def parseargs():
         parser.add_argument(*args, **kwargs)
 
     aa('--task', type=str, default='odd-one-out',
-       choices=['odd-one-out', 'pair-matching'],
+       choices=['odd-one-out', 'target-matching'],
        help='whether to perform an odd-one-out (no anchor) or pair-matching (anchor) triplet task')
     aa("--n_objects", type=int, default=1854,
         help="number of unique items/objects/stimuli in dataset")

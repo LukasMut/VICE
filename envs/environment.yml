@@ -22,6 +22,7 @@ dependencies:
  - pip
  - pip:
    - functorch==0.1.*
+   - torchtyping 
    - pyflakes
    - codecov
    - black

@@ -8,11 +8,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchtyping import TensorType
 
 from .trainer import Trainer
 
 Array = np.ndarray
-Tensor = torch.Tensor
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 
 
@@ -21,7 +21,7 @@ class Sigma(nn.Module):
         super(Sigma, self).__init__()
         self.logsigma = nn.Linear(n_objects, init_dim, bias=bias)
 
-    def forward(self) -> Tensor:
+    def forward(self) -> TensorType["m", "d"]:
         return self.logsigma.weight.T.exp()
 
 
@@ -32,7 +32,7 @@ class Mu(nn.Module):
         # initialize means
         nn.init.kaiming_normal_(self.mu.weight, mode="fan_out", nonlinearity="relu")
 
-    def forward(self) -> Tensor:
+    def forward(self) -> TensorType["m", "d"]:
         return self.mu.weight.T
 
 
@@ -92,12 +92,21 @@ class VICE(Trainer):
             self._initialize_weights()
 
     @staticmethod
-    def reparameterize(loc: Tensor, scale: Tensor) -> Tensor:
+    def reparameterize(
+        loc: TensorType["m", "d"], scale: TensorType["m", "d"]
+    ) -> TensorType["m", "d"]:
         """Apply reparameterization trick."""
         eps = scale.data.new(scale.size()).normal_()
         return eps.mul(scale).add(loc)
 
-    def forward(self, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def forward(
+        self, batch: TensorType["b", "k", "m"]
+    ) -> Tuple[
+        TensorType["b", "k", "d"],
+        TensorType["m", "d"],
+        TensorType["m", "d"],
+        TensorType["m", "d"],
+    ]:
         mu = self.mu()
         sigma = self.sigma()
         X = self.reparameterize(mu, sigma)

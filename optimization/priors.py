@@ -2,8 +2,7 @@ import math
 
 import torch
 import torch.nn as nn
-
-Tensor = torch.Tensor
+from torchtyping import TensorType
 
 
 class SpikeandSlab(nn.Module):
@@ -29,7 +28,9 @@ class SpikeandSlab(nn.Module):
         self.initialize_priors_()
 
     @staticmethod
-    def norm_pdf(X: Tensor, loc: Tensor, scale: Tensor) -> Tensor:
+    def norm_pdf(
+        X: TensorType["m", "d"], loc: TensorType["m", "d"], scale: TensorType["m", "d"]
+    ) -> TensorType["m", "d"]:
         """Probability density function of a normal distribution."""
         return (
             torch.exp(-((X - loc) ** 2) / (2 * scale.pow(2)))
@@ -38,11 +39,13 @@ class SpikeandSlab(nn.Module):
         )
 
     @staticmethod
-    def laplace_pdf(X: Tensor, loc: Tensor, scale: Tensor) -> Tensor:
+    def laplace_pdf(
+        X: TensorType["m", "d"], loc: TensorType["m", "d"], scale: TensorType["m", "d"]
+    ) -> TensorType["m", "d"]:
         """Probability density function of a laplace distribution."""
         return torch.exp(-(X - loc).abs() / scale) / scale.mul(2.0)
 
-    def forward(self, X: Tensor) -> Tensor:
+    def forward(self, X: TensorType["m", "d"]) -> TensorType["m", "d"]:
         spike = self.pi * self.pdf(X, self.loc, self.scale_spike)
         slab = (1 - self.pi) * self.pdf(X, self.loc, self.scale_slab)
         return spike + slab

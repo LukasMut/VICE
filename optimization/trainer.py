@@ -7,12 +7,13 @@ import os
 import warnings
 from collections import defaultdict
 # from functorch import vmap
-from typing import Any, Dict, Iterator, List, Tuple
+from typing import Any, Dict, Iterator, List, Tuple, Union
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchtyping import TensorType
 
 import utils
 
@@ -151,10 +152,13 @@ class Trainer(nn.Module):
 
     def compute_similarities(
         self,
-        anchor: Tensor,
-        positive: Tensor,
-        negative: Tensor,
-    ) -> Tuple[Tensor, Tensor, Tensor]:
+        anchor: TensorType["b", "d"],
+        positive: TensorType["b", "d"],
+        negative: TensorType["b", "d"],
+    ) -> Union[
+        Tuple[TensorType["b"], TensorType["b"], TensorType["b"]],
+        Tuple[TensorType["b"], TensorType["b"]],
+    ]:
         """Apply the similarity function (modeled as a dot product) to each pair in the triplet."""
         sim_i = torch.sum(anchor * positive, dim=1)
         sim_j = torch.sum(anchor * negative, dim=1)
@@ -165,7 +169,7 @@ class Trainer(nn.Module):
         return sims
 
     @staticmethod
-    def break_ties(probas: Tensor) -> Tensor:
+    def break_ties(probas: TensorType["b", "k"]) -> TensorType["b"]:
         return torch.tensor(
             [
                 -1 if torch.unique(pmf).shape[0] != pmf.shape[0] else torch.argmax(pmf)
@@ -173,26 +177,30 @@ class Trainer(nn.Module):
             ]
         )
 
-    def accuracy_(self, probas: Tensor, batching: bool = True) -> Tensor:
+    def accuracy_(
+        self, probas: TensorType["b", "k"], batching: bool = True
+    ) -> TensorType["1"]:
         choices = self.break_ties(probas)
         argmax = np.where(choices == 0, 1, 0)
         acc = argmax.mean() if batching else argmax.tolist()
         return acc
 
     @staticmethod
-    def sumexp(sims: List[Tensor]) -> Tensor:
+    def sumexp(sims: List[TensorType["b"]]) -> TensorType["b"]:
         return torch.sum(torch.exp(torch.stack(sims)), dim=0)
 
-    def softmax(self, sims: List[Tensor]) -> Tensor:
+    def softmax(self, sims: List[TensorType["b"]]) -> TensorType["b"]:
         return torch.exp(sims[0]) / self.sumexp(sims)
 
-    def choice_accuracy(self, similarities: List[Tensor]) -> float:
+    def choice_accuracy(self, similarities: List[TensorType["b"]]) -> float:
         probas = F.softmax(torch.stack(similarities, dim=-1), dim=1)
         choice_acc = self.accuracy_(probas)
         return choice_acc
 
     @staticmethod
-    def unbind(logits: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def unbind(
+        logits: TensorType["b", "k", "d"]
+    ) -> Tuple[TensorType["b", "d"], TensorType["b", "d"], TensorType["b", "d"]]:
         return torch.unbind(torch.reshape(logits, (-1, 3, logits.shape[-1])), dim=1)
 
     def pruning(
@@ -223,7 +231,9 @@ class Trainer(nn.Module):
         return False
 
     @torch.no_grad()
-    def mc_sampling(self, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def mc_sampling(
+        self, batch: TensorType["bk", "m"]
+    ) -> Tuple[TensorType["1"], TensorType["1"], TensorType["b"], TensorType["b"]]:
         """Perform Monte Carlo sampling over the variational posterior q_{theta}(X)."""
         sampled_probas = torch.zeros(
             self.mc_samples, batch.shape[0], 3 if self.task == "odd-one-out" else 2
@@ -244,7 +254,9 @@ class Trainer(nn.Module):
         val_loss = torch.mean(-torch.log(soft_choices))
         return val_acc, val_loss, probas, hard_choices
 
-    def evaluate(self, val_batches: Iterator) -> Tuple[float, float]:
+    def evaluate(
+        self, val_batches: Iterator
+    ) -> Tuple[TensorType["1"], TensorType["1"]]:
         """Evaluate model on the validation set."""
         self.eval()
         batch_losses_val = torch.zeros(len(val_batches))
@@ -261,7 +273,7 @@ class Trainer(nn.Module):
     def inference(
         self,
         test_batches: Iterator,
-    ) -> Tuple[float, float, Array, Dict[tuple, list]]:
+    ) -> Tuple[TensorType["1"], TensorType["1"], Array, Dict[tuple, list]]:
         """Perform inference on a held-out test set (may contain repeats)."""
         probas = torch.zeros(
             int(len(test_batches) * self.batch_size),
@@ -306,7 +318,7 @@ class Trainer(nn.Module):
     def stepping(
         self,
         train_batches: Iterator,
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    ) -> Tuple[TensorType["B"], TensorType["B"], TensorType["B"], TensorType["B"]]:
         """Step over the full training data in mini-batches of size B and perform SGD."""
         batch_llikelihoods = torch.zeros(len(train_batches))
         batch_closses = torch.zeros(len(train_batches))

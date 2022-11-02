@@ -21,6 +21,8 @@ os.environ["PYTHONIOENCODING"] = "UTF-8"
 os.environ["OMP_NUM_THREADS"] = "1"
 
 
+Array = np.ndarray
+
 def parseargs():
     parser = argparse.ArgumentParser()
 
@@ -59,20 +61,20 @@ def parseargs():
     return args
 
 
-def avg_ndims(Ws_mu: list) -> np.ndarray:
+def avg_ndims(Ws_mu: list) -> Array:
     return np.ceil(np.mean(list(map(lambda w: min(w.shape), Ws_mu))))
 
 
-def std_ndims(Ws_mu: list) -> np.ndarray:
+def std_ndims(Ws_mu: list) -> Array:
     return np.std(list(map(lambda w: min(w.shape), Ws_mu)))
 
 
-def robustness(corrs: np.ndarray, thresh: float) -> float:
+def robustness(corrs: Array, thresh: float) -> float:
     return len(corrs[corrs > thresh]) / len(corrs)
 
 
 def uncertainty_estimates(
-    W_sigma: np.ndarray, sorted_dims: np.ndarray, rel_freq: float
+    W_sigma: Array, sorted_dims: Array, rel_freq: float
 ) -> float:
     W_sigma_mean = np.mean(W_sigma, axis=0)
     assert len(W_sigma_mean) == min(W_sigma.shape)
@@ -84,7 +86,7 @@ def uncertainty_estimates(
         return 0
 
 
-def compare_dimensions(Ws_mu: list, thresh: float, Ws_sigma=None) -> Tuple[np.ndarray]:
+def compare_dimensions(Ws_mu: list, thresh: float, Ws_sigma=None) -> Tuple[Array]:
     N = max(Ws_mu[0].shape)
     rnd_perm = np.random.permutation(N)
     train_indices = rnd_perm[: int(N * 0.8)]
@@ -126,16 +128,16 @@ def compare_dimensions(Ws_mu: list, thresh: float, Ws_sigma=None) -> Tuple[np.nd
 
 
 def estimate_redundancy_(Ws_mu: list) -> Tuple[float, float]:
-    def cosine(u: np.ndarray, v: np.ndarray) -> float:
+    def cosine(u: Array, v: Array) -> float:
         return (u @ v) / (np.sqrt(u @ u) * np.sqrt(v @ v))
 
-    def get_redundant_pairs(W: np.ndarray, thresh: float = 0.9) -> int:
+    def get_redundant_pairs(W: Array, thresh: float = 0.9) -> int:
         w_combs = list(itertools.combinations(W, 2))
         cosine_sims = np.array([cosine(w_i, w_j) for (w_i, w_j) in w_combs])
         n_redundant_pairs = np.where(cosine_sims > thresh, 1, 0).sum()
         return n_redundant_pairs
 
-    def get_redundant_dims(W: np.ndarray, thresh: float = 0.9) -> int:
+    def get_redundant_dims(W: Array, thresh: float = 0.9) -> int:
         n_redundant_dims = 0
         for i, w_i in enumerate(W):
             for j, w_j in enumerate(W):
@@ -181,7 +183,7 @@ def get_model_paths(PATH: str) -> List[str]:
     return paths
 
 
-def prune_weights(model: optimization.VICE, indices: np.ndarray) -> optimization.VICE:
+def prune_weights(model: optimization.VICE, indices: Array) -> optimization.VICE:
     for p in model.parameters():
         p.data = p.data[torch.from_numpy(indices)]
     return model
@@ -191,7 +193,7 @@ def pruning(
     model: optimization.VICE,
     alpha: float = 0.05,
     k: int = 5,
-) -> Tuple[torch.Tensor, torch.Tensor, optimization.VICE]:
+) -> Tuple[Array, Array, Array, optimization.VICE]:
     params = model.detached_params
     loc = params["loc"]
     scale = params["scale"]
@@ -309,7 +311,7 @@ if __name__ == "__main__":
     np.random.seed(args.rnd_seed)
     evaluate_models(
         results_dir=args.results_dir,
-        task=task,
+        task=args.task,
         n_objects=args.n_objects,
         init_dim=args.init_dim,
         optim=args.optim,

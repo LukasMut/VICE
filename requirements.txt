@@ -1,4 +1,4 @@
-torch==1.11.*
+torch==1.12.*
 numpy>=1.21
 pandas==1.0.*
 matplotlib==3.2.*
@@ -9,7 +9,7 @@ numba==0.53.*
 seaborn==0.11.*
 scikit-learn==0.24.2
 statsmodels==0.12.*
-functorch==0.1.*
+functorch==0.2.*
 torchtyping
 h5py
 regex

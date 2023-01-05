@@ -172,7 +172,7 @@ class Trainer(nn.Module):
     def break_ties(probas: TensorType["b", "k"]) -> TensorType["b"]:
         return torch.tensor(
             [
-                -1 if torch.unique(pmf).shape[0] != pmf.shape[0] else torch.argmax(pmf)
+                -1 if torch.unique(pmf.round(decimals=2)).shape[0] != pmf.shape[0] else torch.argmax(pmf)
                 for pmf in probas
             ]
         )
@@ -182,8 +182,7 @@ class Trainer(nn.Module):
     ) -> TensorType["1"]:
         choices = self.break_ties(probas)
         argmax = np.where(choices == 0, 1, 0)
-        acc = argmax.mean() if batching else argmax.tolist()
-        return acc
+        return argmax.mean() if batching else argmax.tolist()
 
     @staticmethod
     def sumexp(sims: List[TensorType["b"]]) -> TensorType["b"]:

@@ -172,7 +172,7 @@ class Trainer(nn.Module):
     def break_ties(probas: TensorType["b", "k"]) -> TensorType["b"]:
         return torch.tensor(
             [
-                -1 if torch.unique(pmf.round(decimals=2)).shape[0] != pmf.shape[0] else torch.argmax(pmf)
+                -1 if (torch.unique(pmf).shape[0] != pmf.shape[0] or torch.unique(pmf.round(decimals=2)).shape[0] == 1) else torch.argmax(pmf)
                 for pmf in probas
             ]
         )

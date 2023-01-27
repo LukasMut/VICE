@@ -39,7 +39,7 @@ def parseargs():
         help="number of triplets in each mini-batch")
     aa("--mixture", type=str, default="gaussian",
         choices=["gaussian", "laplace"],
-        help="whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior"
+        help="whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior")
     aa("--mc_samples", type=int, default=25,
         choices=[5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
         help="number of weight samples to use for MC sampling at inference time")

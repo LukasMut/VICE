@@ -23,19 +23,12 @@
 If you use this GitHub repository (or any modules associated with it), we would appreciate to cite our NeurIPS [publication](https://arxiv.org/abs/2205.00756) as follows:
 
 ```latex
-@article{Muttenthaler2022,
-       author = {{Muttenthaler}, Lukas and {Zheng}, Charles Y. and {McClure}, Patrick and {Vandermeulen}, Robert A. and {Hebart}, Martin N. and {Pereira}, Francisco},
-        title = {{VICE}: {V}ariational {I}nterpretable {C}oncept {E}mbeddings},
-      journal = {arXiv e-prints},
-     keywords = {Computer Science - Machine Learning, Statistics - Applications, Statistics - Machine Learning},
-         year = {2022},
-          eid = {arXiv:2205.00756},
-        pages = {arXiv:2205.00756},
-archivePrefix = {arXiv},
-       eprint = {2205.00756},
- primaryClass = {cs.LG},
-       adsurl = {https://ui.adsabs.harvard.edu/abs/2022arXiv220500756M},
-      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+@inproceedings{muttenthaler2022vice,
+  title={{VICE}: {V}ariational {I}nterpretable {C}oncept {E}mbeddings},
+  author={Muttenthaler, Lukas and Zheng, Charles Yang and McClure, Patrick and Vandermeulen, Robert A and Hebart, Martin N and Pereira, Francisco},
+  booktitle={Advances in Neural Information Processing Systems},
+  year={2022},
+  volume={35},
 }
 ```
 

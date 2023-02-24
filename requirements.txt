@@ -7,7 +7,7 @@ tqdm==4.47.0
 scikit-image==0.16.*
 numba==0.53.*
 seaborn==0.11.*
-scikit-learn==0.24.2
+scikit-learn==0.24.*
 statsmodels==0.12.*
 functorch==0.2.*
 torchtyping

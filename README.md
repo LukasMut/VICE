@@ -21,9 +21,11 @@
 
 # VICE: Variational Interpretable Concept Embeddings
 
-## Citation
 
-If you use this GitHub repository (or any modules associated with it), we would appreciate to cite our NeurIPS [publication](https://arxiv.org/abs/2205.00756) as follows:
+<!-- Citation -->
+## :page_with_curl: Citation
+
+If you use this GitHub repository (or any modules associated with it), we would appreciate to cite our [NeurIPS publication](https://arxiv.org/abs/2205.00756) as follows:
 
 ```latex
 @inproceedings{muttenthaler2022vice,
@@ -35,7 +37,8 @@ If you use this GitHub repository (or any modules associated with it), we would 
 }
 ```
 
-### Environment setup and dependencies
+<!-- Setting up your environment -->
+### :computer: Setting up your environment
 
 Before using `VICE`, we recommend to create a virtual environment (e.g., `vice`), including all dependencies, via `conda`
 

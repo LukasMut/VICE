@@ -5,6 +5,9 @@
     <a href="https://codecov.io/gh/LukasMut/VICE" rel="nofollow">
         <img src="https://codecov.io/gh/LukasMut/VICE/branch/main/graph/badge.svg?token=gntaL1yrXI" alt="Code coverage" />
     </a>
+    <a href="https://gist.github.com/cheerfulstoic/d107229326a01ff0f333a1d3476e068d" rel="nofollow">
+        <img src="https://img.shields.io/badge/maintenance-yes-brightgreen.svg" alt="Maintenance" />
+    </a>
     <a href="https://github.com/LukasMut/VICE/blob/main" rel="nofollow">
         <img src="https://img.shields.io/badge/python-3.7%20%7C%203.8%20%7C%203.9-blue.svg" alt="PyPI" />
     </a>

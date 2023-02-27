@@ -90,7 +90,7 @@ class VICETestCase(unittest.TestCase):
                 triplets=subsample,
                 n_objects=M,
                 )
-            batches = utils.get_batches(
+            batches = helper.get_batches(
                 triplets=triplets,
                 batch_size=batch_size,
                 train=False,
@@ -155,8 +155,9 @@ class VICETestCase(unittest.TestCase):
             # get detached model parameters at initilization / start of training
             params_init = copy.deepcopy(vice.detached_params)
             # create triplet data
-            train_triplets, val_triplets = helper.create_train_test_split(triplets)
-
+            train_triplets, val_triplets = helper.create_train_test_split(
+                triplets
+            )
             train_triplets = TripletData(
             triplets=train_triplets,
             n_objects=hypers["M"],
@@ -165,12 +166,12 @@ class VICETestCase(unittest.TestCase):
                 triplets=val_triplets,
                 n_objects=hypers["M"],
             )
-            train_batches = utils.get_batches(
+            train_batches = helper.get_batches(
                 triplets=train_triplets,
                 batch_size=hypers["batch_size"],
                 train=True,
             )
-            val_batches = utils.get_batches(
+            val_batches = helper.get_batches(
                 triplets=val_triplets,
                 batch_size=hypers["batch_size"],
                 train=False,

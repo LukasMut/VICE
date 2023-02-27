@@ -5,7 +5,7 @@ import os
 import pickle
 from collections import defaultdict
 from functools import partial
-from typing import Dict, Iterator, Tuple
+from typing import Dict, Tuple
 
 import numpy as np
 import pandas as pd
@@ -14,7 +14,6 @@ import torch
 from scipy.stats import norm
 from skimage.transform import resize
 from statsmodels.stats.multitest import multipletests
-from torch.utils.data import DataLoader
 
 Tensor = torch.Tensor
 Array = np.ndarray
@@ -89,28 +88,11 @@ def load_data(
 
 
 def get_nobjects(train_triplets: Tensor) -> int:
-    # number of unique items in the data matrix
+    """Get number of unique items in the data."""
     n_objects = torch.max(train_triplets).item()
     if torch.min(train_triplets).item() == 0:
         n_objects += 1
     return n_objects
-
-
-def get_batches(triplets: Array, batch_size: int, train: bool) -> Iterator:
-    dl = DataLoader(
-        dataset=triplets,
-        batch_size=batch_size,
-        shuffle=True if train else False,
-        num_workers=0,
-        drop_last=False,
-        pin_memory=True if train else False,
-    )
-    return dl
-
-
-################################################
-######### helper functions for evaluation ######
-################################################
 
 
 def instance_sampling(probas: Array) -> Array:

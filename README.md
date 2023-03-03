@@ -89,12 +89,12 @@ root
 ├── get_embeddings.sh
 ├── create_things_splits.py
 ├── find_best_hypers.py
-├── main_robustness_eval.py
 ├── main_inference.py
+├── main_optimization.py
+├── main_robustness_eval.py
+├── main_tripletize.py
 ├── partition_triplets.py
 ├── requirements.txt
-├── main_optimization.py
-├── main_tripletize.py
 ├── utils.py
 └── visualization.py
 ```

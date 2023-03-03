@@ -73,13 +73,13 @@ root
 ├── data
 ├── ├── __init__.py
 ├── ├── files/*tsv
-├── └── dataset.py
+├── └── triplet_dataset.py
 ├── optimization
 ├── ├── __init__.py
-├── ├── triplet_loss.py
 ├── ├── priors.py
-├── ├── vice.py
-├── └── trainer.py
+├── ├── triplet_loss.py
+├── ├── trainer.py
+├── └── Vice.py
 ├── embeddings
 ├── ├── things
 ├── ├── ├── final_embedding.npy

@@ -94,7 +94,6 @@ root
 ├── partition_triplets.py
 ├── requirements.txt
 ├── main_optimization.py
-├── train.py
 ├── main_tripletize.py
 ├── utils.py
 └── visualization.py

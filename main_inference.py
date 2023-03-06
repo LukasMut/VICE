@@ -204,7 +204,7 @@ def inference(
         dataset=val_triplets,
         batch_size=batch_size,
         shuffle=False,
-        num_workers=num_workers,
+        num_workers=0,
         drop_last=False,
         pin_memory=False,
     )
@@ -212,7 +212,7 @@ def inference(
         dataset=test_triplets,
         batch_size=batch_size,
         shuffle=False,
-        num_workers=num_workers,
+        num_workers=0,
         drop_last=False,
         pin_memory=False,
     )

@@ -14,6 +14,7 @@ import torch
 import optimization
 import utils
 from data import TripletData
+from torch.utils.data import DataLoader
 
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -199,15 +200,21 @@ def inference(
         triplets=test_triplets,
         n_objects=n_objects,
     )
-    val_batches = utils.get_batches(
-        triplets=val_triplets,
+    val_batches = DataLoader(
+        dataset=val_triplets,
         batch_size=batch_size,
-        train=False,
+        shuffle=False,
+        num_workers=num_workers,
+        drop_last=False,
+        pin_memory=False,
     )
-    test_batches = utils.get_batches(
-        triplets=test_triplets,
+    test_batches = DataLoader(
+        dataset=test_triplets,
         batch_size=batch_size,
-        train=False,
+        shuffle=False,
+        num_workers=num_workers,
+        drop_last=False,
+        pin_memory=False,
     )
     print(f"\nNumber of validation batches in current process: {len(val_batches)}\n")
     print(f"Number of test batches in current process: {len(test_batches)}\n")

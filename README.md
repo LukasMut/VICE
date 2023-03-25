@@ -28,12 +28,13 @@
 If you use this GitHub repository (or any modules associated with it), we would appreciate to cite our [NeurIPS publication](https://arxiv.org/abs/2205.00756) as follows:
 
 ```latex
-@inproceedings{muttenthaler2022vice,
-  title={{VICE}: {V}ariational {I}nterpretable {C}oncept {E}mbeddings},
-  author={Muttenthaler, Lukas and Zheng, Charles Yang and McClure, Patrick and Vandermeulen, Robert A and Hebart, Martin N and Pereira, Francisco},
-  booktitle={Advances in Neural Information Processing Systems},
-  year={2022},
+@article{muttenthaler2022vice,
+  title={VICE: Variational Interpretable Concept Embeddings},
+  author={Muttenthaler, Lukas and Zheng, Charles Y and McClure, Patrick and Vandermeulen, Robert A and Hebart, Martin N and Pereira, Francisco},
+  journal={Advances in Neural Information Processing Systems},
   volume={35},
+  pages={33661--33675},
+  year={2022}
 }
 ```
 

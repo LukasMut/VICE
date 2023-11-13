@@ -10,11 +10,12 @@ from typing import List
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 import optimization
 import utils
 from data import TripletData
-from torch.utils.data import DataLoader
 
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -29,25 +30,52 @@ def parseargs():
     def aa(*args, **kwargs):
         parser.add_argument(*args, **kwargs)
 
-    aa('--task', type=str, default='odd-one-out',
-       choices=['odd-one-out', 'target-matching'],
-       help='whether to perform an odd-one-out (no anchor) or pair-matching (anchor) triplet task')
-    aa("--n_objects", type=int, default=1854,
-        help="number of unique items/objects/stimuli in dataset")
-    aa("--init_dim", type=int, default=100,
-        help="initial dimensionality of the VICE latent space")
-    aa("--batch_size", metavar="B", type=int, default=128,
-        help="number of triplets in each mini-batch")
-    aa("--mixture", type=str, default="gaussian",
+    aa(
+        "--task",
+        type=str,
+        default="odd-one-out",
+        choices=["odd-one-out", "target-matching"],
+        help="whether to perform an odd-one-out (no anchor) or pair-matching (anchor) triplet task",
+    )
+    aa(
+        "--n_objects",
+        type=int,
+        default=1854,
+        help="number of unique items/objects/stimuli in dataset",
+    )
+    aa(
+        "--init_dim",
+        type=int,
+        default=100,
+        help="initial dimensionality of the VICE latent space",
+    )
+    aa(
+        "--batch_size",
+        metavar="B",
+        type=int,
+        default=128,
+        help="number of triplets in each mini-batch",
+    )
+    aa(
+        "--mixture",
+        type=str,
+        default="gaussian",
         choices=["gaussian", "laplace"],
-        help="whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior")
-    aa("--mc_samples", type=int, default=25,
+        help="whether to use a mixture of Gaussians or Laplacians for the spike-and-slab prior",
+    )
+    aa(
+        "--mc_samples",
+        type=int,
+        default=25,
         choices=[5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
-        help="number of weight samples to use for MC sampling at inference time")
-    aa("--results_dir", type=str,
-        help="results directory (root directory for models)")
-    aa("--triplets_dir", type=str, 
-        help="directory from where to load validation and held-out test set")
+        help="number of weight samples to use for MC sampling at inference time",
+    )
+    aa("--results_dir", type=str, help="results directory (root directory for models)")
+    aa(
+        "--triplets_dir",
+        type=str,
+        help="directory from where to load validation and held-out test set",
+    )
     aa("--device", type=str, default="cpu", choices=["cpu", "cuda"])
     aa("--rnd_seed", type=int, default=42, help="random seed for reproducibility")
     args = parser.parse_args()
@@ -140,9 +168,9 @@ def get_models(
             epochs=None,
             mc_samples=mc_samples,
             mixture=mixture,
-            spike=1.,
-            slab=1.,
-            pi=1.,
+            spike=1.0,
+            slab=1.0,
+            pi=1.0,
             steps=None,
             model_dir=None,
             results_dir=results_dir,
@@ -170,7 +198,6 @@ def inference(
     triplets_dir: str,
     device: torch.device,
 ) -> None:
-
     in_path = os.path.join(results_dir, f"{init_dim}d")
     vice_paths = get_model_paths(in_path)
     seeds, vice_models = zip(
@@ -225,7 +252,9 @@ def inference(
     vice_choices = {}
     vice_pmfs_all = defaultdict(dict)
 
-    for seed, vice, vice_path in zip(seeds, vice_models, vice_paths):
+    for seed, vice, vice_path in tqdm(
+        zip(seeds, vice_models, vice_paths), desc="Models"
+    ):
         pruned_vice = pruning(vice)
         val_loss, _ = pruned_vice.evaluate(val_batches)
         test_acc, test_loss, probas, vice_pmfs, triplet_choices = pruned_vice.inference(
@@ -237,12 +266,15 @@ def inference(
         vice_pmfs_all[seed] = vice_pmfs
         vice_choices[seed] = triplet_choices
 
-        print(f"Test accuracy for current random seed: {test_acc}\n")
+        print(f"\nTest accuracy for current random seed: {test_acc}")
+        print(f"Test loss for current random seed: {test_loss}\n")
 
         with open(os.path.join(vice_path, "test_probas.npy"), "wb") as f:
             np.save(f, probas)
 
-    seeds, _ = zip(*sorted(val_losses.items(), key=lambda kv: kv[1], reverse=False))
+    seeds, losses = zip(*sorted(val_losses.items(), key=lambda kv: kv[1], reverse=False))
+    print(f"\nRandom seeds: {seeds}")
+    print(f"Validation losses: {losses}\n")
     median_model = seeds[int(len(seeds) // 2) - 1]
     test_accs_ = list(test_accs.values())
     avg_test_acc = np.mean(test_accs_)
@@ -259,6 +291,9 @@ def inference(
     # sort accuracies in ascending order and cross-entropy errors in descending order
     test_accs = dict(sorted(test_accs.items(), key=lambda kv: kv[1], reverse=False))
     test_losses = dict(sorted(test_losses.items(), key=lambda kv: kv[1], reverse=True))
+    print(f"\nTest accuracies: {test_accs})")
+    print(f"Test losses: {test_losses}\n")
+    
     # NOTE: we leverage the model that is slightly better than the median model (since we have 20 random seeds, the median is the average between model 10 and 11)
     # median_model = list(test_losses.keys())[int(len(test_losses)//2)-1]
     median_model_pmfs = vice_pmfs_all[median_model]

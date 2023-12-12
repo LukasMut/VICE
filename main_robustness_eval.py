@@ -15,6 +15,7 @@ import torch
 import optimization
 import utils
 from data import TripletData
+from torch.utils.data import DataLoader
 
 os.environ["PYTHONIOENCODING"] = "UTF-8"
 # number of cores used per Python process (set to 2 if HT is enabled, else keep 1)
@@ -234,8 +235,13 @@ def evaluate_models(
     val_triplets = TripletData(
             triplets=val_triplets, n_objects=n_objects,
     )
-    val_batches = utils.get_batches(
-        triplets=val_triplets, batch_size=batch_size, train=False,
+    val_batches = DataLoader(
+        dataset=val_triplets,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=0,
+        drop_last=False,
+        pin_memory=False,
     )
     locs, pruned_locs, pruned_scales = [], [], []
     val_losses = np.zeros(len(model_paths), dtype=np.float32)

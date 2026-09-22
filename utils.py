@@ -5,7 +5,7 @@ import os
 import pickle
 from collections import defaultdict
 from functools import partial
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -15,8 +15,18 @@ from scipy.stats import norm
 from skimage.transform import resize
 from statsmodels.stats.multitest import multipletests
 
+import duplicate_stats
+
 Tensor = torch.Tensor
 Array = np.ndarray
+
+# Re-exported so utils.<name> keeps working. These bind the original objects
+# rather than wrapping them: warn_on_duplicates reports the caller of load_data
+# via stacklevel, and an extra forwarding frame would shift it by one.
+DuplicateReport = duplicate_stats.DuplicateReport
+DuplicateTripletsWarning = duplicate_stats.DuplicateTripletsWarning
+count_duplicates = duplicate_stats.count_duplicates
+warn_on_duplicates = duplicate_stats.warn_on_duplicates
 
 
 def pickle_file(file: dict, out_path: str, file_name: str) -> None:
@@ -44,13 +54,33 @@ def load_ref_images(img_folder: str, item_names: Array) -> Array:
     return ref_images
 
 
+def infer_nobjects(*triplets: Tensor) -> Optional[int]:
+    """Infer the number of objects from every triplet tensor that was loaded.
+
+    Pooling the splits matters: deriving M from a small validation split alone
+    would shrink C(M, 3) and silently suppress duplicate warnings on it.
+    Returns None when nothing usable was loaded, since get_nobjects raises on
+    an empty tensor and a data check must not break the load.
+    """
+    non_empty = [t for t in triplets if t is not None and t.shape[0] > 0]
+    if not non_empty:
+        return None
+    return get_nobjects(torch.cat(non_empty, dim=0))
+
+
 def load_data(
     device: torch.device,
     triplets_dir: str,
     val_set: str = "test_10",
     inference: bool = False,
+    n_objects: Optional[int] = None,
 ) -> Tuple[Tensor]:
-    """Load train and test triplet datasets from disk."""
+    """Load train and test triplet datasets from disk.
+
+    Each file is checked for triplets that repeat more often than the sampling
+    design predicts; see duplicate_stats. Pass n_objects to pin the null's
+    sample space, otherwise it is inferred from the loaded data.
+    """
     if inference:
         with open(
             os.path.join(triplets_dir, "test_triplets.npy"), "rb"
@@ -60,6 +90,9 @@ def load_data(
                 .to(device)
                 .type(torch.LongTensor)
             )
+            if n_objects is None:
+                n_objects = infer_nobjects(test_triplets)
+            warn_on_duplicates(test_triplets, "test_triplets", n_objects)
             return test_triplets
     try:
         with open(os.path.join(triplets_dir, "train_90.npy"), "rb") as train_file:
@@ -84,6 +117,10 @@ def load_data(
             .to(device)
             .type(torch.LongTensor)
         )
+    if n_objects is None:
+        n_objects = infer_nobjects(train_triplets, test_triplets)
+    warn_on_duplicates(train_triplets, "train_90", n_objects)
+    warn_on_duplicates(test_triplets, val_set, n_objects)
     return train_triplets, test_triplets
 
 

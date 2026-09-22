@@ -230,7 +230,7 @@ def evaluate_models(
     )
     model_paths = get_model_paths(in_path)
     _, val_triplets = utils.load_data(
-        device=device, triplets_dir=triplets_dir, inference=False
+        device=device, triplets_dir=triplets_dir, inference=False, n_objects=n_objects
     )
     val_triplets = TripletData(
             triplets=val_triplets, n_objects=n_objects,

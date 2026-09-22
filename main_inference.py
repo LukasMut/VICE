@@ -214,10 +214,10 @@ def inference(
         )
     )
     test_triplets = utils.load_data(
-        device=device, triplets_dir=triplets_dir, inference=True
+        device=device, triplets_dir=triplets_dir, inference=True, n_objects=n_objects
     )
     _, val_triplets = utils.load_data(
-        device=device, triplets_dir=triplets_dir, inference=False
+        device=device, triplets_dir=triplets_dir, inference=False, n_objects=n_objects
     )
     val_triplets = TripletData(
         triplets=val_triplets,
